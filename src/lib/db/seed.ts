@@ -27,6 +27,25 @@ async function seed() {
       targetEbitdaMax: "200000000",
       targetDealSizeMin: "50000000",
       targetDealSizeMax: "500000000",
+      scoringRubric: {
+        dimensions: [
+          { id: "financial_stability", weight: 0.20 },
+          { id: "client_concentration", weight: 0.20 },
+          { id: "technology", weight: 0.15 },
+          { id: "debt_leverage", weight: 0.12 },
+          { id: "business_model", weight: 0.12 },
+          { id: "ai_readiness", weight: 0.10 },
+          { id: "org_complexity", weight: 0.06 },
+          { id: "integration_risk", weight: 0.05 },
+        ],
+        recommendationBands: [
+          { min: 4.0, max: 5.0, label: "Strong Candidate" },
+          { min: 3.5, max: 3.99, label: "Good Candidate" },
+          { min: 3.0, max: 3.49, label: "Acceptable" },
+          { min: 2.5, max: 2.99, label: "Marginal" },
+          { min: 0, max: 2.49, label: "High Risk - Pass" },
+        ],
+      },
     })
     .onConflictDoNothing()
     .returning();

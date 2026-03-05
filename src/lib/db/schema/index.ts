@@ -2,6 +2,7 @@ export * from "./users";
 export * from "./portcos";
 export * from "./deals";
 export * from "./deal-tasks";
+export * from "./deal-red-flags";
 export * from "./brokers";
 export * from "./files";
 export * from "./profiles";

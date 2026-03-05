@@ -1,0 +1,160 @@
+import { notFound } from "next/navigation";
+import { db } from "@/lib/db";
+import { deals, companyProfiles } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScoringBreakdown } from "@/components/deals/scoring-breakdown";
+import { SCORING_DIMENSIONS } from "@/lib/scoring/rubric";
+
+export default async function ProfilePage({
+  params,
+}: {
+  params: Promise<{ portcoSlug: string; dealId: string }>;
+}) {
+  const { dealId } = await params;
+
+  const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
+  if (!deal) notFound();
+
+  const [profile] = await db
+    .select()
+    .from(companyProfiles)
+    .where(eq(companyProfiles.dealId, dealId))
+    .limit(1);
+
+  if (!profile) {
+    return (
+      <div className="max-w-2xl">
+        <h2 className="mb-4 text-lg font-semibold">Company Profile</h2>
+        <div className="rounded-md border border-dashed p-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            No AI-generated profile yet. Upload an IM document to generate one automatically.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const strengths = (profile.strengths as string[] | null) ?? [];
+  const keyRisks = (profile.keyRisks as string[] | null) ?? [];
+
+  // Build dimension scores from the stored scoring breakdown
+  let dimensionScores: Record<string, number> | null = null;
+  if (profile.scoringBreakdown) {
+    const breakdown = profile.scoringBreakdown as Record<string, number>;
+    const scores: Record<string, number> = {};
+    for (const dim of SCORING_DIMENSIONS) {
+      if (breakdown[dim.id] !== undefined) {
+        scores[dim.id] = breakdown[dim.id];
+      }
+    }
+    if (Object.keys(scores).length > 0) {
+      dimensionScores = scores;
+    }
+  }
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Company Profile</h2>
+        {profile.aiOverallScore && (
+          <Badge variant="secondary" className="text-sm">
+            AI Score: {Number(profile.aiOverallScore).toFixed(1)} / 5.0
+          </Badge>
+        )}
+      </div>
+
+      {profile.summary && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm whitespace-pre-wrap">{profile.summary}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* IM Scoring Breakdown */}
+      {dimensionScores && (
+        <ScoringBreakdown
+          scores={dimensionScores}
+          overallScore={profile.aiOverallScore ? Number(profile.aiOverallScore) : null}
+        />
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {profile.businessModel && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Business Model</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm whitespace-pre-wrap">{profile.businessModel}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {profile.marketPosition && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Market Position</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm whitespace-pre-wrap">{profile.marketPosition}</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {strengths.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Strengths</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pl-4 space-y-1">
+              {strengths.map((s, i) => (
+                <li key={i} className="text-sm">{s}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {keyRisks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Key Risks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc pl-4 space-y-1">
+              {keyRisks.map((r, i) => (
+                <li key={i} className="text-sm">{r}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {profile.industryTrends && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Industry Trends</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm whitespace-pre-wrap">{profile.industryTrends}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <p className="text-xs text-muted-foreground">
+        {profile.generatedAt
+          ? `Generated ${new Date(profile.generatedAt).toLocaleString()}`
+          : ""}
+        {profile.modelVersion ? ` | Model: ${profile.modelVersion}` : ""}
+      </p>
+    </div>
+  );
+}
