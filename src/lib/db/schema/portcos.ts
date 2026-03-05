@@ -23,6 +23,7 @@ export const portcos = pgTable("portcos", {
   gdriveServiceAccountEnc: text("gdrive_service_account_enc"),
   slackWebhookUrl: text("slack_webhook_url"),
   slackChannelId: text("slack_channel_id"),
+  allowedDomains: jsonb("allowed_domains").$type<{ domain: string; defaultRole: "owner" | "admin" | "analyst" | "viewer" }[]>(),
   settings: jsonb("settings"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

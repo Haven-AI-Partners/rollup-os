@@ -47,12 +47,40 @@ export default async function HomePage() {
       .returning();
   }
 
-  const [firstMembership] = await db
+  let [firstMembership] = await db
     .select({ slug: portcos.slug })
     .from(portcoMemberships)
     .innerJoin(portcos, eq(portcoMemberships.portcoId, portcos.id))
     .where(eq(portcoMemberships.userId, dbUser.id))
     .limit(1);
+
+  // Auto-join portcos by email domain if user has no memberships yet
+  if (!firstMembership) {
+    const emailDomain = dbUser.email.split("@")[1];
+    if (emailDomain) {
+      const allPortcos = await db.select().from(portcos);
+      for (const portco of allPortcos) {
+        const allowed = portco.allowedDomains as
+          | { domain: string; defaultRole: string }[]
+          | null;
+        const match = allowed?.find((d) => d.domain === emailDomain);
+        if (match) {
+          await db
+            .insert(portcoMemberships)
+            .values({
+              userId: dbUser.id,
+              portcoId: portco.id,
+              role: (match.defaultRole as "owner" | "admin" | "analyst" | "viewer") ?? "analyst",
+            })
+            .onConflictDoNothing();
+
+          if (!firstMembership) {
+            firstMembership = { slug: portco.slug };
+          }
+        }
+      }
+    }
+  }
 
   if (firstMembership) {
     redirect(`/${firstMembership.slug}/dashboard`);
