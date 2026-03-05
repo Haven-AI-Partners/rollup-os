@@ -19,77 +19,80 @@ export default async function DashboardPage({
     notFound();
   }
 
-  // Pipeline snapshot
-  const pipelineStats = await db
-    .select({
-      stageName: pipelineStages.name,
-      stageColor: pipelineStages.color,
-      phase: pipelineStages.phase,
-      dealCount: count(deals.id),
-    })
-    .from(pipelineStages)
-    .leftJoin(
-      deals,
-      and(
-        eq(deals.stageId, pipelineStages.id),
-        eq(deals.status, "active")
+  // Run all independent queries in parallel
+  const [pipelineStats, [financialAgg], acquisitions, teamMembers] = await Promise.all([
+    // Pipeline snapshot
+    db
+      .select({
+        stageName: pipelineStages.name,
+        stageColor: pipelineStages.color,
+        phase: pipelineStages.phase,
+        dealCount: count(deals.id),
+      })
+      .from(pipelineStages)
+      .leftJoin(
+        deals,
+        and(
+          eq(deals.stageId, pipelineStages.id),
+          eq(deals.status, "active")
+        )
       )
-    )
-    .where(eq(pipelineStages.portcoId, portco.id))
-    .groupBy(pipelineStages.id, pipelineStages.name, pipelineStages.color, pipelineStages.phase, pipelineStages.position)
-    .orderBy(pipelineStages.position);
+      .where(eq(pipelineStages.portcoId, portco.id))
+      .groupBy(pipelineStages.id, pipelineStages.name, pipelineStages.color, pipelineStages.phase, pipelineStages.position)
+      .orderBy(pipelineStages.position),
+
+    // Aggregate financials for closed deals
+    db
+      .select({
+        totalRevenue: sum(dealFinancials.revenue),
+        totalEbitda: sum(dealFinancials.ebitda),
+        totalPurchasePrice: sum(dealFinancials.purchasePrice),
+        snapshotCount: count(dealFinancials.id),
+      })
+      .from(dealFinancials)
+      .innerJoin(deals, eq(dealFinancials.dealId, deals.id))
+      .where(
+        and(
+          eq(dealFinancials.portcoId, portco.id),
+          eq(deals.status, "closed_won")
+        )
+      ),
+
+    // Closed acquisitions for leaderboard
+    db
+      .select({
+        dealId: deals.id,
+        companyName: deals.companyName,
+        industry: deals.industry,
+        revenue: deals.revenue,
+        ebitda: deals.ebitda,
+        closedAt: deals.closedAt,
+      })
+      .from(deals)
+      .where(
+        and(
+          eq(deals.portcoId, portco.id),
+          eq(deals.status, "closed_won")
+        )
+      )
+      .orderBy(sql`${deals.ebitda} DESC NULLS LAST`)
+      .limit(10),
+
+    // Team members
+    db
+      .select({
+        userId: users.id,
+        fullName: users.fullName,
+        email: users.email,
+        avatarUrl: users.avatarUrl,
+        role: portcoMemberships.role,
+      })
+      .from(portcoMemberships)
+      .innerJoin(users, eq(portcoMemberships.userId, users.id))
+      .where(eq(portcoMemberships.portcoId, portco.id)),
+  ]);
 
   const totalActiveDeals = pipelineStats.reduce((sum, s) => sum + Number(s.dealCount), 0);
-
-  // Aggregate financials for closed deals
-  const [financialAgg] = await db
-    .select({
-      totalRevenue: sum(dealFinancials.revenue),
-      totalEbitda: sum(dealFinancials.ebitda),
-      totalPurchasePrice: sum(dealFinancials.purchasePrice),
-      snapshotCount: count(dealFinancials.id),
-    })
-    .from(dealFinancials)
-    .innerJoin(deals, eq(dealFinancials.dealId, deals.id))
-    .where(
-      and(
-        eq(dealFinancials.portcoId, portco.id),
-        eq(deals.status, "closed_won")
-      )
-    );
-
-  // Closed acquisitions for leaderboard
-  const acquisitions = await db
-    .select({
-      dealId: deals.id,
-      companyName: deals.companyName,
-      industry: deals.industry,
-      revenue: deals.revenue,
-      ebitda: deals.ebitda,
-      closedAt: deals.closedAt,
-    })
-    .from(deals)
-    .where(
-      and(
-        eq(deals.portcoId, portco.id),
-        eq(deals.status, "closed_won")
-      )
-    )
-    .orderBy(sql`${deals.ebitda} DESC NULLS LAST`)
-    .limit(10);
-
-  // Team members
-  const teamMembers = await db
-    .select({
-      userId: users.id,
-      fullName: users.fullName,
-      email: users.email,
-      avatarUrl: users.avatarUrl,
-      role: portcoMemberships.role,
-    })
-    .from(portcoMemberships)
-    .innerJoin(users, eq(portcoMemberships.userId, users.id))
-    .where(eq(portcoMemberships.portcoId, portco.id));
 
   const focusAreas = (portco.focusAreas as string[] | null) ?? [];
   const targetGeo = (portco.targetGeography as string[] | null) ?? [];

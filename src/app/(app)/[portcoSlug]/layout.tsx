@@ -32,13 +32,22 @@ export default async function PortcoLayout({
     redirect("/sign-in");
   }
 
-  // Get the requested portco
-  const [currentPortco] = await db
-    .select()
-    .from(portcos)
-    .where(eq(portcos.slug, portcoSlug))
-    .limit(1);
+  // Get portco, membership, and switcher data in parallel
+  const [portcoResult, userPortcos] = await Promise.all([
+    db.select().from(portcos).where(eq(portcos.slug, portcoSlug)).limit(1),
+    db
+      .select({
+        id: portcos.id,
+        name: portcos.name,
+        slug: portcos.slug,
+        industry: portcos.industry,
+      })
+      .from(portcoMemberships)
+      .innerJoin(portcos, eq(portcoMemberships.portcoId, portcos.id))
+      .where(eq(portcoMemberships.userId, dbUser.id)),
+  ]);
 
+  const currentPortco = portcoResult[0];
   if (!currentPortco) {
     notFound();
   }
@@ -58,18 +67,6 @@ export default async function PortcoLayout({
   if (!membership) {
     notFound();
   }
-
-  // Get all portcos for the switcher
-  const userPortcos = await db
-    .select({
-      id: portcos.id,
-      name: portcos.name,
-      slug: portcos.slug,
-      industry: portcos.industry,
-    })
-    .from(portcoMemberships)
-    .innerJoin(portcos, eq(portcoMemberships.portcoId, portcos.id))
-    .where(eq(portcoMemberships.userId, dbUser.id));
 
   return (
     <SidebarProvider>
