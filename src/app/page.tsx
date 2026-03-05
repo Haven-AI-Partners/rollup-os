@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { users, portcoMemberships, portcos } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -11,14 +11,40 @@ export default async function HomePage() {
     redirect("/sign-in");
   }
 
-  const [dbUser] = await db
+  // Find or create the DB user (handles case where webhook hasn't fired yet)
+  let [dbUser] = await db
     .select()
     .from(users)
     .where(eq(users.clerkId, clerkId))
     .limit(1);
 
   if (!dbUser) {
-    redirect("/sign-in");
+    const clerkUser = await currentUser();
+    if (!clerkUser) {
+      redirect("/sign-in");
+    }
+
+    const email = clerkUser.emailAddresses[0]?.emailAddress;
+    if (!email) {
+      redirect("/sign-in");
+    }
+
+    const fullName =
+      [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || null;
+
+    [dbUser] = await db
+      .insert(users)
+      .values({
+        clerkId: clerkUser.id,
+        email,
+        fullName,
+        avatarUrl: clerkUser.imageUrl,
+      })
+      .onConflictDoUpdate({
+        target: users.clerkId,
+        set: { email, fullName, avatarUrl: clerkUser.imageUrl, updatedAt: new Date() },
+      })
+      .returning();
   }
 
   const [firstMembership] = await db
