@@ -13,8 +13,8 @@ async function seed() {
   const [samplePortco] = await db
     .insert(portcos)
     .values({
-      name: "Haven Capital",
-      slug: "haven-capital",
+      name: "Haven AI Partners",
+      slug: "haven-ai-partners",
       description: "Japan-focused M&A rollup targeting SMB services businesses",
       industry: "Business Services",
       focusAreas: ["IT Services", "HR Services", "Facility Management"],
