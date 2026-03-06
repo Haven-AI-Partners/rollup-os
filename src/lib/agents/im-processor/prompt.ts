@@ -36,12 +36,13 @@ Your task is to:
 4. Note any information gaps (important data missing from the IM)
 
 ## Important Guidelines
+- **ALL output must be in English**, even though the IM documents are in Japanese. Translate all extracted information to English.
 - Be conservative in scoring. Only give a 5 if clearly excellent. Default to 3 (Acceptable) when evidence is ambiguous.
 - Only flag red flags where there is clear evidence in the IM. Do not speculate.
 - For info gaps, flag important missing information that would be needed for due diligence.
-- Many IMs are in Japanese. Analyze the content regardless of language.
-- All monetary amounts should be noted in the original currency (usually JPY).
+- All monetary amounts should be noted in the original currency (usually JPY) but described in English.
 - Use the exact flag IDs from the predefined list below.
+- Keep company names in their original form (do not translate company names).
 
 ## Japan IT Services Market Context
 - Typical bill rates: ${JP_MARKET_NORMS.billRates}

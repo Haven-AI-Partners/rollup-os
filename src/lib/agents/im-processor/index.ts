@@ -1,5 +1,5 @@
-import { streamObject } from "ai";
-import { moonshotai } from "@ai-sdk/moonshotai";
+import { generateObject } from "ai";
+import { google } from "@ai-sdk/google";
 import { db } from "@/lib/db";
 import { companyProfiles, dealRedFlags, files, deals, pipelineStages } from "@/lib/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
@@ -9,7 +9,7 @@ import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
 import { buildSystemPrompt } from "./prompt";
 import { imAnalysisSchema, type IMAnalysisResult } from "./schema";
 
-const MODEL_ID = "kimi-latest";
+export const MODEL_ID = "gemini-2.5-flash";
 const MAX_TEXT_CHARS = 100_000; // ~25k tokens, keeps memory and cost manageable
 
 interface ProcessIMInput {
@@ -63,17 +63,17 @@ async function getFileText(portcoId: string, gdriveFileId: string): Promise<stri
   return extractPdfText(buffer);
 }
 
-/** Run the IM analysis with streaming to reduce memory usage */
+/** Run the IM analysis */
 async function analyzeIM(text: string): Promise<IMAnalysisResult> {
-  const result = streamObject({
-    model: moonshotai(MODEL_ID),
+  const { object } = await generateObject({
+    model: google(MODEL_ID),
     schema: imAnalysisSchema,
     system: buildSystemPrompt(),
     prompt: `Analyze the following Information Memorandum:\n\n${text}`,
     temperature: 0.1,
   });
 
-  return result.object;
+  return object;
 }
 
 /** Store analysis results in the database */
@@ -218,6 +218,16 @@ async function getDefaultStageId(portcoId: string): Promise<string> {
   throw new Error("No pipeline stages found for this portco");
 }
 
+/** Try to extract a numeric value from a string like "250,000,000" or "250000000". Returns null for non-numeric text. */
+function parseNumericValue(value: string | null | undefined): string | null {
+  if (!value) return null;
+  // Strip commas, spaces, yen signs, dollar signs
+  const cleaned = value.replace(/[,\s¥$￥]/g, "");
+  // Only attempt parse if the string is mostly digits (allow leading minus and decimal point)
+  if (!/^-?\d+(\.\d+)?$/.test(cleaned)) return null;
+  return cleaned;
+}
+
 /** Create a deal from IM analysis results */
 async function createDealFromAnalysis(
   portcoId: string,
@@ -236,11 +246,14 @@ async function createDealFromAnalysis(
       source: "agent_scraped" as const,
       location: analysis.companyProfile.location ?? null,
       industry: analysis.companyProfile.industry ?? null,
-      askingPrice: analysis.companyProfile.askingPrice ?? null,
+      askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
       employeeCount: fin.employeeCount ?? null,
       status: "active",
       kanbanPosition: 0,
-      metadata: { gdriveSourceFileId: gdriveFileId },
+      metadata: {
+        gdriveSourceFileId: gdriveFileId,
+        askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
+      },
     })
     .returning({ id: deals.id });
 

@@ -1,5 +1,5 @@
 import { task, logger, metadata } from "@trigger.dev/sdk";
-import { processIM, scanAndProcessFolder, reprocessAllFiles, processSingleGdriveFile } from "@/lib/agents/im-processor";
+import { processIM, scanAndProcessFolder, reprocessAllFiles, processSingleGdriveFile, MODEL_ID } from "@/lib/agents/im-processor";
 
 /** Process a single IM file */
 export const processIMTask = task({
@@ -72,7 +72,7 @@ export const processGdriveFileTask = task({
     sizeBytes: number | null;
     webViewLink: string | null;
   }) => {
-    logger.info("Processing single GDrive file", { fileName: payload.fileName, gdriveFileId: payload.gdriveFileId });
+    logger.info("Processing single GDrive file", { fileName: payload.fileName, gdriveFileId: payload.gdriveFileId, model: MODEL_ID });
 
     const result = await processSingleGdriveFile(payload, (step) => {
       metadata.set("step", step);
