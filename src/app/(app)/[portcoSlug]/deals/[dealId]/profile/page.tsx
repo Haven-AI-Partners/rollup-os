@@ -39,18 +39,26 @@ export default async function ProfilePage({
   const strengths = (profile.strengths as string[] | null) ?? [];
   const keyRisks = (profile.keyRisks as string[] | null) ?? [];
 
-  // Build dimension scores from the stored scoring breakdown
+  // Build dimension scores and rationales from the stored scoring breakdown
   let dimensionScores: Record<string, number> | null = null;
+  let dimensionRationales: Record<string, string> | null = null;
   if (profile.scoringBreakdown) {
-    const breakdown = profile.scoringBreakdown as Record<string, number>;
+    const breakdown = profile.scoringBreakdown as Record<string, number | { score: number; rationale: string }>;
     const scores: Record<string, number> = {};
+    const rationales: Record<string, string> = {};
     for (const dim of SCORING_DIMENSIONS) {
-      if (breakdown[dim.id] !== undefined) {
-        scores[dim.id] = breakdown[dim.id];
+      const entry = breakdown[dim.id];
+      if (entry === undefined) continue;
+      if (typeof entry === "number") {
+        scores[dim.id] = entry;
+      } else {
+        scores[dim.id] = entry.score;
+        if (entry.rationale) rationales[dim.id] = entry.rationale;
       }
     }
     if (Object.keys(scores).length > 0) {
       dimensionScores = scores;
+      if (Object.keys(rationales).length > 0) dimensionRationales = rationales;
     }
   }
 
@@ -80,6 +88,7 @@ export default async function ProfilePage({
       {dimensionScores && (
         <ScoringBreakdown
           scores={dimensionScores}
+          rationales={dimensionRationales ?? undefined}
           overallScore={profile.aiOverallScore ? Number(profile.aiOverallScore) : null}
         />
       )}

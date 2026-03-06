@@ -8,6 +8,7 @@ import {
   Building2,
   Bot,
   BarChart3,
+  FolderOpen,
   Settings,
 } from "lucide-react";
 import {
@@ -35,6 +36,7 @@ const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { title: "Deals", icon: Kanban, href: "/deals" },
   { title: "Brokers", icon: Building2, href: "/brokers" },
+  { title: "Files", icon: FolderOpen, href: "/files" },
   { title: "Agents", icon: Bot, href: "/agents" },
   { title: "Analytics", icon: BarChart3, href: "/analytics" },
 ];

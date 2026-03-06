@@ -129,6 +129,9 @@ export function RedFlagsPanel({ dealId, portcoId, portcoSlug, initialFlags }: Re
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium">{def?.title ?? flag.flagId}</p>
                 <p className="text-[10px] text-muted-foreground">{def?.description ?? ""}</p>
+                {flag.notes && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5 italic">{flag.notes}</p>
+                )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <Badge variant="outline" className="text-[10px]">

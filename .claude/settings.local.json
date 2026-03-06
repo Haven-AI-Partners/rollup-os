@@ -3,17 +3,21 @@
     "allow": [
       "Bash(pnpm install:*)",
       "Bash(pnpm add:*)",
-      "Bash(pnpm approve-builds:*)",
-      "Bash(npx tsc:*)",
       "Bash(pnpm build:*)",
-      "Bash(git status:*)",
-      "Bash(pnpm db:push:*)",
-      "Bash(pnpm db:seed-demo:*)",
       "Bash(pnpm tsx:*)",
+      "Bash(pnpm db:push:*)",
+      "Bash(pnpm approve-builds:*)",
+      "Bash(pnpm db:seed-demo:*)",
+      "Bash(pnpm db:add-member:*)",
+      "Bash(npx tsc:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(pnpm db:add-member:*)"
+      "Bash(git status:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "Bash(head:*)"
     ]
   }
 }

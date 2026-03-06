@@ -81,9 +81,9 @@ export default async function PortcoLayout({
         }}
         userRole={membership.role}
       />
-      <SidebarInset>
+      <SidebarInset className="min-w-0 overflow-hidden">
         <AppHeader portcoName={currentPortco.name} />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <div className="flex-1 overflow-auto p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

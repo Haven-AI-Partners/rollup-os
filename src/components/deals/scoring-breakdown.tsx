@@ -9,6 +9,7 @@ import {
 
 interface ScoringBreakdownProps {
   scores: Record<string, number>;
+  rationales?: Record<string, string>;
   overallScore?: number | null;
 }
 
@@ -30,7 +31,7 @@ function ScoreBar({ score, maxScore = 5 }: { score: number; maxScore?: number })
   );
 }
 
-export function ScoringBreakdown({ scores, overallScore }: ScoringBreakdownProps) {
+export function ScoringBreakdown({ scores, rationales, overallScore }: ScoringBreakdownProps) {
   const { weighted, recommendation, description } = calculateWeightedScore(scores);
   const displayScore = overallScore ?? weighted;
 
@@ -70,6 +71,9 @@ export function ScoringBreakdown({ scores, overallScore }: ScoringBreakdownProps
                 </span>
               </div>
               <ScoreBar score={score} />
+              {rationales?.[dim.id] && (
+                <p className="text-[11px] text-muted-foreground mt-1">{rationales[dim.id]}</p>
+              )}
             </div>
           );
         })}
