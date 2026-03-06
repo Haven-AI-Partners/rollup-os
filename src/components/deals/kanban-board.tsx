@@ -53,7 +53,12 @@ export function KanbanBoard({ stages, initialDeals, portcoSlug }: KanbanBoardPro
     for (const stage of stages) {
       grouped[stage.id] = initialDeals
         .filter((d) => d.stageId === stage.id)
-        .sort((a, b) => a.kanbanPosition - b.kanbanPosition);
+        .sort((a, b) => {
+          const scoreA = a.aiScore ? Number(a.aiScore) : -1;
+          const scoreB = b.aiScore ? Number(b.aiScore) : -1;
+          if (scoreB !== scoreA) return scoreB - scoreA; // highest score first
+          return a.kanbanPosition - b.kanbanPosition;
+        });
     }
     return grouped;
   });
