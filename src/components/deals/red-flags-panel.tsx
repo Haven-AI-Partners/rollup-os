@@ -124,38 +124,40 @@ export function RedFlagsPanel({ dealId, portcoId, portcoSlug, initialFlags }: Re
           const config = SEVERITY_CONFIG[flag.severity as RedFlagSeverity];
           const Icon = severityIcons[flag.severity] ?? AlertTriangle;
           return (
-            <div key={flag.id} className={`flex items-start gap-2 rounded-md border p-2 ${config?.bgColor ?? ""}`}>
-              <Icon className={`size-4 shrink-0 mt-0.5 ${config?.color ?? ""}`} />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium">{def?.title ?? flag.flagId}</p>
-                <p className="text-[10px] text-muted-foreground">{def?.description ?? ""}</p>
-                {flag.notes && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5 italic">{flag.notes}</p>
-                )}
+            <div key={flag.id} className={`rounded-md border p-2 ${config?.bgColor ?? ""}`}>
+              <div className="flex items-start gap-2">
+                <Icon className={`size-4 shrink-0 mt-0.5 ${config?.color ?? ""}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium">{def?.title ?? flag.flagId}</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Badge variant="outline" className="text-[10px]">
+                    {CATEGORY_LABELS[flag.category as keyof typeof CATEGORY_LABELS] ?? flag.category}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-6"
+                    onClick={() => handleResolve(flag.id)}
+                    title="Mark resolved"
+                  >
+                    <Check className="size-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-6"
+                    onClick={() => handleRemove(flag.id)}
+                    title="Remove"
+                  >
+                    <X className="size-3" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Badge variant="outline" className="text-[10px]">
-                  {CATEGORY_LABELS[flag.category as keyof typeof CATEGORY_LABELS] ?? flag.category}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-6"
-                  onClick={() => handleResolve(flag.id)}
-                  title="Mark resolved"
-                >
-                  <Check className="size-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-6"
-                  onClick={() => handleRemove(flag.id)}
-                  title="Remove"
-                >
-                  <X className="size-3" />
-                </Button>
-              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5 ml-6 mr-1">{def?.description ?? ""}</p>
+              {flag.notes && (
+                <p className="text-[10px] text-muted-foreground mt-1 italic ml-6 mr-1">{flag.notes}</p>
+              )}
             </div>
           );
         })}

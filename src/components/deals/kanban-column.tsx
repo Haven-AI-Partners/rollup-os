@@ -2,7 +2,6 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { DealCard } from "./deal-card";
 
@@ -24,6 +23,8 @@ interface KanbanColumnProps {
     ebitda: string | null;
     status: string;
     source: string | null;
+    aiScore: string | null;
+    redFlagCount: number;
   }>;
   portcoSlug: string;
 }
@@ -47,7 +48,7 @@ export function KanbanColumn({ stage, deals, portcoSlug }: KanbanColumnProps) {
           {deals.length}
         </Badge>
       </div>
-      <ScrollArea className="flex-1 p-2" style={{ maxHeight: "calc(100vh - 200px)" }}>
+      <div className="flex-1 overflow-y-auto p-2" style={{ maxHeight: "calc(100vh - 200px)" }}>
         <div ref={setNodeRef} className="flex flex-col gap-2 min-h-[40px]">
           <SortableContext items={deals.map((d) => d.id)} strategy={verticalListSortingStrategy}>
             {deals.map((deal) => (
@@ -55,7 +56,7 @@ export function KanbanColumn({ stage, deals, portcoSlug }: KanbanColumnProps) {
             ))}
           </SortableContext>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

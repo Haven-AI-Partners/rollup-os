@@ -103,7 +103,7 @@ export default async function DealOverviewPage({
                 {profile.aiOverallScore && (
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Score:</span>
-                    <Badge>{Number(profile.aiOverallScore).toFixed(1)}/10</Badge>
+                    <Badge>{Number(profile.aiOverallScore).toFixed(1)}/5</Badge>
                   </div>
                 )}
               </div>

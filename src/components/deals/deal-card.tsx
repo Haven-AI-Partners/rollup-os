@@ -5,7 +5,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Star, AlertTriangle } from "lucide-react";
 
 interface DealCardProps {
   deal: {
@@ -19,6 +19,8 @@ interface DealCardProps {
     ebitda: string | null;
     status: string;
     source: string | null;
+    aiScore: string | null;
+    redFlagCount: number;
   };
   portcoSlug: string;
 }
@@ -64,19 +66,31 @@ export function DealCard({ deal, portcoSlug }: DealCardProps) {
                 </p>
               )}
               <div className="mt-2 flex flex-wrap gap-1">
-                {deal.industry && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                    {deal.industry}
+                {deal.industry?.split(/[,、・／/()（）]+/).map((tag) => tag.trim()).filter(Boolean).map((tag, i) => (
+                  <Badge key={`ind-${i}`} variant="outline" className="text-[10px] px-1.5 py-0">
+                    {tag}
                   </Badge>
-                )}
+                ))}
                 {deal.location && (
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                     {deal.location}
                   </Badge>
                 )}
               </div>
-              {(deal.revenue || deal.ebitda) && (
-                <div className="mt-1.5 flex gap-3 text-[10px] text-muted-foreground">
+              {(deal.aiScore || deal.redFlagCount > 0 || deal.revenue || deal.ebitda) && (
+                <div className="mt-1.5 flex items-center gap-3 text-[10px] text-muted-foreground">
+                  {deal.aiScore && (
+                    <span className="flex items-center gap-0.5 font-medium text-foreground">
+                      <Star className="size-3 text-amber-500 fill-amber-500" />
+                      {Number(deal.aiScore).toFixed(1)}/5
+                    </span>
+                  )}
+                  {deal.redFlagCount > 0 && (
+                    <span className="flex items-center gap-0.5 text-red-600">
+                      <AlertTriangle className="size-3" />
+                      {deal.redFlagCount}
+                    </span>
+                  )}
                   {deal.revenue && <span>Rev: ${Number(deal.revenue).toLocaleString()}</span>}
                   {deal.ebitda && <span>EBITDA: ${Number(deal.ebitda).toLocaleString()}</span>}
                 </div>

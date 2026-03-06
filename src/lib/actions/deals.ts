@@ -14,7 +14,23 @@ import { getCurrentUser } from "@/lib/auth";
 
 export async function getDealsForPortco(portcoId: string) {
   return db
-    .select()
+    .select({
+      id: deals.id,
+      portcoId: deals.portcoId,
+      stageId: deals.stageId,
+      companyName: deals.companyName,
+      description: deals.description,
+      industry: deals.industry,
+      location: deals.location,
+      askingPrice: deals.askingPrice,
+      revenue: deals.revenue,
+      ebitda: deals.ebitda,
+      status: deals.status,
+      source: deals.source,
+      kanbanPosition: deals.kanbanPosition,
+      aiScore: sql<string | null>`(SELECT ai_overall_score FROM company_profiles WHERE deal_id = deals.id LIMIT 1)`.as("ai_score"),
+      redFlagCount: sql<number>`(SELECT count(*) FROM deal_red_flags WHERE deal_id = deals.id AND resolved = false AND severity IN ('critical', 'serious'))`.as("red_flag_count"),
+    })
     .from(deals)
     .where(eq(deals.portcoId, portcoId))
     .orderBy(asc(deals.kanbanPosition));

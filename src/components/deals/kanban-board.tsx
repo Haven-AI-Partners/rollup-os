@@ -37,6 +37,8 @@ interface Deal {
   status: string;
   source: string | null;
   kanbanPosition: number;
+  aiScore: string | null;
+  redFlagCount: number;
 }
 
 interface KanbanBoardProps {
