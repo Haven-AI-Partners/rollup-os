@@ -629,10 +629,15 @@ Fallback: Resend (for transactional outbound if Gmail quotas are hit)
 - Set up Trigger.dev v3 project, configure tasks
 - Set up Langfuse project, integrate tracing wrapper
 - **IM Processing Agent** (highest value, build first)
-  - PDF download from GDrive -> text extraction (pdf-parse)
-  - Chunking -> pgvector embeddings
+  - PDF download from GDrive -> **multimodal analysis** (PDF sent directly to Gemini)
+  - **IMPORTANT**: Uses Gemini's multimodal PDF input — the PDF binary is sent directly
+    to the model, which handles both text-based and scanned/image-based PDFs without OCR.
+    This creates a hard dependency on a multimodal model that supports PDF file inputs
+    (currently: Google Gemini, Anthropic Claude, Google Vertex). Switching to a text-only
+    provider (OpenAI, Mistral) will break PDF processing. See `src/lib/agents/im-processor/index.ts`.
   - 8-dimension scoring via `generateObject()` + Zod schema
-  - Company profile generation -> write to DB + report PDF to GDrive
+  - Company profile generation -> write to DB
+  - Red flag detection against predefined flag definitions
 - **Deal Sourcing Agent**
   - Per-broker scraper tasks (configurable selectors in `scrape_config`)
   - LLM matching: listing vs. PortCo `acquisition_criteria`

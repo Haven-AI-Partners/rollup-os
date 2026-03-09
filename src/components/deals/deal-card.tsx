@@ -23,9 +23,11 @@ interface DealCardProps {
     redFlagCount: number;
   };
   portcoSlug: string;
+  isSelected: boolean;
+  onSelect: (dealId: string, metaKey: boolean) => void;
 }
 
-export function DealCard({ deal, portcoSlug }: DealCardProps) {
+export function DealCard({ deal, portcoSlug, isSelected, onSelect }: DealCardProps) {
   const {
     attributes,
     listeners,
@@ -42,8 +44,22 @@ export function DealCard({ deal, portcoSlug }: DealCardProps) {
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <Card className="cursor-default hover:border-primary/50 transition-colors">
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={(e) => {
+        // Don't select when clicking on links or the drag handle
+        if ((e.target as HTMLElement).closest("a")) return;
+        onSelect(deal.id, e.metaKey || e.ctrlKey);
+      }}
+    >
+      <Card
+        className={`cursor-default transition-colors ${
+          isSelected
+            ? "border-primary ring-1 ring-primary/50"
+            : "hover:border-primary/50"
+        }`}
+      >
         <CardContent className="p-3">
           <div className="flex items-start gap-2">
             <button

@@ -9,8 +9,23 @@ import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
 import { buildSystemPrompt } from "./prompt";
 import { imAnalysisSchema, type IMAnalysisResult } from "./schema";
 
+/**
+ * IMPORTANT: Multimodal PDF input dependency
+ *
+ * We send PDF files directly to Gemini as binary (multimodal input) rather than
+ * extracting text first. This handles both text-based and scanned/image-based PDFs.
+ *
+ * This approach REQUIRES a multimodal model that supports PDF file inputs.
+ * Currently only supported by: Google Gemini, Anthropic Claude, Google Vertex.
+ * Switching to a text-only provider (e.g. OpenAI, Mistral) will break PDF processing.
+ *
+ * If switching providers, you must either:
+ * 1. Choose another multimodal provider that supports PDF input, OR
+ * 2. Re-introduce text extraction (pdfjs-dist) + OCR for scanned PDFs
+ *
+ * See docs/architecture.md for more context.
+ */
 export const MODEL_ID = "gemini-2.5-flash";
-const MAX_TEXT_CHARS = 100_000; // ~25k tokens, keeps memory and cost manageable
 
 interface ProcessIMInput {
   fileId: string; // files table ID
@@ -26,50 +41,31 @@ interface ProcessIMResult {
   error?: string;
 }
 
-/** Extract text from a PDF buffer, truncated to MAX_TEXT_CHARS */
-async function extractPdfText(buffer: Buffer): Promise<string> {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  // Point workerSrc to the actual worker file so the fake worker can import it
-  const { createRequire } = await import("node:module");
-  const require = createRequire(import.meta.url);
-  pdfjs.GlobalWorkerOptions.workerSrc = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
-
-  const { dirname, join } = await import("node:path");
-  const standardFontDataUrl = join(dirname(require.resolve("pdfjs-dist/package.json")), "standard_fonts") + "/";
-
-  const data = new Uint8Array(buffer);
-  const doc = await pdfjs.getDocument({ data, isEvalSupported: false, standardFontDataUrl, useSystemFonts: true }).promise;
-  const parts: string[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    parts.push(content.items.map((item: any) => item.str ?? "").join(" "));
-  }
-  await doc.destroy();
-  const text = parts.join("\n");
-  if (text.length > MAX_TEXT_CHARS) {
-    return text.slice(0, MAX_TEXT_CHARS) + "\n\n[Text truncated due to length]";
-  }
-  return text;
-}
-
-/** Download a file from GDrive and extract text */
-async function getFileText(portcoId: string, gdriveFileId: string): Promise<string> {
-  const buffer = await downloadFile(portcoId, gdriveFileId);
-  if (!buffer) {
-    throw new Error("Failed to download file from Google Drive");
-  }
-  return extractPdfText(buffer);
-}
-
-/** Run the IM analysis */
-async function analyzeIM(text: string): Promise<IMAnalysisResult> {
+/**
+ * Run the IM analysis by sending the PDF directly to Gemini (multimodal).
+ * This handles both text-based and scanned/image-based PDFs without separate OCR.
+ */
+async function analyzeIM(pdfBuffer: Buffer): Promise<IMAnalysisResult> {
   const { object } = await generateObject({
     model: google(MODEL_ID),
     schema: imAnalysisSchema,
     system: buildSystemPrompt(),
-    prompt: `Analyze the following Information Memorandum:\n\n${text}`,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            data: pdfBuffer,
+            mediaType: "application/pdf",
+          },
+          {
+            type: "text",
+            text: "Analyze this Information Memorandum document.",
+          },
+        ],
+      },
+    ],
     temperature: 0.1,
   });
 
@@ -221,8 +217,8 @@ async function getDefaultStageId(portcoId: string): Promise<string> {
 /** Try to extract a numeric value from a string like "250,000,000" or "250000000". Returns null for non-numeric text. */
 function parseNumericValue(value: string | null | undefined): string | null {
   if (!value) return null;
-  // Strip commas, spaces, yen signs, dollar signs
-  const cleaned = value.replace(/[,\s¥$￥]/g, "");
+  // Strip commas, spaces, and common currency symbols
+  const cleaned = value.replace(/[,\s¥$￥€£₩]/g, "");
   // Only attempt parse if the string is mostly digits (allow leading minus and decimal point)
   if (!/^-?\d+(\.\d+)?$/.test(cleaned)) return null;
   return cleaned;
@@ -247,12 +243,17 @@ async function createDealFromAnalysis(
       location: analysis.companyProfile.location ?? null,
       industry: analysis.companyProfile.industry ?? null,
       askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
+      revenue: parseNumericValue(fin.revenue),
+      ebitda: parseNumericValue(fin.ebitda),
       employeeCount: fin.employeeCount ?? null,
       status: "active",
       kanbanPosition: 0,
       metadata: {
         gdriveSourceFileId: gdriveFileId,
+        currency: fin.currency ?? null,
         askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
+        revenueRaw: fin.revenue ?? null,
+        ebitdaRaw: fin.ebitda ?? null,
       },
     })
     .returning({ id: deals.id });
@@ -340,19 +341,14 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
       const gdriveFileId = gdriveFile.id!;
 
       try {
-        // Download and extract text
+        // Download PDF
         const buffer = await downloadFile(portcoId, gdriveFileId);
         if (!buffer) {
           return { fileName, gdriveFileId, status: "failed" as const, error: "Download failed" };
         }
 
-        const text = await extractPdfText(buffer);
-        if (!text.trim()) {
-          return { fileName, gdriveFileId, status: "failed" as const, error: "No text extracted" };
-        }
-
-        // Analyze with AI
-        const analysis = await analyzeIM(text);
+        // Analyze with AI (PDF sent directly as multimodal input)
+        const analysis = await analyzeIM(buffer);
 
         // Create deal if this is a new file
         const isNew = !existingMap.has(gdriveFileId);
@@ -501,10 +497,8 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
         const buffer = await downloadFile(portcoId, file.gdriveFileId);
         if (!buffer) throw new Error("Download failed");
 
-        const text = await extractPdfText(buffer);
-        if (!text.trim()) throw new Error("No text extracted");
-
-        const analysis = await analyzeIM(text);
+        // Analyze with AI (PDF sent directly as multimodal input)
+        const analysis = await analyzeIM(buffer);
         await storeResults(file.dealId, portcoId, analysis);
 
         await db
@@ -595,17 +589,14 @@ export async function processSingleGdriveFile(
       return { success: true, dealId: existingFile.dealId, companyName: "(already processed)" };
     }
 
-    // Download and extract text
+    // Download PDF
     progress("Downloading PDF from Google Drive...");
     const buffer = await downloadFile(portcoId, gdriveFileId);
     if (!buffer) return { success: false, error: "Failed to download from GDrive" };
 
-    progress(`Extracting text from PDF (${(buffer.length / 1024 / 1024).toFixed(1)} MB)...`);
-    const text = await extractPdfText(buffer);
-    if (!text.trim()) return { success: false, error: "No text extracted from PDF" };
-
-    progress(`Analyzing IM with AI (${text.length.toLocaleString()} chars extracted)...`);
-    const analysis = await analyzeIM(text);
+    // Analyze with AI (PDF sent directly as multimodal input — handles scanned PDFs too)
+    progress(`Analyzing IM with AI (${(buffer.length / 1024 / 1024).toFixed(1)} MB PDF)...`);
+    const analysis = await analyzeIM(buffer);
 
     let dealId: string;
     let fileId: string;
@@ -702,19 +693,18 @@ export async function processIM(input: ProcessIMInput): Promise<ProcessIMResult>
       .set({ processingStatus: "processing", updatedAt: new Date() })
       .where(eq(files.id, fileId));
 
-    // 3. Download and extract text
-    const text = await getFileText(portcoId, file.gdriveFileId);
-
-    if (!text.trim()) {
+    // 3. Download PDF
+    const buffer = await downloadFile(portcoId, file.gdriveFileId);
+    if (!buffer) {
       await db
         .update(files)
         .set({ processingStatus: "failed", updatedAt: new Date() })
         .where(eq(files.id, fileId));
-      return { success: false, error: "Could not extract text from PDF" };
+      return { success: false, error: "Failed to download file from Google Drive" };
     }
 
-    // 4. Analyze with AI
-    const analysis = await analyzeIM(text);
+    // 4. Analyze with AI (PDF sent directly as multimodal input)
+    const analysis = await analyzeIM(buffer);
 
     // 5. Store results
     const profileId = await storeResults(dealId, portcoId, analysis);

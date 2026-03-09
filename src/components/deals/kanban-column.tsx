@@ -27,9 +27,11 @@ interface KanbanColumnProps {
     redFlagCount: number;
   }>;
   portcoSlug: string;
+  selectedIds: Set<string>;
+  onSelect: (dealId: string, metaKey: boolean) => void;
 }
 
-export function KanbanColumn({ stage, deals, portcoSlug }: KanbanColumnProps) {
+export function KanbanColumn({ stage, deals, portcoSlug, selectedIds, onSelect }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
   return (
@@ -52,7 +54,13 @@ export function KanbanColumn({ stage, deals, portcoSlug }: KanbanColumnProps) {
         <div ref={setNodeRef} className="flex flex-col gap-2 min-h-[40px]">
           <SortableContext items={deals.map((d) => d.id)} strategy={verticalListSortingStrategy}>
             {deals.map((deal) => (
-              <DealCard key={deal.id} deal={deal} portcoSlug={portcoSlug} />
+              <DealCard
+                key={deal.id}
+                deal={deal}
+                portcoSlug={portcoSlug}
+                isSelected={selectedIds.has(deal.id)}
+                onSelect={onSelect}
+              />
             ))}
           </SortableContext>
         </div>

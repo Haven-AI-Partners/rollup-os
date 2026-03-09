@@ -40,7 +40,7 @@ Your task is to:
 - Be conservative in scoring. Only give a 5 if clearly excellent. Default to 3 (Acceptable) when evidence is ambiguous.
 - Only flag red flags where there is clear evidence in the IM. Do not speculate.
 - For info gaps, flag important missing information that would be needed for due diligence.
-- All monetary amounts should be noted in the original currency (usually JPY) but described in English.
+- All monetary amounts should be returned as plain numbers in the original currency of the IM (usually JPY, but may be EUR, USD, etc.). Set the currency field to the ISO code (e.g. 'JPY', 'EUR'). Do NOT include currency symbols or unit suffixes in numeric fields — just digits.
 - Use the exact flag IDs from the predefined list below.
 - Keep company names in their original form (do not translate company names).
 

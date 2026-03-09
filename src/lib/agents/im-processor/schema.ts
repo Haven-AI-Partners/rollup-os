@@ -15,7 +15,9 @@ export const imAnalysisSchema = z.object({
     askingPrice: z.string().nullable().describe("Asking price or valuation if mentioned, or null if not mentioned"),
   }),
   financialHighlights: z.object({
-    revenue: z.string().nullable().describe("Most recent annual revenue, or null if not mentioned"),
+    revenue: z.string().nullable().describe("Most recent annual revenue as a plain number string in the original currency (e.g. '250000000' for ¥250M or '2500000' for €2.5M), or null if not mentioned"),
+    ebitda: z.string().nullable().describe("Most recent annual EBITDA as a plain number string in the original currency, or null if not mentioned or not calculable"),
+    currency: z.string().nullable().describe("The currency used in the IM (e.g. 'JPY', 'EUR', 'USD'), or null if unclear"),
     revenueGrowth: z.string().nullable().describe("Revenue growth trend (e.g. 'CAGR 12% over 3 years'), or null if not mentioned"),
     operatingMargin: z.string().nullable().describe("Operating margin percentage, or null if not mentioned"),
     ebitdaMargin: z.string().nullable().describe("EBITDA margin percentage, or null if not mentioned"),
