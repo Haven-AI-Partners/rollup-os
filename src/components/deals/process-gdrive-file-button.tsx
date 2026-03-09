@@ -14,6 +14,7 @@ interface ProcessGdriveFileButtonProps {
   sizeBytes: number | null;
   webViewLink: string | null;
   force?: boolean;
+  gdriveModifiedTime?: string | null;
 }
 
 export function ProcessGdriveFileButton({
@@ -24,6 +25,7 @@ export function ProcessGdriveFileButton({
   sizeBytes,
   webViewLink,
   force,
+  gdriveModifiedTime,
 }: ProcessGdriveFileButtonProps) {
   const [runId, setRunId] = useState<string | null>(null);
   const [triggerError, setTriggerError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function ProcessGdriveFileButton({
     setRunId(null);
     setTriggerError(null);
     try {
-      const res = await processSingleFile(portcoSlug, gdriveFileId, fileName, mimeType, sizeBytes, webViewLink, force);
+      const res = await processSingleFile(portcoSlug, gdriveFileId, fileName, mimeType, sizeBytes, webViewLink, force, gdriveModifiedTime);
       setRunId(res.runId);
     } catch (err) {
       setTriggerError(err instanceof Error ? err.message : "Failed to trigger");

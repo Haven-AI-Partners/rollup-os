@@ -36,7 +36,6 @@ interface AppSidebarProps {
 const dealFlowItems = [
   { title: "Pipeline", icon: Kanban, href: "/pipeline" },
   { title: "Brokers", icon: Building2, href: "/brokers" },
-  { title: "Sourcing Agents", icon: Bot, href: "/agents" },
   { title: "Analytics", icon: BarChart3, href: "/analytics" },
 ];
 
@@ -48,6 +47,7 @@ const portfolioItems = [
 
 const workspaceItems = [
   { title: "Files", icon: FolderOpen, href: "/files" },
+  { title: "Agents", icon: Bot, href: "/agents" },
 ];
 
 const adminItems = [

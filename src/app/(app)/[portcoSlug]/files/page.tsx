@@ -186,6 +186,7 @@ export default async function FilesPage({
                           mimeType={file.mimeType}
                           sizeBytes={file.size ? Number(file.size) : null}
                           webViewLink={file.webViewLink}
+                          gdriveModifiedTime={file.modifiedTime}
                           force
                         />
                       )}
@@ -198,6 +199,7 @@ export default async function FilesPage({
                       mimeType={file.mimeType}
                       sizeBytes={file.size ? Number(file.size) : null}
                       webViewLink={file.webViewLink}
+                      gdriveModifiedTime={file.modifiedTime}
                     />
                   ) : null}
                   {file.webViewLink && (

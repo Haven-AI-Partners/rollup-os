@@ -230,6 +230,7 @@ async function createDealFromAnalysis(
   stageId: string,
   analysis: IMAnalysisResult,
   gdriveFileId: string,
+  gdriveModifiedTime?: string | null,
 ): Promise<string> {
   const fin = analysis.financialHighlights;
   const [deal] = await db
@@ -255,6 +256,7 @@ async function createDealFromAnalysis(
         revenueRaw: fin.revenue ?? null,
         ebitdaRaw: fin.ebitda ?? null,
       },
+      ...(gdriveModifiedTime ? { createdAt: new Date(gdriveModifiedTime) } : {}),
     })
     .returning({ id: deals.id });
 
@@ -355,7 +357,7 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
         let dealId: string;
 
         if (isNew) {
-          dealId = await createDealFromAnalysis(portcoId, stageId, analysis, gdriveFileId);
+          dealId = await createDealFromAnalysis(portcoId, stageId, analysis, gdriveFileId, gdriveFile.modifiedTime);
 
           // Create file record linked to the new deal
           await db.insert(files).values({
@@ -602,6 +604,7 @@ interface ProcessGdriveFileInput {
   mimeType: string;
   sizeBytes: number | null;
   webViewLink: string | null;
+  gdriveModifiedTime?: string | null;
   force?: boolean;
 }
 
@@ -688,7 +691,7 @@ export async function processSingleGdriveFile(
       // Create new deal
       progress(`Creating deal for "${analysis.companyProfile.companyName}"...`);
       const stageId = await getDefaultStageId(portcoId);
-      dealId = await createDealFromAnalysis(portcoId, stageId, analysis, gdriveFileId);
+      dealId = await createDealFromAnalysis(portcoId, stageId, analysis, gdriveFileId, input.gdriveModifiedTime);
 
       // Create file record
       const [newFile] = await db
