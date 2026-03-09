@@ -13,6 +13,7 @@ interface ProcessGdriveFileButtonProps {
   mimeType: string;
   sizeBytes: number | null;
   webViewLink: string | null;
+  force?: boolean;
 }
 
 export function ProcessGdriveFileButton({
@@ -22,6 +23,7 @@ export function ProcessGdriveFileButton({
   mimeType,
   sizeBytes,
   webViewLink,
+  force,
 }: ProcessGdriveFileButtonProps) {
   const [runId, setRunId] = useState<string | null>(null);
   const [triggerError, setTriggerError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function ProcessGdriveFileButton({
     setRunId(null);
     setTriggerError(null);
     try {
-      const res = await processSingleFile(portcoSlug, gdriveFileId, fileName, mimeType, sizeBytes, webViewLink);
+      const res = await processSingleFile(portcoSlug, gdriveFileId, fileName, mimeType, sizeBytes, webViewLink, force);
       setRunId(res.runId);
     } catch (err) {
       setTriggerError(err instanceof Error ? err.message : "Failed to trigger");
@@ -91,7 +93,7 @@ export function ProcessGdriveFileButton({
   return (
     <Button variant="outline" size="sm" onClick={handleProcess} className="gap-1.5 shrink-0">
       <Brain className="size-3.5" />
-      Process
+      {force ? "Reprocess" : "Process"}
     </Button>
   );
 }

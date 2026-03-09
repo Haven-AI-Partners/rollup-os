@@ -172,11 +172,24 @@ export default async function FilesPage({
                     </div>
                   </div>
                   {processed?.status === "completed" ? (
-                    <Link href={`/${portcoSlug}/pipeline/${processed.dealId}`}>
-                      <Badge className="bg-green-100 text-green-800 border-green-200 shrink-0">
-                        <CheckCircle className="mr-1 size-3" /> Processed
-                      </Badge>
-                    </Link>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Link href={`/${portcoSlug}/pipeline/${processed.dealId}`}>
+                        <Badge className="bg-green-100 text-green-800 border-green-200">
+                          <CheckCircle className="mr-1 size-3" /> Processed
+                        </Badge>
+                      </Link>
+                      {isAdmin && (
+                        <ProcessGdriveFileButton
+                          portcoSlug={portcoSlug}
+                          gdriveFileId={file.id}
+                          fileName={file.name}
+                          mimeType={file.mimeType}
+                          sizeBytes={file.size ? Number(file.size) : null}
+                          webViewLink={file.webViewLink}
+                          force
+                        />
+                      )}
+                    </div>
                   ) : isAdmin && !isFolder && file.mimeType === "application/pdf" ? (
                     <ProcessGdriveFileButton
                       portcoSlug={portcoSlug}

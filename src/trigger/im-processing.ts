@@ -71,6 +71,7 @@ export const processGdriveFileTask = task({
     mimeType: string;
     sizeBytes: number | null;
     webViewLink: string | null;
+    force?: boolean;
   }) => {
     logger.info("Processing single GDrive file", { fileName: payload.fileName, gdriveFileId: payload.gdriveFileId, model: MODEL_ID });
 

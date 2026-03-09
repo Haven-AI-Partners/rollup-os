@@ -173,6 +173,7 @@ export async function processSingleFile(
   mimeType: string,
   sizeBytes: number | null,
   webViewLink: string | null,
+  force?: boolean,
 ) {
   const portco = await getPortcoBySlug(portcoSlug);
   if (!portco) throw new Error("PortCo not found");
@@ -185,6 +186,7 @@ export async function processSingleFile(
     mimeType,
     sizeBytes,
     webViewLink,
+    force,
   });
 
   return { triggered: true, runId: handle.id };

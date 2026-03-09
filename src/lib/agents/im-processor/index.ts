@@ -379,6 +379,31 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
             .limit(1);
 
           dealId = existingFile.dealId;
+
+          // Update deal fields from new analysis
+          const fin = analysis.financialHighlights;
+          await db
+            .update(deals)
+            .set({
+              companyName: analysis.companyProfile.companyName,
+              description: analysis.companyProfile.summary.slice(0, 500),
+              location: analysis.companyProfile.location ?? null,
+              industry: analysis.companyProfile.industry ?? null,
+              askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
+              revenue: parseNumericValue(fin.revenue),
+              ebitda: parseNumericValue(fin.ebitda),
+              employeeCount: fin.employeeCount ?? null,
+              metadata: {
+                gdriveSourceFileId: gdriveFileId,
+                currency: fin.currency ?? null,
+                askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
+                revenueRaw: fin.revenue ?? null,
+                ebitdaRaw: fin.ebitda ?? null,
+              },
+              updatedAt: new Date(),
+            })
+            .where(eq(deals.id, dealId));
+
           await db
             .update(files)
             .set({ processingStatus: "completed", processedAt: new Date(), updatedAt: new Date() })
@@ -501,6 +526,30 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
         const analysis = await analyzeIM(buffer);
         await storeResults(file.dealId, portcoId, analysis);
 
+        // Update deal fields from new analysis
+        const fin = analysis.financialHighlights;
+        await db
+          .update(deals)
+          .set({
+            companyName: analysis.companyProfile.companyName,
+            description: analysis.companyProfile.summary.slice(0, 500),
+            location: analysis.companyProfile.location ?? null,
+            industry: analysis.companyProfile.industry ?? null,
+            askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
+            revenue: parseNumericValue(fin.revenue),
+            ebitda: parseNumericValue(fin.ebitda),
+            employeeCount: fin.employeeCount ?? null,
+            metadata: {
+              gdriveSourceFileId: file.gdriveFileId,
+              currency: fin.currency ?? null,
+              askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
+              revenueRaw: fin.revenue ?? null,
+              ebitdaRaw: fin.ebitda ?? null,
+            },
+            updatedAt: new Date(),
+          })
+          .where(eq(deals.id, file.dealId));
+
         await db
           .update(files)
           .set({ processingStatus: "completed", processedAt: new Date(), updatedAt: new Date() })
@@ -553,6 +602,7 @@ interface ProcessGdriveFileInput {
   mimeType: string;
   sizeBytes: number | null;
   webViewLink: string | null;
+  force?: boolean;
 }
 
 interface ProcessGdriveFileResult {
@@ -585,7 +635,7 @@ export async function processSingleGdriveFile(
       .where(eq(files.gdriveFileId, gdriveFileId))
       .limit(1);
 
-    if (existingFile?.processingStatus === "completed") {
+    if (existingFile?.processingStatus === "completed" && !input.force) {
       return { success: true, dealId: existingFile.dealId, companyName: "(already processed)" };
     }
 
@@ -602,10 +652,34 @@ export async function processSingleGdriveFile(
     let fileId: string;
 
     if (existingFile) {
-      // Reuse existing file + deal
-      progress("Updating existing file record...");
+      // Reuse existing file + deal, update deal fields from new analysis
+      progress("Updating existing deal and file record...");
       dealId = existingFile.dealId;
       fileId = existingFile.id;
+
+      const fin = analysis.financialHighlights;
+      await db
+        .update(deals)
+        .set({
+          companyName: analysis.companyProfile.companyName,
+          description: analysis.companyProfile.summary.slice(0, 500),
+          location: analysis.companyProfile.location ?? null,
+          industry: analysis.companyProfile.industry ?? null,
+          askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
+          revenue: parseNumericValue(fin.revenue),
+          ebitda: parseNumericValue(fin.ebitda),
+          employeeCount: fin.employeeCount ?? null,
+          metadata: {
+            gdriveSourceFileId: gdriveFileId,
+            currency: fin.currency ?? null,
+            askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
+            revenueRaw: fin.revenue ?? null,
+            ebitdaRaw: fin.ebitda ?? null,
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(deals.id, dealId));
+
       await db
         .update(files)
         .set({ processingStatus: "processing", updatedAt: new Date() })
