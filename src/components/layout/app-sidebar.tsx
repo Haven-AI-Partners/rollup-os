@@ -10,6 +10,7 @@ import {
   BarChart3,
   FolderOpen,
   Settings,
+  Briefcase,
 } from "lucide-react";
 import {
   Sidebar,
@@ -32,13 +33,21 @@ interface AppSidebarProps {
   userRole: string;
 }
 
-const navItems = [
-  { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { title: "Deals", icon: Kanban, href: "/deals" },
+const dealFlowItems = [
+  { title: "Pipeline", icon: Kanban, href: "/pipeline" },
   { title: "Brokers", icon: Building2, href: "/brokers" },
-  { title: "Files", icon: FolderOpen, href: "/files" },
-  { title: "Agents", icon: Bot, href: "/agents" },
+  { title: "Sourcing Agents", icon: Bot, href: "/agents" },
   { title: "Analytics", icon: BarChart3, href: "/analytics" },
+];
+
+const portfolioItems = [
+  { title: "Overview", icon: LayoutDashboard, href: "/portfolio" },
+  { title: "Companies", icon: Briefcase, href: "/portfolio/companies" },
+  { title: "Analytics", icon: BarChart3, href: "/portfolio/analytics" },
+];
+
+const workspaceItems = [
+  { title: "Files", icon: FolderOpen, href: "/files" },
 ];
 
 const adminItems = [
@@ -58,7 +67,7 @@ export function AppSidebar({ portcoSlug, portcos, currentPortco, userRole }: App
   return (
     <Sidebar>
       <SidebarHeader className="border-b px-2 py-3">
-        <Link href={`/${portcoSlug}/dashboard`} className="px-2 text-lg font-bold">
+        <Link href={`/${portcoSlug}/pipeline`} className="px-2 text-lg font-bold">
           Rollup OS
         </Link>
         <div className="mt-2">
@@ -67,10 +76,44 @@ export function AppSidebar({ portcoSlug, portcos, currentPortco, userRole }: App
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Deal Flow</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {dealFlowItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={isActive(item.href)}>
+                    <Link href={`/${portcoSlug}${item.href}`}>
+                      <item.icon className="size-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Portfolio</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {portfolioItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={isActive(item.href)}>
+                    <Link href={`/${portcoSlug}${item.href}`}>
+                      <item.icon className="size-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {workspaceItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={isActive(item.href)}>
                     <Link href={`/${portcoSlug}${item.href}`}>

@@ -40,7 +40,7 @@ export default async function DealDetailLayout({
       {/* Header */}
       <div className="flex items-start gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href={`/${portcoSlug}/deals`}>
+          <Link href={`/${portcoSlug}/pipeline`}>
             <ArrowLeft className="size-4" />
           </Link>
         </Button>
@@ -73,7 +73,7 @@ export default async function DealDetailLayout({
         {tabs.map((tab) => (
           <Link
             key={tab.segment}
-            href={`/${portcoSlug}/deals/${dealId}/${tab.segment}`}
+            href={`/${portcoSlug}/pipeline/${dealId}/${tab.segment}`}
             className="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
           >
             {tab.label}

@@ -45,6 +45,6 @@ export async function addFinancialEntry(
     description: `Added financial data for ${data.period}`,
   });
 
-  revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
   return entry;
 }

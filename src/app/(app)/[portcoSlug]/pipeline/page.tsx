@@ -4,7 +4,7 @@ import { getDealsForPortco, getStagesForPortco } from "@/lib/actions/deals";
 import { KanbanBoard } from "@/components/deals/kanban-board";
 import { CreateDealDialog } from "@/components/deals/create-deal-dialog";
 
-export default async function DealsPage({
+export default async function PipelinePage({
   params,
 }: {
   params: Promise<{ portcoSlug: string }>;
@@ -13,10 +13,14 @@ export default async function DealsPage({
   const portco = await getPortcoBySlug(portcoSlug);
   if (!portco) notFound();
 
-  const [stages, deals] = await Promise.all([
+  const [allStages, deals] = await Promise.all([
     getStagesForPortco(portco.id),
     getDealsForPortco(portco.id),
   ]);
+
+  // Filter out PMI stages from the kanban — those belong in Portfolio
+  const stages = allStages.filter((s) => s.phase !== "pmi");
+  const activeDeals = deals.filter((d) => d.status === "active");
 
   return (
     <div className="space-y-4">
@@ -30,7 +34,7 @@ export default async function DealsPage({
       </div>
       <KanbanBoard
         stages={stages}
-        initialDeals={deals}
+        initialDeals={activeDeals}
         portcoSlug={portcoSlug}
       />
     </div>

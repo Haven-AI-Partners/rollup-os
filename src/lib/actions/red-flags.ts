@@ -49,7 +49,7 @@ export async function addRedFlag(
     description: `Flagged red flag: ${data.flagId} (${data.severity})`,
   });
 
-  revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
   return flag;
 }
 
@@ -67,7 +67,7 @@ export async function resolveRedFlag(
     .where(eq(dealRedFlags.id, flagRecordId))
     .returning();
 
-  revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
   return updated;
 }
 
@@ -85,7 +85,7 @@ export async function unresolveRedFlag(
     .where(eq(dealRedFlags.id, flagRecordId))
     .returning();
 
-  revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
   return updated;
 }
 
@@ -98,5 +98,5 @@ export async function removeRedFlag(
   if (!user) throw new Error("Unauthorized");
 
   await db.delete(dealRedFlags).where(eq(dealRedFlags.id, flagRecordId));
-  revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
 }

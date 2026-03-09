@@ -56,7 +56,7 @@ export async function createTask(
     referenceId: task.id,
   });
 
-  revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
   return task;
 }
 
@@ -106,6 +106,6 @@ export async function updateTask(
     });
   }
 
-  revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
   return updated;
 }

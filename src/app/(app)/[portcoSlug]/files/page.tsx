@@ -172,7 +172,7 @@ export default async function FilesPage({
                     </div>
                   </div>
                   {processed?.status === "completed" ? (
-                    <Link href={`/${portcoSlug}/deals/${processed.dealId}`}>
+                    <Link href={`/${portcoSlug}/pipeline/${processed.dealId}`}>
                       <Badge className="bg-green-100 text-green-800 border-green-200 shrink-0">
                         <CheckCircle className="mr-1 size-3" /> Processed
                       </Badge>

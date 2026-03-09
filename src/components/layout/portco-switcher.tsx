@@ -21,7 +21,7 @@ export function PortcoSwitcher({ portcos, currentPortco }: PortcoSwitcherProps) 
     <Select
       value={currentPortco.slug}
       onValueChange={(slug) => {
-        router.push(`/${slug}/dashboard`);
+        router.push(`/${slug}/pipeline`);
       }}
     >
       <SelectTrigger className="w-full">

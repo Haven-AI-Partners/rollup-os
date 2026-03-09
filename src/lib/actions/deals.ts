@@ -89,8 +89,8 @@ export async function createDeal(
     description: `Created deal "${data.companyName}"`,
   });
 
-  revalidatePath(`/${portcoSlug}/deals`);
-  revalidatePath(`/${portcoSlug}/dashboard`);
+  revalidatePath(`/${portcoSlug}/pipeline`);
+  revalidatePath(`/${portcoSlug}/portfolio`);
   return deal;
 }
 
@@ -167,9 +167,9 @@ export async function updateDeal(
     });
   }
 
-  revalidatePath(`/${portcoSlug}/deals`);
-  revalidatePath(`/${portcoSlug}/deals/${dealId}`);
-  revalidatePath(`/${portcoSlug}/dashboard`);
+  revalidatePath(`/${portcoSlug}/pipeline`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
+  revalidatePath(`/${portcoSlug}/portfolio`);
   return updated;
 }
 
@@ -206,7 +206,7 @@ export async function addComment(
     referenceId: comment.id,
   });
 
-  revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
   return comment;
 }
 

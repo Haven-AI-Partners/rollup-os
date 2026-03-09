@@ -83,7 +83,7 @@ export default async function HomePage() {
   }
 
   if (firstMembership) {
-    redirect(`/${firstMembership.slug}/dashboard`);
+    redirect(`/${firstMembership.slug}/pipeline`);
   }
 
   return (

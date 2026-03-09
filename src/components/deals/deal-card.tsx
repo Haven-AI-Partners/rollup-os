@@ -55,7 +55,7 @@ export function DealCard({ deal, portcoSlug }: DealCardProps) {
             </button>
             <div className="flex-1 min-w-0">
               <Link
-                href={`/${portcoSlug}/deals/${deal.id}/overview`}
+                href={`/${portcoSlug}/pipeline/${deal.id}/overview`}
                 className="text-sm font-medium hover:underline line-clamp-1"
               >
                 {deal.companyName}
@@ -67,12 +67,12 @@ export function DealCard({ deal, portcoSlug }: DealCardProps) {
               )}
               <div className="mt-2 flex flex-wrap gap-1">
                 {deal.industry?.split(/[,、・／/()（）]+/).map((tag) => tag.trim()).filter(Boolean).map((tag, i) => (
-                  <Badge key={`ind-${i}`} variant="outline" className="text-[10px] px-1.5 py-0">
+                  <Badge key={`ind-${i}`} variant="outline" className="text-[10px] px-1.5 py-0 max-w-[120px] block truncate text-left" title={tag}>
                     {tag}
                   </Badge>
                 ))}
                 {deal.location && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 max-w-[120px] block truncate text-left" title={deal.location}>
                     {deal.location}
                   </Badge>
                 )}

@@ -47,7 +47,7 @@ export async function processIMFile(portcoSlug: string, fileId: string) {
     portcoId: portco.id,
   });
 
-  revalidatePath(`/${portcoSlug}/deals/${file.dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${file.dealId}`);
   return { triggered: true, runId: handle.id };
 }
 
@@ -91,7 +91,7 @@ export async function importGdriveFile(
         dealId,
         portcoId: portco.id,
       });
-      revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+      revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
       return { fileId: existing.id, triggered: true };
     }
     return { fileId: existing.id, success: true, alreadyExists: true };
@@ -122,11 +122,11 @@ export async function importGdriveFile(
       dealId,
       portcoId: portco.id,
     });
-    revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+    revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
     return { fileId: newFile.id, triggered: true };
   }
 
-  revalidatePath(`/${portcoSlug}/deals/${dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
   return { fileId: newFile.id, success: true };
 }
 
