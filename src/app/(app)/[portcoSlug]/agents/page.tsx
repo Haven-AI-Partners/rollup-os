@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { files, deals, companyProfiles, promptVersions, evalRuns } from "@/lib/db/schema";
 import { eq, and, sql, count, desc, avg } from "drizzle-orm";
 import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
+import { MODEL_ID } from "@/lib/agents/im-processor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -274,7 +275,7 @@ export default async function AgentsPage({
             <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Model</span>
-                <span className="font-mono">gemini-2.5-pro</span>
+                <span className="font-mono">{MODEL_ID}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Input</span>

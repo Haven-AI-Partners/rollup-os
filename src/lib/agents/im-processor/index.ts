@@ -25,7 +25,7 @@ import { imAnalysisSchema, type IMAnalysisResult } from "./schema";
  *
  * See docs/architecture.md for more context.
  */
-export const MODEL_ID = "gemini-2.5-pro";
+export const MODEL_ID = "gemini-2.5-flash";
 
 interface ProcessIMInput {
   fileId: string; // files table ID
