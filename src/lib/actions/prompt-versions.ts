@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { promptVersions } from "@/lib/db/schema";
+import { promptVersions, files, evalRuns } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { tasks } from "@trigger.dev/sdk";
+import type { runEvalTask } from "@/trigger/im-processing";
 import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 
 async function requireAdmin(portcoSlug: string) {
@@ -18,6 +20,60 @@ async function requireAdmin(portcoSlug: string) {
   return { portco, user };
 }
 
+/**
+ * Auto-trigger a 3x eval on the most recently processed file.
+ * Called after prompt version changes to measure impact.
+ */
+async function autoTriggerEval(
+  portcoId: string,
+  portcoSlug: string,
+  agentSlug: string,
+  promptVersionId: string | null,
+  promptVersionLabel: string,
+  userId: string | null,
+) {
+  try {
+    // Find the most recently processed file
+    const [recentFile] = await db
+      .select({ id: files.id, fileName: files.fileName })
+      .from(files)
+      .where(and(eq(files.portcoId, portcoId), eq(files.processingStatus, "completed")))
+      .orderBy(desc(files.processedAt))
+      .limit(1);
+
+    if (!recentFile) return null;
+
+    const { MODEL_ID } = await import("@/lib/agents/im-processor");
+
+    const [evalRun] = await db
+      .insert(evalRuns)
+      .values({
+        agentSlug,
+        fileId: recentFile.id,
+        fileName: recentFile.fileName,
+        iterations: 3,
+        status: "running",
+        promptVersionId,
+        promptVersionLabel,
+        modelId: MODEL_ID,
+        createdBy: userId,
+      })
+      .returning({ id: evalRuns.id });
+
+    const handle = await tasks.trigger<typeof runEvalTask>("run-im-eval", {
+      evalRunId: evalRun.id,
+      fileId: recentFile.id,
+      portcoId,
+      iterations: 3,
+    });
+
+    return { evalRunId: evalRun.id, runId: handle.id };
+  } catch {
+    // Non-critical — don't fail the version change
+    return null;
+  }
+}
+
 /** Save a new prompt version and set it as active */
 export async function savePromptVersion(
   portcoSlug: string,
@@ -25,7 +81,7 @@ export async function savePromptVersion(
   template: string,
   changeNote?: string,
 ) {
-  const { user } = await requireAdmin(portcoSlug);
+  const { portco, user } = await requireAdmin(portcoSlug);
 
   // Get the next version number
   const [latest] = await db
@@ -61,6 +117,9 @@ export async function savePromptVersion(
     })
     .returning({ id: promptVersions.id, version: promptVersions.version });
 
+  // Auto-trigger eval with the new prompt
+  await autoTriggerEval(portco.id, portcoSlug, agentSlug, newVersion.id, `v${newVersion.version}`, user.id);
+
   revalidatePath(`/${portcoSlug}/agents`);
   return newVersion;
 }
@@ -71,7 +130,7 @@ export async function activatePromptVersion(
   agentSlug: string,
   versionId: string,
 ) {
-  await requireAdmin(portcoSlug);
+  const { portco, user } = await requireAdmin(portcoSlug);
 
   // Deactivate all
   await db
@@ -90,6 +149,23 @@ export async function activatePromptVersion(
     .set({ isActive: true })
     .where(eq(promptVersions.id, versionId));
 
+  // Get version info for eval label
+  const [activated] = await db
+    .select({ id: promptVersions.id, version: promptVersions.version })
+    .from(promptVersions)
+    .where(eq(promptVersions.id, versionId))
+    .limit(1);
+
+  // Auto-trigger eval with the activated prompt
+  await autoTriggerEval(
+    portco.id,
+    portcoSlug,
+    agentSlug,
+    activated?.id ?? null,
+    activated ? `v${activated.version}` : "Unknown",
+    user.id,
+  );
+
   revalidatePath(`/${portcoSlug}/agents`);
 }
 
@@ -98,7 +174,7 @@ export async function resetToDefaultPrompt(
   portcoSlug: string,
   agentSlug: string,
 ) {
-  await requireAdmin(portcoSlug);
+  const { portco, user } = await requireAdmin(portcoSlug);
 
   await db
     .update(promptVersions)
@@ -109,6 +185,9 @@ export async function resetToDefaultPrompt(
         eq(promptVersions.isActive, true),
       )
     );
+
+  // Auto-trigger eval with the default prompt
+  await autoTriggerEval(portco.id, portcoSlug, agentSlug, null, "Default", user.id);
 
   revalidatePath(`/${portcoSlug}/agents`);
 }

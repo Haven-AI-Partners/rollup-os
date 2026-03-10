@@ -1,5 +1,6 @@
 import { task, logger, metadata } from "@trigger.dev/sdk";
 import { processIM, scanAndProcessFolder, reprocessAllFiles, processSingleGdriveFile, MODEL_ID } from "@/lib/agents/im-processor";
+import { runEval } from "@/lib/agents/im-processor/eval";
 
 /** Process a single IM file */
 export const processIMTask = task({
@@ -112,6 +113,42 @@ export const reprocessAllTask = task({
       processed: result.processed,
       failed: result.failed,
     });
+
+    return result;
+  },
+});
+
+/** Run consistency eval: process the same file N times and compare results */
+export const runEvalTask = task({
+  id: "run-im-eval",
+  maxDuration: 1800, // 30 minutes (N iterations)
+  retry: {
+    maxAttempts: 1,
+  },
+  run: async (payload: {
+    evalRunId: string;
+    fileId: string;
+    portcoId: string;
+    iterations: number;
+  }) => {
+    logger.info("Running IM eval", {
+      evalRunId: payload.evalRunId,
+      fileId: payload.fileId,
+      iterations: payload.iterations,
+    });
+
+    const result = await runEval(
+      payload.evalRunId,
+      payload.fileId,
+      payload.portcoId,
+      payload.iterations,
+    );
+
+    if (result.status === "completed") {
+      logger.info("Eval completed", { evalRunId: result.evalRunId });
+    } else {
+      logger.error("Eval failed", { error: result.error });
+    }
 
     return result;
   },

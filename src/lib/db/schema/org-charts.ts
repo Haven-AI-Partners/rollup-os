@@ -23,5 +23,6 @@ export const orgChartNodes = pgTable("org_chart_nodes", {
   name: text("name").notNull(),
   title: text("title"),
   department: text("department"),
+  role: text("role").$type<"executive" | "management" | "staff" | "board" | "advisor" | "contractor">(),
   position: integer("position").notNull().default(0),
 });

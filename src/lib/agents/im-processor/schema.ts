@@ -30,44 +30,61 @@ export const imAnalysisSchema = z.object({
     financial_stability: z.object({
       score: z.number().min(1).max(5).describe("Score 1-5"),
       rationale: z.string().describe("Brief justification for this score"),
+      evidence: z.string().describe("Specific numbers or quotes from the IM that support this score. Write 'No relevant data found' if the IM lacks this information."),
+      dataAvailable: z.boolean().describe("true if the IM contains sufficient data to score this dimension confidently, false if scoring is based on defaults or inference"),
     }),
     debt_leverage: z.object({
       score: z.number().min(1).max(5),
       rationale: z.string(),
+      evidence: z.string(),
+      dataAvailable: z.boolean(),
     }),
     org_complexity: z.object({
       score: z.number().min(1).max(5),
       rationale: z.string(),
+      evidence: z.string(),
+      dataAvailable: z.boolean(),
     }),
     technology: z.object({
       score: z.number().min(1).max(5),
       rationale: z.string(),
+      evidence: z.string(),
+      dataAvailable: z.boolean(),
     }),
     client_concentration: z.object({
       score: z.number().min(1).max(5),
       rationale: z.string(),
+      evidence: z.string(),
+      dataAvailable: z.boolean(),
     }),
     ai_readiness: z.object({
       score: z.number().min(1).max(5),
       rationale: z.string(),
+      evidence: z.string(),
+      dataAvailable: z.boolean(),
     }),
     business_model: z.object({
       score: z.number().min(1).max(5),
       rationale: z.string(),
+      evidence: z.string(),
+      dataAvailable: z.boolean(),
     }),
     integration_risk: z.object({
       score: z.number().min(1).max(5),
       rationale: z.string(),
+      evidence: z.string(),
+      dataAvailable: z.boolean(),
     }),
   }),
   managementTeam: z.array(
     z.object({
       name: z.string().describe("Person's full name"),
-      title: z.string().describe("Job title or role (e.g. 'CEO', 'CTO', 'Division Manager')"),
+      title: z.string().describe("Job title or role (e.g. 'CEO', 'CTO', 'Division Manager', 'Advisor')"),
       department: z.string().nullable().describe("Department or division if mentioned, or null"),
-      reportsTo: z.string().nullable().describe("Name of the person this person reports to, or null if top-level or unknown"),
+      role: z.enum(["executive", "management", "staff", "board", "advisor", "contractor"]).describe("Category of this person's role in the organization"),
+      reportsTo: z.string().nullable().describe("Name of the person this person reports to. Infer from context if not explicitly stated (e.g. a Division Manager likely reports to the CEO/President). Use null only for the top-level person or if truly uninferable."),
     })
-  ).describe("Key management team members and their organizational hierarchy as mentioned in the IM. Include all named executives, directors, and managers. Order from top (CEO/President) down."),
+  ).describe("ALL named personnel mentioned in the IM — executives, directors, managers, staff, board members, advisors, and contractors. Include everyone with a name and title/role, not just senior management. Order from top (CEO/President) down."),
   redFlags: z.array(
     z.object({
       flagId: z.string().describe("The red flag ID from the predefined list (e.g. 'crit_fin_neg_cashflow')"),

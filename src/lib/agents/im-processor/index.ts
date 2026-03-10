@@ -66,7 +66,7 @@ async function analyzeIM(pdfBuffer: Buffer): Promise<IMAnalysisResult> {
         ],
       },
     ],
-    temperature: 0.1,
+    temperature: 0,
     seed: 42,
   });
 
@@ -86,12 +86,14 @@ async function storeResults(
   }
   const { weighted } = calculateWeightedScore(scores);
 
-  // Build scoring breakdown with rationales
-  const scoringBreakdown: Record<string, { score: number; rationale: string }> = {};
+  // Build scoring breakdown with rationales and evidence
+  const scoringBreakdown: Record<string, { score: number; rationale: string; evidence?: string; dataAvailable?: boolean }> = {};
   for (const [dimId, dimResult] of Object.entries(analysis.scoring)) {
     scoringBreakdown[dimId] = {
       score: dimResult.score,
       rationale: dimResult.rationale,
+      evidence: dimResult.evidence,
+      dataAvailable: dimResult.dataAvailable,
     };
   }
 
@@ -207,6 +209,7 @@ async function storeResults(
       name: member.name,
       title: member.title,
       department: member.department,
+      role: member.role,
       position: i,
     }));
 

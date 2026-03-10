@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { files, deals } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { files, deals, evalRuns, promptVersions } from "@/lib/db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk";
-import type { processIMTask, scanFolderTask, reprocessAllTask, processGdriveFileTask } from "@/trigger/im-processing";
+import type { processIMTask, scanFolderTask, reprocessAllTask, processGdriveFileTask, runEvalTask } from "@/trigger/im-processing";
 import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 
 async function requireAdmin(portcoId: string) {
@@ -192,6 +192,68 @@ export async function processSingleFile(
   });
 
   return { triggered: true, runId: handle.id };
+}
+
+/**
+ * Run a consistency eval on a processed file.
+ * Processes the same IM N times and compares results.
+ */
+export async function triggerEvalRun(
+  portcoSlug: string,
+  fileId: string,
+  iterations: number = 3,
+) {
+  const portco = await getPortcoBySlug(portcoSlug);
+  if (!portco) throw new Error("PortCo not found");
+  await requireAdmin(portco.id);
+
+  const user = await getCurrentUser();
+
+  // Get the file
+  const [file] = await db
+    .select()
+    .from(files)
+    .where(and(eq(files.id, fileId), eq(files.portcoId, portco.id)))
+    .limit(1);
+  if (!file) throw new Error("File not found");
+
+  // Get active prompt version info
+  const [activePrompt] = await db
+    .select({ id: promptVersions.id, version: promptVersions.version })
+    .from(promptVersions)
+    .where(and(eq(promptVersions.agentSlug, "im-processor"), eq(promptVersions.isActive, true)))
+    .orderBy(desc(promptVersions.version))
+    .limit(1);
+
+  // Import MODEL_ID dynamically to avoid circular deps
+  const { MODEL_ID } = await import("@/lib/agents/im-processor");
+
+  // Create eval run record
+  const [evalRun] = await db
+    .insert(evalRuns)
+    .values({
+      agentSlug: "im-processor",
+      fileId,
+      fileName: file.fileName,
+      iterations,
+      status: "running",
+      promptVersionId: activePrompt?.id ?? null,
+      promptVersionLabel: activePrompt ? `v${activePrompt.version}` : "Default",
+      modelId: MODEL_ID,
+      createdBy: user?.id ?? null,
+    })
+    .returning({ id: evalRuns.id });
+
+  // Trigger background job
+  const handle = await tasks.trigger<typeof runEvalTask>("run-im-eval", {
+    evalRunId: evalRun.id,
+    fileId,
+    portcoId: portco.id,
+    iterations,
+  });
+
+  revalidatePath(`/${portcoSlug}/agents`);
+  return { triggered: true, runId: handle.id, evalRunId: evalRun.id };
 }
 
 function guessFileType(fileName: string): "im_pdf" | "other" {

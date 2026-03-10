@@ -9,12 +9,23 @@ interface OrgNode {
   name: string;
   title: string | null;
   department: string | null;
+  role: string | null;
   children: OrgNode[];
 }
 
 interface OrgChartProps {
-  nodes: OrgNode[];
+  roots: OrgNode[];
+  orphans: OrgNode[];
 }
+
+const roleBadgeColors: Record<string, string> = {
+  executive: "bg-purple-100 text-purple-800 border-purple-200",
+  management: "bg-blue-100 text-blue-800 border-blue-200",
+  staff: "bg-gray-100 text-gray-800 border-gray-200",
+  board: "bg-amber-100 text-amber-800 border-amber-200",
+  advisor: "bg-teal-100 text-teal-800 border-teal-200",
+  contractor: "bg-orange-100 text-orange-800 border-orange-200",
+};
 
 function OrgNodeCard({ node }: { node: OrgNode }) {
   return (
@@ -28,11 +39,21 @@ function OrgNodeCard({ node }: { node: OrgNode }) {
           {node.title && (
             <p className="text-xs text-muted-foreground leading-tight">{node.title}</p>
           )}
-          {node.department && (
-            <Badge variant="outline" className="text-[10px] mt-0.5">
-              {node.department}
-            </Badge>
-          )}
+          <div className="flex items-center gap-1 flex-wrap justify-center">
+            {node.department && (
+              <Badge variant="outline" className="text-[10px]">
+                {node.department}
+              </Badge>
+            )}
+            {node.role && (
+              <Badge
+                variant="outline"
+                className={`text-[10px] ${roleBadgeColors[node.role] ?? ""}`}
+              >
+                {node.role}
+              </Badge>
+            )}
+          </div>
         </div>
       </Card>
 
@@ -69,8 +90,8 @@ function OrgNodeCard({ node }: { node: OrgNode }) {
   );
 }
 
-export function OrgChart({ nodes }: OrgChartProps) {
-  if (nodes.length === 0) {
+export function OrgChart({ roots, orphans }: OrgChartProps) {
+  if (roots.length === 0 && orphans.length === 0) {
     return (
       <div className="rounded-md border border-dashed p-8 text-center">
         <p className="text-sm text-muted-foreground">
@@ -81,12 +102,54 @@ export function OrgChart({ nodes }: OrgChartProps) {
   }
 
   return (
-    <div className="overflow-x-auto pb-4">
-      <div className="inline-flex flex-col items-center min-w-full justify-center">
-        {nodes.map((root) => (
-          <OrgNodeCard key={root.id} node={root} />
-        ))}
-      </div>
+    <div className="space-y-6">
+      {roots.length > 0 && (
+        <div className="overflow-x-auto pb-4">
+          <div className="inline-flex flex-col items-center min-w-full justify-center">
+            {roots.map((root) => (
+              <OrgNodeCard key={root.id} node={root} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {orphans.length > 0 && (
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">
+            Other Personnel
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {orphans.map((node) => (
+              <Card key={node.id} className="px-3 py-2.5 text-center">
+                <div className="flex flex-col items-center gap-1">
+                  <div className="rounded-full bg-muted p-1.5">
+                    <User className="size-3 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium leading-tight">{node.name}</p>
+                  {node.title && (
+                    <p className="text-xs text-muted-foreground leading-tight">{node.title}</p>
+                  )}
+                  <div className="flex items-center gap-1 flex-wrap justify-center">
+                    {node.department && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {node.department}
+                      </Badge>
+                    )}
+                    {node.role && (
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] ${roleBadgeColors[node.role] ?? ""}`}
+                      >
+                        {node.role}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

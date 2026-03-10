@@ -11,6 +11,11 @@ export const evalRuns = pgTable("eval_runs", {
     .notNull(),
   fileName: text("file_name").notNull(),
   iterations: integer("iterations").notNull(),
+  /** Prompt version used for this eval */
+  promptVersionId: uuid("prompt_version_id"),
+  promptVersionLabel: text("prompt_version_label"),
+  /** Model used for this eval */
+  modelId: text("model_id"),
   status: text("status").notNull().default("running").$type<
     "running" | "completed" | "failed"
   >(),

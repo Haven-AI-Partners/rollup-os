@@ -12,6 +12,7 @@ interface OrgNode {
   name: string;
   title: string | null;
   department: string | null;
+  role: string | null;
   children: OrgNode[];
 }
 
@@ -21,12 +22,14 @@ function buildTree(
     name: string;
     title: string | null;
     department: string | null;
+    role: string | null;
     parentId: string | null;
     position: number;
   }>
-): OrgNode[] {
+): { roots: OrgNode[]; orphans: OrgNode[] } {
   const nodeMap = new Map<string, OrgNode>();
   const roots: OrgNode[] = [];
+  const orphans: OrgNode[] = [];
 
   // Create all nodes
   for (const n of nodes) {
@@ -35,6 +38,7 @@ function buildTree(
       name: n.name,
       title: n.title,
       department: n.department,
+      role: n.role,
       children: [],
     });
   }
@@ -44,12 +48,15 @@ function buildTree(
     const node = nodeMap.get(n.id)!;
     if (n.parentId && nodeMap.has(n.parentId)) {
       nodeMap.get(n.parentId)!.children.push(node);
+    } else if (!n.parentId && (n.role === "board" || n.role === "advisor" || n.role === "contractor")) {
+      // No parent and non-hierarchical role → orphan
+      orphans.push(node);
     } else {
       roots.push(node);
     }
   }
 
-  return roots;
+  return { roots, orphans };
 }
 
 export default async function OrganizationPage({
@@ -96,6 +103,7 @@ export default async function OrganizationPage({
           name: orgChartNodes.name,
           title: orgChartNodes.title,
           department: orgChartNodes.department,
+          role: orgChartNodes.role,
           parentId: orgChartNodes.parentId,
           position: orgChartNodes.position,
         })
@@ -104,7 +112,7 @@ export default async function OrganizationPage({
         .orderBy(orgChartNodes.position)
     : [];
 
-  const tree = buildTree(nodes);
+  const { roots, orphans } = buildTree(nodes);
 
   return (
     <div className="space-y-4">
@@ -134,7 +142,7 @@ export default async function OrganizationPage({
 
       <Card>
         <CardContent className="p-6">
-          <OrgChart nodes={tree} />
+          <OrgChart roots={roots} orphans={orphans} />
         </CardContent>
       </Card>
     </div>

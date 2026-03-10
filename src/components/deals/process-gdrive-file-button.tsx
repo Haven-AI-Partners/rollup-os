@@ -93,9 +93,18 @@ export function ProcessGdriveFileButton({
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleProcess} className="gap-1.5 shrink-0">
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleProcess}
+      className="gap-1.5 shrink-0"
+      title={force
+        ? "Re-imports from GDrive, recreates the deal, and re-runs AI analysis"
+        : "Creates a new deal from this GDrive file and runs AI analysis"
+      }
+    >
       <Brain className="size-3.5" />
-      {force ? "Reprocess" : "Process"}
+      {force ? "Import & Reprocess" : "Import & Process"}
     </Button>
   );
 }

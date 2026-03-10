@@ -41,7 +41,7 @@ export function ProcessIMButton({
           <CheckCircle className="size-3.5" />
           <span>Processed</span>
         </div>
-        <Button variant="outline" size="sm" onClick={handleProcess} className="gap-1 text-xs h-7">
+        <Button variant="outline" size="sm" onClick={handleProcess} className="gap-1 text-xs h-7" title="Re-runs AI analysis on this file without reimporting from GDrive">
           <Brain className="size-3" />
           Reprocess
         </Button>
@@ -89,7 +89,7 @@ export function ProcessIMButton({
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleProcess} className="gap-1.5">
+    <Button variant="outline" size="sm" onClick={handleProcess} className="gap-1.5" title="Runs AI analysis on this already-imported file">
       <Brain className="size-3.5" />
       Process IM
     </Button>

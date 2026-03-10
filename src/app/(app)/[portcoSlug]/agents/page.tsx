@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { files, deals, companyProfiles, promptVersions } from "@/lib/db/schema";
+import { files, deals, companyProfiles, promptVersions, evalRuns } from "@/lib/db/schema";
 import { eq, and, sql, count, desc, avg } from "drizzle-orm";
 import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { PromptEditor } from "@/components/agents/prompt-editor";
+import { EvalPanel } from "@/components/agents/eval-panel";
 import { DEFAULT_TEMPLATE, renderTemplate, AGENT_SLUG } from "@/lib/agents/im-processor/prompt";
 
 export default async function AgentsPage({
@@ -32,7 +33,7 @@ export default async function AgentsPage({
   const role = user ? await getUserPortcoRole(user.id, portco.id) : null;
   const isAdmin = role ? hasMinRole(role as UserRole, "admin") : false;
 
-  const [statusCounts, recentFiles, scoreStats, allVersions] = await Promise.all([
+  const [statusCounts, recentFiles, scoreStats, allVersions, processedFiles, recentEvals] = await Promise.all([
     // Processing status breakdown
     db
       .select({
@@ -83,6 +84,39 @@ export default async function AgentsPage({
       .from(promptVersions)
       .where(eq(promptVersions.agentSlug, AGENT_SLUG))
       .orderBy(desc(promptVersions.version)),
+
+    // Processed files for eval dropdown
+    db
+      .select({
+        id: files.id,
+        fileName: files.fileName,
+        dealId: files.dealId,
+        companyName: deals.companyName,
+      })
+      .from(files)
+      .innerJoin(deals, eq(files.dealId, deals.id))
+      .where(and(eq(files.portcoId, portco.id), eq(files.processingStatus, "completed")))
+      .orderBy(desc(files.processedAt)),
+
+    // Recent eval runs
+    db
+      .select({
+        id: evalRuns.id,
+        fileName: evalRuns.fileName,
+        iterations: evalRuns.iterations,
+        status: evalRuns.status,
+        overallScoreStdDev: evalRuns.overallScoreStdDev,
+        flagAgreementRate: evalRuns.flagAgreementRate,
+        nameConsistent: evalRuns.nameConsistent,
+        scoreVariance: evalRuns.scoreVariance,
+        promptVersionLabel: evalRuns.promptVersionLabel,
+        modelId: evalRuns.modelId,
+        createdAt: evalRuns.createdAt,
+      })
+      .from(evalRuns)
+      .where(eq(evalRuns.agentSlug, AGENT_SLUG))
+      .orderBy(desc(evalRuns.createdAt))
+      .limit(10),
   ]);
 
   const statusMap = new Map(statusCounts.map((s) => [s.status, Number(s.count)]));
@@ -258,6 +292,31 @@ export default async function AgentsPage({
           </div>
         </CardContent>
       </Card>
+
+      {/* Consistency Evals */}
+      <EvalPanel
+        portcoSlug={portcoSlug}
+        processedFiles={processedFiles.map((f) => ({
+          id: f.id,
+          fileName: f.fileName,
+          dealId: f.dealId,
+          companyName: f.companyName,
+        }))}
+        evalRuns={recentEvals.map((r) => ({
+          id: r.id,
+          fileName: r.fileName,
+          iterations: r.iterations,
+          status: r.status,
+          overallScoreStdDev: r.overallScoreStdDev,
+          flagAgreementRate: r.flagAgreementRate,
+          nameConsistent: r.nameConsistent,
+          scoreVariance: r.scoreVariance as Record<string, number> | null,
+          promptVersionLabel: r.promptVersionLabel,
+          modelId: r.modelId,
+          createdAt: r.createdAt.toISOString(),
+        }))}
+        isAdmin={isAdmin}
+      />
 
       {/* Prompt Editor */}
       <PromptEditor
