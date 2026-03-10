@@ -1,8 +1,8 @@
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { db } from "@/lib/db";
-import { companyProfiles, dealRedFlags, files, deals, pipelineStages } from "@/lib/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { companyProfiles, dealRedFlags, files, deals, pipelineStages, orgChartVersions, orgChartNodes } from "@/lib/db/schema";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { downloadFile, listFiles } from "@/lib/gdrive/client";
 import { calculateWeightedScore } from "@/lib/scoring/rubric";
 import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
@@ -49,7 +49,7 @@ async function analyzeIM(pdfBuffer: Buffer): Promise<IMAnalysisResult> {
   const { object } = await generateObject({
     model: google(MODEL_ID),
     schema: imAnalysisSchema,
-    system: buildSystemPrompt(),
+    system: await buildSystemPrompt(),
     messages: [
       {
         role: "user",
@@ -67,6 +67,7 @@ async function analyzeIM(pdfBuffer: Buffer): Promise<IMAnalysisResult> {
       },
     ],
     temperature: 0.1,
+    seed: 42,
   });
 
   return object;
@@ -162,6 +163,74 @@ async function storeResults(
           };
         })
       );
+    }
+  }
+
+  // Store org chart from management team extraction
+  if (analysis.managementTeam && analysis.managementTeam.length > 0) {
+    // Get next version number for this deal
+    const [latestVersion] = await db
+      .select({ version: orgChartVersions.version })
+      .from(orgChartVersions)
+      .where(eq(orgChartVersions.dealId, dealId))
+      .orderBy(desc(orgChartVersions.version))
+      .limit(1);
+
+    const nextVersion = (latestVersion?.version ?? 0) + 1;
+
+    // Deactivate previous versions
+    await db
+      .update(orgChartVersions)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(orgChartVersions.dealId, dealId),
+          eq(orgChartVersions.isActive, true),
+        )
+      );
+
+    // Create new version
+    const [version] = await db
+      .insert(orgChartVersions)
+      .values({
+        dealId,
+        version: nextVersion,
+        label: `AI extraction v${nextVersion}`,
+        isActive: true,
+      })
+      .returning({ id: orgChartVersions.id });
+
+    // Insert nodes — first pass: create all nodes
+    const nodeIdMap = new Map<string, string>(); // name -> db id
+    const nodes = analysis.managementTeam.map((member, i) => ({
+      versionId: version.id,
+      name: member.name,
+      title: member.title,
+      department: member.department,
+      position: i,
+    }));
+
+    const insertedNodes = await db
+      .insert(orgChartNodes)
+      .values(nodes)
+      .returning({ id: orgChartNodes.id, name: orgChartNodes.name });
+
+    for (const node of insertedNodes) {
+      nodeIdMap.set(node.name, node.id);
+    }
+
+    // Second pass: set parentId based on reportsTo
+    for (const member of analysis.managementTeam) {
+      if (member.reportsTo) {
+        const nodeId = nodeIdMap.get(member.name);
+        const parentId = nodeIdMap.get(member.reportsTo);
+        if (nodeId && parentId) {
+          await db
+            .update(orgChartNodes)
+            .set({ parentId })
+            .where(eq(orgChartNodes.id, nodeId));
+        }
+      }
     }
   }
 

@@ -10,3 +10,5 @@ export * from "./embeddings";
 export * from "./agents";
 export * from "./kpis";
 export * from "./notifications";
+export * from "./org-charts";
+export * from "./evals";

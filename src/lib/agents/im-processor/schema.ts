@@ -60,6 +60,14 @@ export const imAnalysisSchema = z.object({
       rationale: z.string(),
     }),
   }),
+  managementTeam: z.array(
+    z.object({
+      name: z.string().describe("Person's full name"),
+      title: z.string().describe("Job title or role (e.g. 'CEO', 'CTO', 'Division Manager')"),
+      department: z.string().nullable().describe("Department or division if mentioned, or null"),
+      reportsTo: z.string().nullable().describe("Name of the person this person reports to, or null if top-level or unknown"),
+    })
+  ).describe("Key management team members and their organizational hierarchy as mentioned in the IM. Include all named executives, directors, and managers. Order from top (CEO/President) down."),
   redFlags: z.array(
     z.object({
       flagId: z.string().describe("The red flag ID from the predefined list (e.g. 'crit_fin_neg_cashflow')"),

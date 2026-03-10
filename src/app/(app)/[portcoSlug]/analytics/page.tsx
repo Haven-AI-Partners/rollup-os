@@ -72,6 +72,10 @@ export default async function AnalyticsPage({
   // Build chart data (exclude PMI stages)
   const activeStagesList = stagesList.filter((s) => s.phase !== "pmi");
 
+  // Map stageId -> position for cumulative funnel logic
+  const stagePositionMap = new Map(stagesList.map((s) => [s.id, s.position]));
+
+  // Monthly stacked bar: each deal counts once at its current stage
   const monthMap = new Map<string, Record<string, string | number>>();
   for (const row of dealsByMonth) {
     if (!activeStagesList.some((s) => s.id === row.stageId)) continue;
@@ -94,12 +98,20 @@ export default async function AnalyticsPage({
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const currentMonthLabel = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const currentMonthRows = dealsByMonth.filter((r) => r.month === currentMonthKey);
+
+  // Current month funnel: cumulative — a deal at stage N counts toward all stages <= N
   const currentMonthChartData = activeStagesList.map((stage) => {
-    const row = currentMonthRows.find((r) => r.stageId === stage.id);
+    let cumulativeCount = 0;
+    for (const row of currentMonthRows) {
+      const dealPosition = stagePositionMap.get(row.stageId);
+      if (dealPosition !== undefined && dealPosition >= stage.position) {
+        cumulativeCount += Number(row.dealCount);
+      }
+    }
     return {
       stageName: stage.name,
       stageColor: stage.color ?? "#94a3b8",
-      count: row ? Number(row.dealCount) : 0,
+      count: cumulativeCount,
     };
   });
 

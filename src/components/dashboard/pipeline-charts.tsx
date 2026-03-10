@@ -112,7 +112,7 @@ export function PipelineCharts({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Current Month ({currentMonthLabel})</CardTitle>
-          <CardDescription>Active deals by pipeline stage</CardDescription>
+          <CardDescription>Cumulative funnel — each deal counts toward its stage and all earlier stages</CardDescription>
         </CardHeader>
         <CardContent>
           {currentMonthData.length > 0 ? (

@@ -36,9 +36,15 @@ export function ProcessIMButton({
 
   if (processingStatus === "completed" && !runId) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-green-700">
-        <CheckCircle className="size-3.5" />
-        <span>Processed</span>
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 text-xs text-green-700">
+          <CheckCircle className="size-3.5" />
+          <span>Processed</span>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleProcess} className="gap-1 text-xs h-7">
+          <Brain className="size-3" />
+          Reprocess
+        </Button>
       </div>
     );
   }

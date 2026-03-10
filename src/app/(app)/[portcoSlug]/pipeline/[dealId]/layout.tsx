@@ -10,6 +10,7 @@ import { ArrowLeft } from "lucide-react";
 const tabs = [
   { label: "Overview", segment: "overview" },
   { label: "Profile", segment: "profile" },
+  { label: "Organization", segment: "organization" },
   { label: "Files", segment: "files" },
   { label: "Tasks", segment: "tasks" },
   { label: "Comments", segment: "comments" },

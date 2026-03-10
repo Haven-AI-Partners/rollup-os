@@ -19,7 +19,8 @@
       "WebSearch",
       "Bash(head:*)",
       "Bash(find:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(pnpm db:generate:*)"
     ]
   }
 }
