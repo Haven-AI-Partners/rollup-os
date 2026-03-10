@@ -5,11 +5,7 @@ import { eq } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FinancialEntryForm } from "@/components/deals/financial-entry-form";
-
-function fmt(val: string | null) {
-  if (!val) return "—";
-  return `$${Number(val).toLocaleString()}`;
-}
+import { formatCurrency } from "@/lib/format";
 
 function pct(val: string | null) {
   if (!val) return "—";
@@ -47,15 +43,15 @@ export default async function FinancialsPage({
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
               <p className="text-xs text-muted-foreground">Asking Price</p>
-              <p className="text-sm font-medium">{fmt(deal.askingPrice)}</p>
+              <p className="text-sm font-medium">{formatCurrency(deal.askingPrice, deal.currency)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Revenue</p>
-              <p className="text-sm font-medium">{fmt(deal.revenue)}</p>
+              <p className="text-sm font-medium">{formatCurrency(deal.revenue, deal.currency)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">EBITDA</p>
-              <p className="text-sm font-medium">{fmt(deal.ebitda)}</p>
+              <p className="text-sm font-medium">{formatCurrency(deal.ebitda, deal.currency)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Employees</p>
@@ -99,9 +95,9 @@ export default async function FinancialsPage({
                         {f.periodType}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2 text-right">{fmt(f.revenue)}</td>
-                    <td className="px-3 py-2 text-right">{fmt(f.ebitda)}</td>
-                    <td className="px-3 py-2 text-right">{fmt(f.netIncome)}</td>
+                    <td className="px-3 py-2 text-right">{formatCurrency(f.revenue, deal.currency)}</td>
+                    <td className="px-3 py-2 text-right">{formatCurrency(f.ebitda, deal.currency)}</td>
+                    <td className="px-3 py-2 text-right">{formatCurrency(f.netIncome, deal.currency)}</td>
                     <td className="px-3 py-2 text-right">{pct(f.ebitdaMarginPct)}</td>
                     <td className="px-3 py-2 text-right">
                       <Badge variant="secondary" className="text-[10px] capitalize">

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Building2 } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 export default async function PortfolioCompaniesPage({
   params,
@@ -27,6 +28,7 @@ export default async function PortfolioCompaniesPage({
       revenue: deals.revenue,
       ebitda: deals.ebitda,
       askingPrice: deals.askingPrice,
+      currency: deals.currency,
       closedAt: deals.closedAt,
     })
     .from(deals)
@@ -70,19 +72,19 @@ export default async function PortfolioCompaniesPage({
                   <div className="flex items-center gap-6 text-sm text-right shrink-0">
                     {deal.revenue && (
                       <div>
-                        <p className="font-medium">${Number(deal.revenue).toLocaleString()}</p>
+                        <p className="font-medium">{formatCurrency(deal.revenue, deal.currency)}</p>
                         <p className="text-xs text-muted-foreground">Revenue</p>
                       </div>
                     )}
                     {deal.ebitda && (
                       <div>
-                        <p className="font-medium">${Number(deal.ebitda).toLocaleString()}</p>
+                        <p className="font-medium">{formatCurrency(deal.ebitda, deal.currency)}</p>
                         <p className="text-xs text-muted-foreground">EBITDA</p>
                       </div>
                     )}
                     {deal.askingPrice && (
                       <div>
-                        <p className="font-medium">${Number(deal.askingPrice).toLocaleString()}</p>
+                        <p className="font-medium">{formatCurrency(deal.askingPrice, deal.currency)}</p>
                         <p className="text-xs text-muted-foreground">Purchase Price</p>
                       </div>
                     )}

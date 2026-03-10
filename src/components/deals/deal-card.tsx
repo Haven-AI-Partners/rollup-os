@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GripVertical, Star, AlertTriangle } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 interface DealCardProps {
   deal: {
@@ -17,6 +18,7 @@ interface DealCardProps {
     askingPrice: string | null;
     revenue: string | null;
     ebitda: string | null;
+    currency: string | null;
     status: string;
     source: string | null;
     aiScore: string | null;
@@ -107,8 +109,8 @@ export function DealCard({ deal, portcoSlug, isSelected, onSelect }: DealCardPro
                       {deal.redFlagCount}
                     </span>
                   )}
-                  {deal.revenue && <span>Rev: ${Number(deal.revenue).toLocaleString()}</span>}
-                  {deal.ebitda && <span>EBITDA: ${Number(deal.ebitda).toLocaleString()}</span>}
+                  {deal.revenue && <span>Rev: {formatCurrency(deal.revenue, deal.currency)}</span>}
+                  {deal.ebitda && <span>EBITDA: {formatCurrency(deal.ebitda, deal.currency)}</span>}
                 </div>
               )}
             </div>

@@ -318,6 +318,7 @@ async function createDealFromAnalysis(
       askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
       revenue: parseNumericValue(fin.revenue),
       ebitda: parseNumericValue(fin.ebitda),
+      currency: fin.currency ?? "JPY",
       employeeCount: fin.employeeCount ?? null,
       status: "active",
       kanbanPosition: 0,
@@ -466,6 +467,7 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
               askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
               revenue: parseNumericValue(fin.revenue),
               ebitda: parseNumericValue(fin.ebitda),
+              currency: fin.currency ?? "JPY",
               employeeCount: fin.employeeCount ?? null,
               metadata: {
                 gdriveSourceFileId: gdriveFileId,
@@ -612,6 +614,7 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
             askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
             revenue: parseNumericValue(fin.revenue),
             ebitda: parseNumericValue(fin.ebitda),
+            currency: fin.currency ?? "JPY",
             employeeCount: fin.employeeCount ?? null,
             metadata: {
               gdriveSourceFileId: file.gdriveFileId,

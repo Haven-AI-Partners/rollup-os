@@ -25,6 +25,7 @@ export async function getDealsForPortco(portcoId: string) {
       askingPrice: deals.askingPrice,
       revenue: deals.revenue,
       ebitda: deals.ebitda,
+      currency: deals.currency,
       status: deals.status,
       source: deals.source,
       kanbanPosition: deals.kanbanPosition,

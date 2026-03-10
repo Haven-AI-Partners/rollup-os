@@ -35,6 +35,7 @@ interface Deal {
   askingPrice: string | null;
   revenue: string | null;
   ebitda: string | null;
+  currency: string | null;
   status: string;
   source: string | null;
   kanbanPosition: number;

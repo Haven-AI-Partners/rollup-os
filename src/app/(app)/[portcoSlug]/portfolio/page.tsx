@@ -5,6 +5,7 @@ import { eq, and, sql, count, sum, desc } from "drizzle-orm";
 import { getPortcoBySlug } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/format";
 
 export default async function PortfolioOverviewPage({
   params,
@@ -100,7 +101,7 @@ export default async function PortfolioOverviewPage({
                 <p className="text-muted-foreground">Revenue Range</p>
                 <p className="font-medium">
                   {portco.targetRevenueMin || portco.targetRevenueMax
-                    ? `$${Number(portco.targetRevenueMin ?? 0).toLocaleString()} - $${Number(portco.targetRevenueMax ?? 0).toLocaleString()}`
+                    ? `${formatCurrency(portco.targetRevenueMin ?? 0)} - ${formatCurrency(portco.targetRevenueMax ?? 0)}`
                     : "Not set"}
                 </p>
               </div>
@@ -108,7 +109,7 @@ export default async function PortfolioOverviewPage({
                 <p className="text-muted-foreground">EBITDA Range</p>
                 <p className="font-medium">
                   {portco.targetEbitdaMin || portco.targetEbitdaMax
-                    ? `$${Number(portco.targetEbitdaMin ?? 0).toLocaleString()} - $${Number(portco.targetEbitdaMax ?? 0).toLocaleString()}`
+                    ? `${formatCurrency(portco.targetEbitdaMin ?? 0)} - ${formatCurrency(portco.targetEbitdaMax ?? 0)}`
                     : "Not set"}
                 </p>
               </div>
@@ -116,7 +117,7 @@ export default async function PortfolioOverviewPage({
                 <p className="text-muted-foreground">Deal Size</p>
                 <p className="font-medium">
                   {portco.targetDealSizeMin || portco.targetDealSizeMax
-                    ? `$${Number(portco.targetDealSizeMin ?? 0).toLocaleString()} - $${Number(portco.targetDealSizeMax ?? 0).toLocaleString()}`
+                    ? `${formatCurrency(portco.targetDealSizeMin ?? 0)} - ${formatCurrency(portco.targetDealSizeMax ?? 0)}`
                     : "Not set"}
                 </p>
               </div>
@@ -160,7 +161,7 @@ export default async function PortfolioOverviewPage({
           <CardContent>
             <p className="text-2xl font-bold">
               {financialAgg?.totalRevenue
-                ? `$${Number(financialAgg.totalRevenue).toLocaleString()}`
+                ? formatCurrency(financialAgg.totalRevenue)
                 : "--"}
             </p>
           </CardContent>
@@ -172,7 +173,7 @@ export default async function PortfolioOverviewPage({
           <CardContent>
             <p className="text-2xl font-bold">
               {financialAgg?.totalEbitda
-                ? `$${Number(financialAgg.totalEbitda).toLocaleString()}`
+                ? formatCurrency(financialAgg.totalEbitda)
                 : "--"}
             </p>
           </CardContent>
@@ -184,7 +185,7 @@ export default async function PortfolioOverviewPage({
           <CardContent>
             <p className="text-2xl font-bold">
               {financialAgg?.totalPurchasePrice
-                ? `$${Number(financialAgg.totalPurchasePrice).toLocaleString()}`
+                ? formatCurrency(financialAgg.totalPurchasePrice)
                 : "--"}
             </p>
           </CardContent>

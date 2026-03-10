@@ -5,6 +5,7 @@ import { eq, and, count, sql } from "drizzle-orm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RedFlagsPanel } from "@/components/deals/red-flags-panel";
+import { formatCurrency } from "@/lib/format";
 
 export default async function DealOverviewPage({
   params,
@@ -60,7 +61,7 @@ export default async function DealOverviewPage({
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Asking Price</p>
               <p className="text-lg font-bold">
-                {deal.askingPrice ? `$${Number(deal.askingPrice).toLocaleString()}` : "--"}
+                {deal.askingPrice ? formatCurrency(deal.askingPrice, deal.currency) : "--"}
               </p>
             </CardContent>
           </Card>
@@ -68,7 +69,7 @@ export default async function DealOverviewPage({
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Revenue</p>
               <p className="text-lg font-bold">
-                {deal.revenue ? `$${Number(deal.revenue).toLocaleString()}` : "--"}
+                {deal.revenue ? formatCurrency(deal.revenue, deal.currency) : "--"}
               </p>
             </CardContent>
           </Card>
@@ -76,7 +77,7 @@ export default async function DealOverviewPage({
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">EBITDA</p>
               <p className="text-lg font-bold">
-                {deal.ebitda ? `$${Number(deal.ebitda).toLocaleString()}` : "--"}
+                {deal.ebitda ? formatCurrency(deal.ebitda, deal.currency) : "--"}
               </p>
             </CardContent>
           </Card>

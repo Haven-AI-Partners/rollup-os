@@ -30,6 +30,7 @@ export const deals = pgTable("deals", {
   askingPrice: numeric("asking_price"),
   revenue: numeric("revenue"),
   ebitda: numeric("ebitda"),
+  currency: text("currency").default("JPY"),
   location: text("location"),
   industry: text("industry"),
   employeeCount: integer("employee_count"),

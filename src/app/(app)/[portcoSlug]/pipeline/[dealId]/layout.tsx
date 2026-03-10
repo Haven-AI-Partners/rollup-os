@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 const tabs = [
   { label: "Overview", segment: "overview" },
@@ -64,8 +65,8 @@ export default async function DealDetailLayout({
             <div className="mt-1 flex gap-4 text-sm text-muted-foreground">
               {deal.industry && <span>{deal.industry}</span>}
               {deal.location && <span>{deal.location}</span>}
-              {deal.revenue && <span>Rev: ${Number(deal.revenue).toLocaleString()}</span>}
-              {deal.ebitda && <span>EBITDA: ${Number(deal.ebitda).toLocaleString()}</span>}
+              {deal.revenue && <span>Rev: {formatCurrency(deal.revenue, deal.currency)}</span>}
+              {deal.ebitda && <span>EBITDA: {formatCurrency(deal.ebitda, deal.currency)}</span>}
             </div>
           </div>
         </div>
