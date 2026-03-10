@@ -17,9 +17,16 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
-import { PromptEditor } from "@/components/agents/prompt-editor";
 import { EvalPanel } from "@/components/agents/eval-panel";
-import { DEFAULT_TEMPLATE, renderTemplate, AGENT_SLUG } from "@/lib/agents/im-processor/prompt";
+import { PromptTabs } from "@/components/agents/prompt-tabs";
+import {
+  EXTRACTION_TEMPLATE,
+  SCORING_TEMPLATE,
+  renderTemplate,
+  AGENT_SLUG,
+  EXTRACTION_SLUG,
+  SCORING_SLUG,
+} from "@/lib/agents/im-processor/prompt";
 
 export default async function AgentsPage({
   params,
@@ -34,7 +41,7 @@ export default async function AgentsPage({
   const role = user ? await getUserPortcoRole(user.id, portco.id) : null;
   const isAdmin = role ? hasMinRole(role as UserRole, "admin") : false;
 
-  const [statusCounts, recentFiles, scoreStats, allVersions, processedFiles, recentEvals] = await Promise.all([
+  const [statusCounts, recentFiles, scoreStats, extractionVersions, scoringVersions, legacyVersions, processedFiles, recentEvals] = await Promise.all([
     // Processing status breakdown
     db
       .select({
@@ -72,7 +79,35 @@ export default async function AgentsPage({
       .innerJoin(deals, eq(companyProfiles.dealId, deals.id))
       .where(eq(deals.portcoId, portco.id)),
 
-    // Prompt versions for this agent
+    // Prompt versions for extraction pass
+    db
+      .select({
+        id: promptVersions.id,
+        version: promptVersions.version,
+        template: promptVersions.template,
+        isActive: promptVersions.isActive,
+        changeNote: promptVersions.changeNote,
+        createdAt: promptVersions.createdAt,
+      })
+      .from(promptVersions)
+      .where(eq(promptVersions.agentSlug, EXTRACTION_SLUG))
+      .orderBy(desc(promptVersions.version)),
+
+    // Prompt versions for scoring pass
+    db
+      .select({
+        id: promptVersions.id,
+        version: promptVersions.version,
+        template: promptVersions.template,
+        isActive: promptVersions.isActive,
+        changeNote: promptVersions.changeNote,
+        createdAt: promptVersions.createdAt,
+      })
+      .from(promptVersions)
+      .where(eq(promptVersions.agentSlug, SCORING_SLUG))
+      .orderBy(desc(promptVersions.version)),
+
+    // Legacy single-pass prompt versions (for history)
     db
       .select({
         id: promptVersions.id,
@@ -129,13 +164,26 @@ export default async function AgentsPage({
   const total = completed + failed + processing + pending;
   const avgScore = scoreStats[0]?.avgScore ? Number(scoreStats[0].avgScore) : null;
 
-  // Determine which template is active
-  const activeVersion = allVersions.find((v) => v.isActive);
-  const currentTemplate = activeVersion?.template ?? DEFAULT_TEMPLATE;
-  const renderedPrompt = renderTemplate(currentTemplate);
+  // Determine which templates are active
+  const activeExtraction = extractionVersions.find((v) => v.isActive);
+  const currentExtractionTemplate = activeExtraction?.template ?? EXTRACTION_TEMPLATE;
+  const renderedExtractionPrompt = renderTemplate(currentExtractionTemplate);
 
-  // Serialize versions for the client component
-  const versionsForClient = allVersions.map((v) => ({
+  const activeScoring = scoringVersions.find((v) => v.isActive);
+  const currentScoringTemplate = activeScoring?.template ?? SCORING_TEMPLATE;
+  const renderedScoringPrompt = renderTemplate(currentScoringTemplate);
+
+  // Serialize versions for the client components
+  const extractionVersionsForClient = extractionVersions.map((v) => ({
+    id: v.id,
+    version: v.version,
+    template: v.template,
+    isActive: v.isActive,
+    changeNote: v.changeNote,
+    createdAt: v.createdAt.toISOString(),
+  }));
+
+  const scoringVersionsForClient = scoringVersions.map((v) => ({
     id: v.id,
     version: v.version,
     template: v.template,
@@ -279,8 +327,16 @@ export default async function AgentsPage({
                 <span className="font-mono">{MODEL_ID}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Input</span>
-                <span>Multimodal PDF</span>
+                <span className="text-muted-foreground">Pipeline</span>
+                <span>Two-pass (extract + score)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Pass 1</span>
+                <span>PDF extraction (multimodal)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Pass 2</span>
+                <span>Scoring + flags (text-only)</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Scoring</span>
@@ -321,14 +377,37 @@ export default async function AgentsPage({
         isAdmin={isAdmin}
       />
 
-      {/* Prompt Editor */}
-      <PromptEditor
+      {/* System Prompts — tabbed */}
+      <PromptTabs
         portcoSlug={portcoSlug}
-        agentSlug={AGENT_SLUG}
-        currentTemplate={currentTemplate}
-        defaultTemplate={DEFAULT_TEMPLATE}
-        renderedPrompt={renderedPrompt}
-        versions={versionsForClient}
+        tabs={[
+          {
+            id: "extraction",
+            label: "Extraction",
+            agentSlug: EXTRACTION_SLUG,
+            currentTemplate: currentExtractionTemplate,
+            defaultTemplate: EXTRACTION_TEMPLATE,
+            renderedPrompt: renderedExtractionPrompt,
+            versions: extractionVersionsForClient,
+            description: "Extracts facts, numbers, and quotes from the PDF. No scoring or judgment.",
+          },
+          {
+            id: "scoring",
+            label: "Scoring",
+            agentSlug: SCORING_SLUG,
+            currentTemplate: currentScoringTemplate,
+            defaultTemplate: SCORING_TEMPLATE,
+            renderedPrompt: renderedScoringPrompt,
+            versions: scoringVersionsForClient,
+            description: "Scores dimensions and identifies red flags from the structured extraction.",
+          },
+        ]}
+        legacyVersions={legacyVersions.map((v) => ({
+          id: v.id,
+          version: v.version,
+          changeNote: v.changeNote,
+          createdAt: v.createdAt.toISOString(),
+        }))}
         isAdmin={isAdmin}
       />
 

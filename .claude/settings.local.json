@@ -21,7 +21,12 @@
       "Bash(find:*)",
       "Bash(git mv:*)",
       "Bash(pnpm db:generate:*)",
-      "Bash(set:*)"
+      "Bash(set:*)",
+      "WebFetch(domain:cinc-capital.co.jp)",
+      "WebFetch(domain:jmai.co.jp)",
+      "WebFetch(domain:ma-la.co.jp)",
+      "WebFetch(domain:www.acn-consulting.jp)",
+      "WebFetch(domain:www.nihon-ma.co.jp)"
     ]
   }
 }

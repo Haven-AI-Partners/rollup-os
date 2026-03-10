@@ -5,8 +5,15 @@ import { evalRuns, evalIterations, files } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { downloadFile } from "@/lib/gdrive/client";
 import { calculateWeightedScore } from "@/lib/scoring/rubric";
-import { buildSystemPrompt } from "./prompt";
-import { imAnalysisSchema, type IMAnalysisResult } from "./schema";
+import { buildExtractionPrompt, buildScoringPrompt } from "./prompt";
+import {
+  imExtractionSchema,
+  imScoringSchema,
+  mergeResults,
+  type IMExtractionResult,
+  type IMScoringResult,
+  type IMAnalysisResult,
+} from "./schema";
 import { MODEL_ID, computeScoresFromAnalysis } from "./index";
 
 interface EvalResult {
@@ -15,15 +22,15 @@ interface EvalResult {
   error?: string;
 }
 
-/** Run analysis without the seed for eval purposes (to measure natural variance) */
-async function analyzeIMForEval(
+/** Pass 1 for eval: extract facts from PDF with per-iteration seed */
+async function extractForEval(
   pdfBuffer: Buffer,
   systemPrompt: string,
   iteration: number,
-): Promise<IMAnalysisResult> {
+): Promise<IMExtractionResult> {
   const { object } = await generateObject({
     model: google(MODEL_ID),
-    schema: imAnalysisSchema,
+    schema: imExtractionSchema,
     system: systemPrompt,
     messages: [
       {
@@ -36,14 +43,40 @@ async function analyzeIMForEval(
           },
           {
             type: "text",
-            text: "Analyze this Information Memorandum document.",
+            text: "Extract all facts from this Information Memorandum document.",
           },
         ],
       },
     ],
     temperature: 0.1,
-    // Use different seeds per iteration to measure variance
-    // Same seed would give identical results, defeating the purpose
+    seed: iteration + 1,
+  });
+
+  return object;
+}
+
+/** Pass 2 for eval: score extraction with per-iteration seed */
+async function scoreForEval(
+  extraction: IMExtractionResult,
+  systemPrompt: string,
+  iteration: number,
+): Promise<IMScoringResult> {
+  const { object } = await generateObject({
+    model: google(MODEL_ID),
+    schema: imScoringSchema,
+    system: systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `Score this company based on the following extraction:\n\n${JSON.stringify(extraction, null, 2)}`,
+          },
+        ],
+      },
+    ],
+    temperature: 0.1,
     seed: iteration + 1,
   });
 
@@ -59,13 +92,16 @@ function stdDev(values: number[]): number {
 
 /**
  * Run an eval: process the same file N times and compare results.
- * Returns consistency metrics.
+ *
+ * scoringOnly mode: extract once, score N times. Isolates scoring variance.
+ * Full mode (default): extract + score N times. Measures end-to-end variance.
  */
 export async function runEval(
   evalRunId: string,
   fileId: string,
   portcoId: string,
   iterations: number,
+  scoringOnly: boolean = false,
 ): Promise<EvalResult> {
   try {
     // Get the file record
@@ -87,8 +123,15 @@ export async function runEval(
       return { evalRunId, status: "failed", error: "Download failed" };
     }
 
-    // Build prompt once
-    const systemPrompt = await buildSystemPrompt();
+    // Build prompts once
+    const extractionPrompt = await buildExtractionPrompt();
+    const scoringPrompt = await buildScoringPrompt();
+
+    // In scoring-only mode, extract once and reuse
+    let fixedExtraction: IMExtractionResult | null = null;
+    if (scoringOnly) {
+      fixedExtraction = await extractForEval(buffer, extractionPrompt, 0);
+    }
 
     // Run N iterations
     const results: Array<{
@@ -100,12 +143,12 @@ export async function runEval(
     }> = [];
 
     for (let i = 0; i < iterations; i++) {
-      const analysis = await analyzeIMForEval(buffer, systemPrompt, i);
+      const extraction = fixedExtraction ?? await extractForEval(buffer, extractionPrompt, i);
+      const scoring = await scoreForEval(extraction, scoringPrompt, i);
+      const analysis = mergeResults(extraction, scoring);
 
-      // Extract scores from analysis
       const { scores, weighted } = computeScoresFromAnalysis(analysis);
 
-      // Extract red flag and info gap IDs
       const redFlagIds = analysis.redFlags.map((f) => f.flagId);
       const infoGapIds = analysis.infoGaps.map((g) => g.flagId);
 
@@ -131,7 +174,7 @@ export async function runEval(
     }
 
     // Compute metrics
-    // 1. Per-dimension score std dev (now computed from sub-scores, should be more stable)
+    // 1. Per-dimension score std dev
     const dimensionIds = Object.keys(results[0].scores);
     const scoreVariance: Record<string, number> = {};
     for (const dimId of dimensionIds) {
@@ -144,14 +187,12 @@ export async function runEval(
     const overallStdDev = stdDev(overallScores);
 
     // 3. Red flag agreement rate
-    // Collect all unique flags across iterations
     const allFlags = new Set<string>();
     for (const r of results) {
       for (const f of [...r.redFlagIds, ...r.infoGapIds]) {
         allFlags.add(f);
       }
     }
-    // Count how many appear in ALL iterations
     let unanimousFlags = 0;
     for (const flagId of allFlags) {
       const inAll = results.every(

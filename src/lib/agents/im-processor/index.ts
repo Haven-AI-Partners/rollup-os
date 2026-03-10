@@ -6,8 +6,8 @@ import { eq, and, inArray, desc } from "drizzle-orm";
 import { downloadFile, listFiles } from "@/lib/gdrive/client";
 import { calculateWeightedScore } from "@/lib/scoring/rubric";
 import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
-import { buildSystemPrompt } from "./prompt";
-import { imAnalysisSchema, type IMAnalysisResult } from "./schema";
+import { buildExtractionPrompt, buildScoringPrompt } from "./prompt";
+import { imExtractionSchema, imScoringSchema, mergeResults, type IMAnalysisResult, type IMExtractionResult } from "./schema";
 
 /**
  * IMPORTANT: Multimodal PDF input dependency
@@ -42,14 +42,14 @@ interface ProcessIMResult {
 }
 
 /**
- * Run the IM analysis by sending the PDF directly to Gemini (multimodal).
- * This handles both text-based and scanned/image-based PDFs without separate OCR.
+ * Pass 1: Extract structured facts from the PDF (multimodal).
+ * No scoring or judgment — just facts, numbers, quotes.
  */
-async function analyzeIM(pdfBuffer: Buffer): Promise<IMAnalysisResult> {
+export async function extractFromIM(pdfBuffer: Buffer): Promise<IMExtractionResult> {
   const { object } = await generateObject({
     model: google(MODEL_ID),
-    schema: imAnalysisSchema,
-    system: await buildSystemPrompt(),
+    schema: imExtractionSchema,
+    system: await buildExtractionPrompt(),
     messages: [
       {
         role: "user",
@@ -61,7 +61,7 @@ async function analyzeIM(pdfBuffer: Buffer): Promise<IMAnalysisResult> {
           },
           {
             type: "text",
-            text: "Analyze this Information Memorandum document.",
+            text: "Extract all facts from this Information Memorandum document.",
           },
         ],
       },
@@ -71,6 +71,43 @@ async function analyzeIM(pdfBuffer: Buffer): Promise<IMAnalysisResult> {
   });
 
   return object;
+}
+
+/**
+ * Pass 2: Score the company based on structured extraction (text-only).
+ * Same input every time = more consistent scores and flags.
+ */
+export async function scoreExtraction(extraction: IMExtractionResult) {
+  const { object } = await generateObject({
+    model: google(MODEL_ID),
+    schema: imScoringSchema,
+    system: await buildScoringPrompt(),
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `Score this company based on the following extraction:\n\n${JSON.stringify(extraction, null, 2)}`,
+          },
+        ],
+      },
+    ],
+    temperature: 0,
+    seed: 42,
+  });
+
+  return object;
+}
+
+/**
+ * Two-pass IM analysis: extract facts from PDF, then score from structured data.
+ * This improves consistency by separating PDF reading from scoring judgment.
+ */
+async function analyzeIM(pdfBuffer: Buffer): Promise<IMAnalysisResult> {
+  const extraction = await extractFromIM(pdfBuffer);
+  const scoring = await scoreExtraction(extraction);
+  return mergeResults(extraction, scoring);
 }
 
 /** Extract dimension scores and build breakdown from analysis */
