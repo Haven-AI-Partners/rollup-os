@@ -41,7 +41,7 @@ This document tracks all operational, infrastructure, and security requirements 
 
 - [ ] All secrets in environment variables (never in code or DB unencrypted)
 - [ ] GDrive service account JSON keys encrypted at rest (AES-256 via app-level key)
-- [ ] App-level encryption key (`ENCRYPTION_KEY`) stored in Vercel environment variables (not `.env` files)
+- [ ] App-level encryption key (`GOOGLE_DRIVE_ENCRYPTION_KEY`) stored in Vercel environment variables (not `.env` files)
 - [ ] Broker site credentials (for login-gated scrapers) stored encrypted
 - [ ] Gmail service account credentials stored securely
 - [ ] Separate env vars per environment (dev, staging, production)

@@ -3,9 +3,9 @@ import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 const ALGORITHM = "aes-256-gcm";
 
 function getKey() {
-  const key = process.env.ENCRYPTION_KEY;
+  const key = process.env.GOOGLE_DRIVE_ENCRYPTION_KEY;
   if (!key || key.length !== 64) {
-    throw new Error("ENCRYPTION_KEY must be a 64-char hex string (32 bytes)");
+    throw new Error("GOOGLE_DRIVE_ENCRYPTION_KEY must be a 64-char hex string (32 bytes)");
   }
   return Buffer.from(key, "hex");
 }

@@ -194,5 +194,5 @@ End-to-end pipeline: **GDrive PDF → Text Extraction → Claude Analysis → Da
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `GOOGLE_REDIRECT_URI` | OAuth callback URL |
-| `ENCRYPTION_KEY` | 64-char hex string for AES-256-GCM token encryption |
+| `GOOGLE_DRIVE_ENCRYPTION_KEY` | 64-char hex string for AES-256-GCM token encryption |
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude |

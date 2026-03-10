@@ -336,7 +336,7 @@ export default async function AgentsPage({
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Pass 2</span>
-                <span>Scoring + flags (text-only)</span>
+                <span>Scoring + flags (3x consensus)</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Scoring</span>
