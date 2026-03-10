@@ -73,22 +73,18 @@ async function analyzeIM(pdfBuffer: Buffer): Promise<IMAnalysisResult> {
   return object;
 }
 
-/** Store analysis results in the database */
-async function storeResults(
-  dealId: string,
-  portcoId: string,
-  analysis: IMAnalysisResult
-): Promise<string> {
-  // Calculate weighted score
+/** Extract dimension scores and build breakdown from analysis */
+export function computeScoresFromAnalysis(analysis: IMAnalysisResult) {
   const scores: Record<string, number> = {};
+  const scoringBreakdown: Record<string, {
+    score: number;
+    rationale: string;
+    evidence: string;
+    dataAvailable: boolean;
+  }> = {};
+
   for (const [dimId, dimResult] of Object.entries(analysis.scoring)) {
     scores[dimId] = dimResult.score;
-  }
-  const { weighted } = calculateWeightedScore(scores);
-
-  // Build scoring breakdown with rationales and evidence
-  const scoringBreakdown: Record<string, { score: number; rationale: string; evidence?: string; dataAvailable?: boolean }> = {};
-  for (const [dimId, dimResult] of Object.entries(analysis.scoring)) {
     scoringBreakdown[dimId] = {
       score: dimResult.score,
       rationale: dimResult.rationale,
@@ -96,6 +92,29 @@ async function storeResults(
       dataAvailable: dimResult.dataAvailable,
     };
   }
+
+  const { weighted } = calculateWeightedScore(scores);
+  return { scores, scoringBreakdown, weighted };
+}
+
+/** Extract red flags and info gaps from analysis, filtering to known IDs */
+function filterRedFlags(analysis: IMAnalysisResult) {
+  const knownIds = new Set(RED_FLAG_DEFINITIONS.map((f) => f.id));
+
+  const confirmedFlags = analysis.redFlags.filter((f) => knownIds.has(f.flagId));
+  const confirmedGaps = analysis.infoGaps.filter((g) => knownIds.has(g.flagId));
+
+  return { confirmedFlags, confirmedGaps };
+}
+
+/** Store analysis results in the database */
+async function storeResults(
+  dealId: string,
+  portcoId: string,
+  analysis: IMAnalysisResult
+): Promise<string> {
+  const { scores, scoringBreakdown, weighted } = computeScoresFromAnalysis(analysis);
+  const { confirmedFlags, confirmedGaps } = filterRedFlags(analysis);
 
   // Upsert company profile
   const [profile] = await db
@@ -140,32 +159,34 @@ async function storeResults(
     .delete(dealRedFlags)
     .where(eq(dealRedFlags.dealId, dealId));
 
-  // Combine red flags + info gaps
-  const allFlags = [
-    ...analysis.redFlags,
-    ...analysis.infoGaps,
+  // Build flag rows from confirmed red flags + info gaps
+  const flagRows = [
+    ...confirmedFlags.map((flag) => {
+      const def = RED_FLAG_DEFINITIONS.find((d) => d.id === flag.flagId)!;
+      return {
+        dealId,
+        portcoId,
+        flagId: flag.flagId,
+        severity: def.severity,
+        category: def.category,
+        notes: flag.notes,
+      };
+    }),
+    ...confirmedGaps.map((gap) => {
+      const def = RED_FLAG_DEFINITIONS.find((d) => d.id === gap.flagId)!;
+      return {
+        dealId,
+        portcoId,
+        flagId: gap.flagId,
+        severity: def.severity,
+        category: def.category,
+        notes: gap.notes,
+      };
+    }),
   ];
 
-  if (allFlags.length > 0) {
-    // Validate flag IDs against known definitions
-    const knownIds = new Set(RED_FLAG_DEFINITIONS.map((f) => f.id));
-    const validFlags = allFlags.filter((f) => knownIds.has(f.flagId));
-
-    if (validFlags.length > 0) {
-      await db.insert(dealRedFlags).values(
-        validFlags.map((flag) => {
-          const def = RED_FLAG_DEFINITIONS.find((d) => d.id === flag.flagId)!;
-          return {
-            dealId,
-            portcoId,
-            flagId: flag.flagId,
-            severity: def.severity,
-            category: def.category,
-            notes: flag.notes,
-          };
-        })
-      );
-    }
+  if (flagRows.length > 0) {
+    await db.insert(dealRedFlags).values(flagRows);
   }
 
   // Store org chart from management team extraction
@@ -489,11 +510,7 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
         // Store analysis results
         await storeResults(dealId, portcoId, analysis);
 
-        const scores: Record<string, number> = {};
-        for (const [dimId, dimResult] of Object.entries(analysis.scoring)) {
-          scores[dimId] = dimResult.score;
-        }
-        const { weighted } = calculateWeightedScore(scores);
+        const { weighted } = computeScoresFromAnalysis(analysis);
 
         return {
           fileName,
@@ -632,11 +649,7 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
           .set({ processingStatus: "completed", processedAt: new Date(), updatedAt: new Date() })
           .where(eq(files.id, file.id));
 
-        const scores: Record<string, number> = {};
-        for (const [dimId, dimResult] of Object.entries(analysis.scoring)) {
-          scores[dimId] = dimResult.score;
-        }
-        const { weighted } = calculateWeightedScore(scores);
+        const { weighted } = computeScoresFromAnalysis(analysis);
 
         return {
           fileId: file.id,
@@ -797,18 +810,14 @@ export async function processSingleGdriveFile(
       .set({ processingStatus: "completed", processedAt: new Date(), updatedAt: new Date() })
       .where(eq(files.id, fileId));
 
-    const scores: Record<string, number> = {};
-    for (const [dimId, dimResult] of Object.entries(analysis.scoring)) {
-      scores[dimId] = dimResult.score;
-    }
-    const { weighted } = calculateWeightedScore(scores);
+    const { weighted } = computeScoresFromAnalysis(analysis);
 
     return {
       success: true,
       dealId,
       companyName: analysis.companyProfile.companyName,
       overallScore: weighted,
-      redFlagCount: analysis.redFlags.length + analysis.infoGaps.length,
+      redFlagCount: filterRedFlags(analysis).confirmedFlags.length + filterRedFlags(analysis).confirmedGaps.length,
     };
   } catch (error) {
     console.error(`Failed to process ${fileName}:`, error);
@@ -871,12 +880,8 @@ export async function processIM(input: ProcessIMInput): Promise<ProcessIMResult>
       })
       .where(eq(files.id, fileId));
 
-    const redFlagCount = analysis.redFlags.length + analysis.infoGaps.length;
-    const scores: Record<string, number> = {};
-    for (const [dimId, dimResult] of Object.entries(analysis.scoring)) {
-      scores[dimId] = dimResult.score;
-    }
-    const { weighted } = calculateWeightedScore(scores);
+    const redFlagCount = filterRedFlags(analysis).confirmedFlags.length + filterRedFlags(analysis).confirmedGaps.length;
+    const { weighted } = computeScoresFromAnalysis(analysis);
 
     return {
       success: true,

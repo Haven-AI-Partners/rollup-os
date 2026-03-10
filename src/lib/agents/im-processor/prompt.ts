@@ -79,16 +79,10 @@ When the IM does NOT provide enough information to evaluate a dimension:
 - **Business Model & Service Mix**: Default to 3 for mixed/project-based. Only score higher/lower with explicit evidence.
 - **Post-Merger Integration Risk**: Default to 3. This dimension is inherently speculative — only deviate with strong evidence.
 
-### Red flag rules (STRICT — follow this decision process for every flag)
-For each red flag ID in the list below, apply this test:
-1. Does the IM contain a **specific number, quote, or stated fact** that matches the flag's description? If NO → do NOT flag.
-2. Does the flag description include a **numeric threshold** (e.g. ">40%", ">2.5x", "<5%")? If YES → only flag if the IM states a number that crosses that threshold. Do NOT estimate or infer the number.
-3. Is the evidence **explicitly stated** or are you **interpreting/inferring**? If inferring → do NOT flag.
-
-Additional rules:
+### Red flag rules
 - **Do NOT flag based on absence of information.** Missing data is an info_gap, not a red flag. If the IM doesn't mention debt, flag "gap_fin_no_cashflow" — do NOT flag "crit_fin_debt_breach".
 - **Info gaps ARE expected.** Most IMs are incomplete. Flag all important missing information using info_gap IDs. Info gaps should be consistent: if a piece of information is not in the IM, always flag the corresponding gap.
-- **When in doubt, do NOT flag.** Only flag red flags you are >90% confident about.
+- **When in doubt, do NOT flag.** Only flag red flags you are >90% confident about based on explicit evidence in the IM.
 - **Limit red flags to a maximum of 5** (excluding info_gaps). If you identify more than 5, keep only the 5 with the strongest evidence. Info gaps have no limit.
 
 ## Japan IT Services Market Context

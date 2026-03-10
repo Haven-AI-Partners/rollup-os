@@ -100,6 +100,7 @@ deals
 ├── asking_price        NUMERIC
 ├── revenue             NUMERIC
 ├── ebitda              NUMERIC
+├── currency            TEXT DEFAULT 'JPY' — ISO currency code (JPY, USD, EUR, etc.)
 ├── location            TEXT
 ├── industry            TEXT
 ├── employee_count      INT
@@ -270,7 +271,7 @@ company_profiles
 ├── strengths           JSONB
 ├── industry_trends     TEXT
 ├── ai_overall_score    NUMERIC      — composite score
-├── scoring_breakdown   JSONB        — { dimension: { score, rationale } } x 8
+├── scoring_breakdown   JSONB        — { dimension: { score, rationale, subScores: [{id, score, evidence}] } } x 8
 ├── raw_extraction      JSONB        — full structured data from IM
 ├── generated_at        TIMESTAMPTZ
 ├── model_version       TEXT         — which LLM version produced this
@@ -298,6 +299,87 @@ files
 ├── metadata            JSONB
 ├── created_at          TIMESTAMPTZ
 └── updated_at          TIMESTAMPTZ
+```
+
+### Red Flags & Scoring Consistency
+
+```sql
+deal_red_flags
+├── id                  UUID (PK)
+├── deal_id             UUID (FK -> deals)
+├── portco_id           UUID (FK -> portcos)
+├── flag_id             TEXT NOT NULL   — matches predefined flag ID (e.g. 'crit_fin_neg_cashflow')
+├── severity            TEXT NOT NULL   — 'critical' | 'serious' | 'moderate' | 'info_gap'
+├── category            TEXT NOT NULL   — 'financial' | 'clients' | 'technology' | ...
+├── notes               TEXT            — evidence and explanation
+├── resolved            BOOLEAN DEFAULT false
+├── resolved_by         UUID (FK -> users) NULLABLE
+├── resolved_at         TIMESTAMPTZ
+├── created_at          TIMESTAMPTZ
+└── updated_at          TIMESTAMPTZ
+
+org_chart_versions
+├── id                  UUID (PK)
+├── deal_id             UUID (FK -> deals)
+├── version             INT NOT NULL
+├── label               TEXT            — e.g. 'AI extraction v1'
+├── is_active           BOOLEAN DEFAULT true
+├── created_at          TIMESTAMPTZ
+└── UNIQUE(deal_id, version)
+
+org_chart_nodes
+├── id                  UUID (PK)
+├── version_id          UUID (FK -> org_chart_versions)
+├── parent_id           UUID (FK -> org_chart_nodes) NULLABLE
+├── name                TEXT NOT NULL
+├── title               TEXT
+├── department          TEXT
+├── role                TEXT            — 'executive' | 'management' | 'staff' | 'board' | 'advisor' | 'contractor'
+├── position            INT
+└── created_at          TIMESTAMPTZ
+
+prompt_versions (versioned prompt templates for AI agents)
+├── id                  UUID (PK)
+├── agent_slug          TEXT NOT NULL   — e.g. 'im-processor'
+├── version             INT NOT NULL
+├── template            TEXT NOT NULL   — prompt with {{PLACEHOLDER}} tokens
+├── is_active           BOOLEAN DEFAULT false
+├── change_note         TEXT
+├── created_by          UUID (FK -> users) NULLABLE
+├── created_at          TIMESTAMPTZ
+└── UNIQUE(agent_slug, version)
+
+eval_runs (consistency evaluation runs)
+├── id                  UUID (PK)
+├── agent_slug          TEXT NOT NULL
+├── file_id             UUID (FK -> files)
+├── file_name           TEXT
+├── iterations          INT NOT NULL    — number of times to process same file
+├── status              TEXT            — 'running' | 'completed' | 'failed'
+├── prompt_version_id   UUID NULLABLE
+├── prompt_version_label TEXT
+├── model_id            TEXT            — e.g. 'gemini-2.5-flash'
+├── score_variance      JSONB           — { dimension_id: std_dev } per dimension
+├── overall_score_std_dev TEXT
+├── flag_agreement_rate TEXT            — 0.0-1.0, % of flags unanimous across iterations
+├── name_consistent     TEXT
+├── error               TEXT
+├── created_by          UUID (FK -> users) NULLABLE
+├── completed_at        TIMESTAMPTZ
+├── created_at          TIMESTAMPTZ
+└── updated_at          TIMESTAMPTZ
+
+eval_iterations (individual iteration results within an eval run)
+├── id                  UUID (PK)
+├── eval_run_id         UUID (FK -> eval_runs)
+├── iteration           INT NOT NULL
+├── company_name        TEXT
+├── overall_score       TEXT
+├── scores              JSONB           — { dimension_id: computed_score }
+├── red_flag_ids        JSONB           — string array of flagged IDs
+├── info_gap_ids        JSONB           — string array of gap IDs
+├── created_at          TIMESTAMPTZ
+└── UNIQUE(eval_run_id, iteration)
 ```
 
 ### Vector Embeddings (pgvector)
@@ -635,9 +717,20 @@ Fallback: Resend (for transactional outbound if Gmail quotas are hit)
     This creates a hard dependency on a multimodal model that supports PDF file inputs
     (currently: Google Gemini, Anthropic Claude, Google Vertex). Switching to a text-only
     provider (OpenAI, Mistral) will break PDF processing. See `src/lib/agents/im-processor/index.ts`.
-  - 8-dimension scoring via `generateObject()` + Zod schema
-  - Company profile generation -> write to DB
-  - Red flag detection against predefined flag definitions
+  - **Sub-criteria scoring**: Each of 8 dimensions has 3-4 sub-criteria scored independently
+    by the model. Dimension scores are computed deterministically (average of non-null sub-scores,
+    defaults substituted for missing data). This removes subjective holistic judgment and improves
+    consistency. See `src/lib/scoring/rubric.ts` for sub-criteria definitions.
+  - **Red flag evidence chains**: Model extracts evidence quotes and numeric values, evaluates
+    against thresholds, and reports confidence. Code filters flags by `thresholdMet && confidence >= 0.9`.
+    Prevents hallucinated or inferred flags.
+  - **Info gap checklist**: All 21 info gap definitions are evaluated explicitly as present/absent.
+    Mechanical binary classification per item — no judgment needed.
+  - Company profile generation (summary, strengths, risks, org chart) -> write to DB
+  - **Prompt versioning**: Templates stored in `prompt_versions` table with `{{PLACEHOLDER}}` tokens.
+    Active version loaded at runtime; falls back to code-defined default. Changes auto-trigger eval.
+  - **Eval system**: Processes same file N times with different seeds, computes score std dev per
+    dimension, flag agreement rate, and name consistency. Tied to prompt version + model ID.
 - **Deal Sourcing Agent**
   - Per-broker scraper tasks (configurable selectors in `scrape_config`)
   - LLM matching: listing vs. PortCo `acquisition_criteria`
@@ -680,28 +773,27 @@ app/
 ├── (app)/
 │   ├── layout.tsx                   — sidebar, PortCo switcher
 │   ├── [portcoSlug]/
-│   │   ├── dashboard/               — PortCo executive summary (landing page)
-│   │   ├── deals/
-│   │   │   ├── page.tsx             — Kanban pipeline view
+│   │   ├── pipeline/                — Kanban deal pipeline (default landing page)
 │   │   │   └── [dealId]/
-│   │   │       ├── layout.tsx       — deal header + tab navigation
-│   │   │       ├── overview/        — summary, key metrics, current tasks
-│   │   │       ├── profile/         — AI-generated company profile
-│   │   │       ├── files/           — all documents, organized by type/phase
+│   │   │       ├── layout.tsx       — sticky deal header + tab navigation
+│   │   │       ├── overview/        — summary, key metrics, red flags, tasks
+│   │   │       ├── profile/         — AI-generated company profile + scoring breakdown
+│   │   │       ├── files/           — documents + IM processing trigger
+│   │   │       ├── organization/    — org chart (tree + orphan personnel)
 │   │   │       ├── tasks/           — task board / checklist for this deal
 │   │   │       ├── comments/        — discussion thread
-│   │   │       ├── financials/       — deal financial snapshots & trends
+│   │   │       ├── financials/      — deal financial snapshots & trends
 │   │   │       ├── activity/        — full timeline (deal_activity_log)
-│   │   │       ├── kpis/            — deal-level KPIs across all phases
 │   │   │       ├── diligence/       — [FUTURE] DD workstreams & findings
 │   │   │       └── integration/     — [FUTURE] PMI plan & KPI tracking
+│   │   ├── portfolio/               — company identity, strategy, financials, team
+│   │   │   ├── companies/           — closed_won acquisitions table
+│   │   │   └── analytics/           — acquisition leaderboard
 │   │   ├── brokers/                 — broker firms & contacts
-│   │   ├── agents/                  — agent registry, run history & config
-│   │   ├── analytics/               — dashboards
-│   │   │   ├── pipeline/            — pipeline velocity, conversion rates
-│   │   │   ├── brokers/             — broker performance scorecards
-│   │   │   └── kpis/                — PortCo-level KPI dashboard (all phases)
-│   │   └── settings/                — PortCo config, integrations, team, agent configs
+│   │   ├── agents/                  — agent config, prompt versioning, eval system
+│   │   ├── analytics/               — pipeline charts + broker leaderboard
+│   │   ├── files/                   — GDrive file browser + batch IM processing
+│   │   └── settings/                — PortCo config, integrations, team
 ```
 
 ### Domain Logic (`src/lib/`)
@@ -730,7 +822,16 @@ src/lib/
 │   ├── files.ts
 │   └── ...
 ├── gdrive/                          — GDrive client factory + helpers
-├── agents/                          — agent configs, shared prompts, Zod schemas
+├── scoring/
+│   ├── rubric.ts                    — 8 dimensions with sub-criteria, weights, defaults
+│   └── red-flags.ts                 — ~70 predefined red flag + info gap definitions
+├── agents/
+│   └── im-processor/
+│       ├── index.ts                 — main processing logic (multimodal PDF → structured analysis)
+│       ├── schema.ts                — Zod schema (sub-scores, evidence chains, info gap checklist)
+│       ├── prompt.ts                — prompt template builder with {{PLACEHOLDER}} tokens
+│       └── eval.ts                  — consistency evaluation runner (N iterations + metrics)
+├── format.ts                        — shared formatting utilities (currency, etc.)
 └── auth/                            — Clerk helpers, RBAC utils
 ```
 

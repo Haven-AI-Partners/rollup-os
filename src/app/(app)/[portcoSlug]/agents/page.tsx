@@ -113,6 +113,7 @@ export default async function AgentsPage({
         promptVersionLabel: evalRuns.promptVersionLabel,
         modelId: evalRuns.modelId,
         createdAt: evalRuns.createdAt,
+        completedAt: evalRuns.completedAt,
       })
       .from(evalRuns)
       .where(eq(evalRuns.agentSlug, AGENT_SLUG))
@@ -315,6 +316,7 @@ export default async function AgentsPage({
           promptVersionLabel: r.promptVersionLabel,
           modelId: r.modelId,
           createdAt: r.createdAt.toISOString(),
+          completedAt: r.completedAt?.toISOString() ?? null,
         }))}
         isAdmin={isAdmin}
       />

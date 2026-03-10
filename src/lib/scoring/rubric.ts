@@ -1,12 +1,20 @@
 /**
  * IM Scoring Rubric for Japanese IT Services Companies.
  * 8 dimensions, each scored 1-5, with weighted aggregation.
+ * Sub-criteria enable deterministic dimension scoring from independent judgments.
  */
 
 export interface ScoringCriteria {
   score: number;
   label: string;
   criteria: Record<string, string>;
+}
+
+export interface SubCriterion {
+  id: string;
+  name: string;
+  criteriaKey: string; // maps to key in criteria[].criteria objects
+  defaultScore: number; // used when IM has no relevant data
 }
 
 export interface ScoringDimension {
@@ -17,6 +25,8 @@ export interface ScoringDimension {
   whatToEvaluate: string[];
   criteria: ScoringCriteria[];
   redFlags: string[];
+  subCriteria: SubCriterion[];
+  defaultScore: number;
 }
 
 export const SCORE_LABELS: Record<number, string> = {
@@ -41,6 +51,13 @@ export const SCORING_DIMENSIONS: ScoringDimension[] = [
     name: "Financial Stability",
     weight: 0.20,
     description: "Revenue trends, profitability, cash flow, and revenue predictability",
+    defaultScore: 3,
+    subCriteria: [
+      { id: "revenue_growth", name: "Revenue Growth (3yr CAGR)", criteriaKey: "revenueGrowth", defaultScore: 3 },
+      { id: "operating_margin", name: "Operating/EBITDA Margin", criteriaKey: "operatingMargin", defaultScore: 3 },
+      { id: "cash_flow", name: "Cash Flow Generation", criteriaKey: "cashFlow", defaultScore: 3 },
+      { id: "recurring_revenue", name: "Revenue Predictability", criteriaKey: "recurringRevenue", defaultScore: 3 },
+    ],
     whatToEvaluate: [
       "Revenue trend (3-year CAGR)",
       "Profitability (operating margin, EBITDA margin)",
@@ -67,6 +84,13 @@ export const SCORING_DIMENSIONS: ScoringDimension[] = [
     name: "Debt & Financial Leverage",
     weight: 0.12,
     description: "Debt ratios, interest coverage, and liability profile",
+    defaultScore: 3,
+    subCriteria: [
+      { id: "debt_equity", name: "Debt-to-Equity Ratio", criteriaKey: "debtEquity", defaultScore: 3 },
+      { id: "debt_ebitda", name: "Debt-to-EBITDA Ratio", criteriaKey: "debtEbitda", defaultScore: 3 },
+      { id: "interest_coverage", name: "Interest Coverage", criteriaKey: "interestCoverage", defaultScore: 3 },
+      { id: "debt_profile", name: "Debt Maturity Profile", criteriaKey: "profile", defaultScore: 3 },
+    ],
     whatToEvaluate: [
       "Debt-to-equity ratio",
       "Debt-to-EBITDA ratio",
@@ -93,6 +117,12 @@ export const SCORING_DIMENSIONS: ScoringDimension[] = [
     name: "Organizational Complexity",
     weight: 0.06,
     description: "Corporate structure, related-party transactions, and integration risk",
+    defaultScore: 4,
+    subCriteria: [
+      { id: "entity_structure", name: "Legal Entity Structure", criteriaKey: "structure", defaultScore: 4 },
+      { id: "related_party", name: "Related-Party Transactions", criteriaKey: "relatedParty", defaultScore: 4 },
+      { id: "integration_complexity", name: "Structural Integration Risk", criteriaKey: "integrationRisk", defaultScore: 4 },
+    ],
     whatToEvaluate: [
       "Number of legal entities (subsidiaries, affiliates)",
       "Cross-shareholding structures",
@@ -119,6 +149,13 @@ export const SCORING_DIMENSIONS: ScoringDimension[] = [
     name: "Technology & Technical Capability",
     weight: 0.15,
     description: "Tech stack modernity, cloud adoption, talent, and R&D investment",
+    defaultScore: 3,
+    subCriteria: [
+      { id: "tech_stack", name: "Technology Stack Modernity", criteriaKey: "stack", defaultScore: 3 },
+      { id: "cloud_adoption", name: "Cloud Adoption", criteriaKey: "cloud", defaultScore: 3 },
+      { id: "talent_retention", name: "Technical Talent & Retention", criteriaKey: "talent", defaultScore: 3 },
+      { id: "rd_investment", name: "R&D Investment", criteriaKey: "rdInvestment", defaultScore: 3 },
+    ],
     whatToEvaluate: [
       "Technology stack modernity (languages, frameworks, infrastructure)",
       "Cloud adoption level",
@@ -146,6 +183,13 @@ export const SCORING_DIMENSIONS: ScoringDimension[] = [
     name: "Client Concentration & Revenue Distribution",
     weight: 0.20,
     description: "Revenue concentration, contract terms, and client diversity",
+    defaultScore: 3,
+    subCriteria: [
+      { id: "top_client_pct", name: "Top Client Concentration", criteriaKey: "topClient", defaultScore: 3 },
+      { id: "top3_clients_pct", name: "Top 3 Clients Concentration", criteriaKey: "top3", defaultScore: 3 },
+      { id: "top5_clients_pct", name: "Top 5 Clients Concentration", criteriaKey: "top5", defaultScore: 3 },
+      { id: "contract_quality", name: "Contract Terms & Diversity", criteriaKey: "profile", defaultScore: 3 },
+    ],
     whatToEvaluate: [
       "Top client as % of revenue",
       "Top 3 clients as % of revenue",
@@ -174,6 +218,13 @@ export const SCORING_DIMENSIONS: ScoringDimension[] = [
     name: "AI & Digital Transformation Readiness",
     weight: 0.10,
     description: "AI initiatives, leadership enthusiasm, data infrastructure, and innovation culture",
+    defaultScore: 2,
+    subCriteria: [
+      { id: "ai_initiatives", name: "AI/ML Initiatives", criteriaKey: "aiInitiatives", defaultScore: 2 },
+      { id: "leadership_support", name: "Leadership AI Enthusiasm", criteriaKey: "leadership", defaultScore: 2 },
+      { id: "data_infrastructure", name: "Data Infrastructure", criteriaKey: "dataInfra", defaultScore: 2 },
+      { id: "innovation_culture", name: "Innovation Culture", criteriaKey: "culture", defaultScore: 2 },
+    ],
     whatToEvaluate: [
       "AI/ML initiatives (current or planned)",
       "Executive understanding and enthusiasm for AI",
@@ -202,6 +253,13 @@ export const SCORING_DIMENSIONS: ScoringDimension[] = [
     name: "Business Model & Service Mix",
     weight: 0.12,
     description: "Service portfolio, value positioning, scalability, and differentiation",
+    defaultScore: 3,
+    subCriteria: [
+      { id: "service_model", name: "Service Model Mix", criteriaKey: "serviceModel", defaultScore: 3 },
+      { id: "value_position", name: "Value Positioning", criteriaKey: "valuePosition", defaultScore: 3 },
+      { id: "scalability", name: "Scalability", criteriaKey: "scalability", defaultScore: 3 },
+      { id: "differentiation", name: "Differentiation", criteriaKey: "differentiation", defaultScore: 3 },
+    ],
     whatToEvaluate: [
       "Service portfolio (SES vs. product/platform vs. consulting)",
       "Value-add level (commodity labor vs. strategic advisory)",
@@ -228,6 +286,12 @@ export const SCORING_DIMENSIONS: ScoringDimension[] = [
     name: "Post-Merger Integration Risk",
     weight: 0.05,
     description: "Cultural fit, management continuity, and systems integration complexity",
+    defaultScore: 3,
+    subCriteria: [
+      { id: "cultural_fit", name: "Cultural Fit", criteriaKey: "culturalFit", defaultScore: 3 },
+      { id: "management_continuity", name: "Management Continuity", criteriaKey: "management", defaultScore: 3 },
+      { id: "systems_complexity", name: "Systems Integration", criteriaKey: "complexity", defaultScore: 3 },
+    ],
     whatToEvaluate: [
       "Cultural fit with acquirer",
       "Founder/management transition plan",
@@ -260,6 +324,30 @@ export const JP_MARKET_NORMS = {
   employeeUtilization: "70-85% billable target",
   clientPaymentTerms: "Net 30-60 days standard",
 } as const;
+
+/**
+ * Compute a dimension score deterministically from sub-scores.
+ * Null sub-scores are replaced with defaults. Returns average rounded to 1 decimal.
+ */
+export function computeDimensionScore(
+  dimensionId: string,
+  subScores: Array<{ id: string; score: number | null }>
+): number {
+  const dimension = SCORING_DIMENSIONS.find((d) => d.id === dimensionId);
+  if (!dimension) return 3;
+
+  // Resolve null scores to defaults
+  const resolved = subScores.map((s) => {
+    if (s.score !== null) return s.score;
+    const sub = dimension.subCriteria.find((sc) => sc.id === s.id);
+    return sub?.defaultScore ?? dimension.defaultScore;
+  });
+
+  if (resolved.length === 0) return dimension.defaultScore;
+
+  const avg = resolved.reduce((sum, s) => sum + s, 0) / resolved.length;
+  return Math.round(avg * 10) / 10;
+}
 
 /** Calculate weighted score from dimension scores */
 export function calculateWeightedScore(

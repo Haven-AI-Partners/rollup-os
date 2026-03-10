@@ -20,7 +20,8 @@
       "Bash(head:*)",
       "Bash(find:*)",
       "Bash(git mv:*)",
-      "Bash(pnpm db:generate:*)"
+      "Bash(pnpm db:generate:*)",
+      "Bash(set:*)"
     ]
   }
 }

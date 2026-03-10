@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FlaskConical, CheckCircle, XCircle, Loader2, TrendingDown, TrendingUp, Minus, ChevronRight } from "lucide-react";
+import { FlaskConical, CheckCircle, XCircle, Loader2, TrendingDown, TrendingUp, Minus, ChevronRight, Clock } from "lucide-react";
 import { triggerEvalRun } from "@/lib/actions/im-processing";
 import { useRunStatus } from "@/hooks/use-run-status";
 import { SCORING_DIMENSIONS } from "@/lib/scoring/rubric";
@@ -30,6 +30,7 @@ interface EvalRun {
   promptVersionLabel: string | null;
   modelId: string | null;
   createdAt: string;
+  completedAt: string | null;
 }
 
 interface EvalPanelProps {
@@ -122,6 +123,16 @@ function EvalRunRow({ run, dimNameMap }: { run: EvalRun; dimNameMap: Map<string,
               {(Number(run.flagAgreementRate) * 100).toFixed(0)}% flags
             </Badge>
           )}
+          {run.status === "completed" && run.completedAt && (() => {
+            const ms = new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime();
+            const secs = Math.round(ms / 1000);
+            const label = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
+            return (
+              <Badge variant="outline" className="text-[10px] gap-0.5">
+                <Clock className="size-2.5" /> {label}
+              </Badge>
+            );
+          })()}
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-2">
           <span className="text-xs text-muted-foreground">

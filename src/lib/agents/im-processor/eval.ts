@@ -7,7 +7,7 @@ import { downloadFile } from "@/lib/gdrive/client";
 import { calculateWeightedScore } from "@/lib/scoring/rubric";
 import { buildSystemPrompt } from "./prompt";
 import { imAnalysisSchema, type IMAnalysisResult } from "./schema";
-import { MODEL_ID } from "./index";
+import { MODEL_ID, computeScoresFromAnalysis } from "./index";
 
 interface EvalResult {
   evalRunId: string;
@@ -102,18 +102,19 @@ export async function runEval(
     for (let i = 0; i < iterations; i++) {
       const analysis = await analyzeIMForEval(buffer, systemPrompt, i);
 
-      const scores: Record<string, number> = {};
-      for (const [dimId, dimResult] of Object.entries(analysis.scoring)) {
-        scores[dimId] = dimResult.score;
-      }
-      const { weighted } = calculateWeightedScore(scores);
+      // Extract scores from analysis
+      const { scores, weighted } = computeScoresFromAnalysis(analysis);
+
+      // Extract red flag and info gap IDs
+      const redFlagIds = analysis.redFlags.map((f) => f.flagId);
+      const infoGapIds = analysis.infoGaps.map((g) => g.flagId);
 
       const result = {
         companyName: analysis.companyProfile.companyName,
         overallScore: weighted,
         scores,
-        redFlagIds: analysis.redFlags.map((f) => f.flagId),
-        infoGapIds: analysis.infoGaps.map((f) => f.flagId),
+        redFlagIds,
+        infoGapIds,
       };
       results.push(result);
 
@@ -130,7 +131,7 @@ export async function runEval(
     }
 
     // Compute metrics
-    // 1. Per-dimension score std dev
+    // 1. Per-dimension score std dev (now computed from sub-scores, should be more stable)
     const dimensionIds = Object.keys(results[0].scores);
     const scoreVariance: Record<string, number> = {};
     for (const dimId of dimensionIds) {
