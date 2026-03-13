@@ -82,12 +82,16 @@ export default async function HomePage() {
           | null;
         const match = allowed?.find((d) => d.domain === emailDomain);
         if (match) {
+          // Check for per-email role overrides in settings.roleOverrides
+          const overrides = (portco.settings as { roleOverrides?: Record<string, string> } | null)?.roleOverrides;
+          const role = (overrides?.[dbUser.email] ?? match.defaultRole) as "owner" | "admin" | "analyst" | "viewer";
+
           await db
             .insert(portcoMemberships)
             .values({
               userId: dbUser.id,
               portcoId: portco.id,
-              role: (match.defaultRole as "owner" | "admin" | "analyst" | "viewer") ?? "analyst",
+              role,
             })
             .onConflictDoNothing();
 
