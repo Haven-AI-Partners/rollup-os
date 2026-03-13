@@ -121,11 +121,19 @@ export default async function HomePage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
+      <div className="mx-auto max-w-md text-center">
+        <div className="mb-6 text-5xl">🏢</div>
         <h1 className="text-2xl font-bold">Welcome to Rollup OS</h1>
-        <p className="mt-2 text-muted-foreground">
-          You don&apos;t have access to any PortCos yet. Contact your administrator.
+        <p className="mt-3 text-muted-foreground">
+          You&apos;re signed in as <span className="font-medium text-foreground">{dbUser.email}</span>, but you don&apos;t have access to any portfolio companies yet.
         </p>
+        <div className="mt-6 rounded-lg border bg-muted/50 p-4 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground mb-1">How to get access</p>
+          <ul className="space-y-1 text-left list-disc pl-4">
+            <li>Ask your team admin to add you to a PortCo</li>
+            <li>Sign in with an email domain that matches an existing PortCo</li>
+          </ul>
+        </div>
       </div>
     </div>
   );

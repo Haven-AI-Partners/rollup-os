@@ -53,16 +53,33 @@ export default async function PortcoLayout({
     notFound();
   }
 
+  // Owners get access to all portcos — backfill missing memberships
+  const isOwner = userPortcosWithMembership.some((m) => m.role === "owner");
+  let userPortcos = userPortcosWithMembership;
+
+  if (isOwner) {
+    const memberIds = new Set(userPortcosWithMembership.map((p) => p.id));
+    if (!memberIds.has(currentPortco.id)) {
+      // Backfill membership for this portco
+      await db
+        .insert(portcoMemberships)
+        .values({ userId: dbUser.id, portcoId: currentPortco.id, role: "owner" })
+        .onConflictDoNothing();
+      userPortcos = [
+        ...userPortcosWithMembership,
+        { id: currentPortco.id, name: currentPortco.name, slug: currentPortco.slug, industry: currentPortco.industry, role: "owner" as const },
+      ];
+    }
+  }
+
   // Check membership from already-fetched data (no extra query)
-  const membership = userPortcosWithMembership.find(
+  const membership = userPortcos.find(
     (p) => p.id === currentPortco.id
   );
 
   if (!membership) {
     notFound();
   }
-
-  const userPortcos = userPortcosWithMembership;
 
   return (
     <SidebarProvider>
