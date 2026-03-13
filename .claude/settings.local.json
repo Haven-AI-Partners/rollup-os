@@ -38,7 +38,8 @@
       "Bash(ls -la /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/files/)",
       "Bash(find /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/files -type f)",
       "Bash(grep -n \"dealId\" /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/files/page.tsx)",
-      "Bash(ls /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/pipeline/\\\\[dealId\\\\]/page.tsx 2>/dev/null)"
+      "Bash(ls /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/pipeline/\\\\[dealId\\\\]/page.tsx 2>/dev/null)",
+      "WebFetch(domain:www.rengapartners.com)"
     ]
   }
 }
