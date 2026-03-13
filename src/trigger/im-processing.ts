@@ -122,7 +122,7 @@ export const reprocessAllTask = task({
 });
 
 /** Scheduled: scan all GDrive-connected portcos for new IMs every 15 minutes */
-export const scheduledGdriveScan = schedules.task({
+export const scheduledGdriveScanTask = schedules.task({
   id: "scheduled-gdrive-scan",
   cron: {
     pattern: "*/15 * * * *",
@@ -151,23 +151,26 @@ export const scheduledGdriveScan = schedules.task({
 
     logger.info(`Scanning ${connectedPortcos.length} portco(s) for new IMs`);
 
-    const results = [];
-    for (const portco of connectedPortcos) {
-      try {
+    const settled = await Promise.allSettled(
+      connectedPortcos.map(async (portco) => {
         const result = await scanAndProcessFolder(portco.id);
         logger.info(`Scan complete for ${portco.name}`, {
           newFiles: result.newFiles,
           processed: result.processed,
           failed: result.failed,
         });
-        results.push({ portcoId: portco.id, name: portco.name, ...result });
-      } catch (error) {
-        logger.error(`Scan failed for ${portco.name}`, {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-        results.push({ portcoId: portco.id, name: portco.name, error: true });
-      }
-    }
+        return { portcoId: portco.id, name: portco.name, ...result };
+      })
+    );
+
+    const results = settled.map((s, i) => {
+      if (s.status === "fulfilled") return s.value;
+      const portco = connectedPortcos[i];
+      logger.error(`Scan failed for ${portco.name}`, {
+        error: s.reason instanceof Error ? s.reason.message : "Unknown error",
+      });
+      return { portcoId: portco.id, name: portco.name, error: true };
+    });
 
     return { scanned: connectedPortcos.length, results };
   },
