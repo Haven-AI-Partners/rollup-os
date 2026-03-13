@@ -47,18 +47,35 @@ export default async function HomePage() {
       .returning();
   }
 
-  let [firstMembership] = await db
-    .select({ slug: portcos.slug })
+  const existingMemberships = await db
+    .select({ slug: portcos.slug, role: portcoMemberships.role })
     .from(portcoMemberships)
     .innerJoin(portcos, eq(portcoMemberships.portcoId, portcos.id))
-    .where(eq(portcoMemberships.userId, dbUser.id))
-    .limit(1);
+    .where(eq(portcoMemberships.userId, dbUser.id));
+
+  let firstMembership: { slug: string } | undefined = existingMemberships[0];
+
+  // Owners get access to all portcos — backfill any missing memberships
+  const isOwner = existingMemberships.some((m) => m.role === "owner");
+  if (isOwner) {
+    const allPortcos = await db.select({ id: portcos.id, slug: portcos.slug }).from(portcos);
+    const memberPortcoSlugs = new Set(existingMemberships.map((m) => m.slug));
+    const missing = allPortcos.filter((p) => !memberPortcoSlugs.has(p.slug));
+
+    if (missing.length > 0) {
+      await db
+        .insert(portcoMemberships)
+        .values(missing.map((p) => ({ userId: dbUser.id, portcoId: p.id, role: "owner" as const })))
+        .onConflictDoNothing();
+    }
+  }
 
   // Auto-join portcos by email domain if user has no memberships yet
   if (!firstMembership) {
     const emailDomain = dbUser.email.split("@")[1];
+    const allPortcos = await db.select().from(portcos);
+
     if (emailDomain) {
-      const allPortcos = await db.select().from(portcos);
       for (const portco of allPortcos) {
         const allowed = portco.allowedDomains as
           | { domain: string; defaultRole: string }[]
@@ -78,6 +95,22 @@ export default async function HomePage() {
             firstMembership = { slug: portco.slug };
           }
         }
+      }
+    }
+
+    // Fallback: auto-assign to demo portco if no domain match
+    if (!firstMembership) {
+      const demoPortco = allPortcos.find((p) => p.slug === "demo");
+      if (demoPortco) {
+        await db
+          .insert(portcoMemberships)
+          .values({
+            userId: dbUser.id,
+            portcoId: demoPortco.id,
+            role: "analyst",
+          })
+          .onConflictDoNothing();
+        firstMembership = { slug: demoPortco.slug };
       }
     }
   }

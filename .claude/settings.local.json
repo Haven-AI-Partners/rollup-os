@@ -33,7 +33,12 @@
       "Read(//opt/homebrew/opt/libpq/bin/**)",
       "Read(//opt/homebrew/opt/**)",
       "Bash(source /Users/alex/dev/haven/rollup-os/.env && /opt/homebrew/opt/libpq/bin/psql \"$DATABASE_URL\" -f /Users/alex/dev/haven/rollup-os/scripts/add-indexes.sql 2>&1)",
-      "Bash(brew list:*)"
+      "Bash(brew list:*)",
+      "Bash(ls -la /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/)",
+      "Bash(ls -la /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/files/)",
+      "Bash(find /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/files -type f)",
+      "Bash(grep -n \"dealId\" /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/files/page.tsx)",
+      "Bash(ls /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/pipeline/\\\\[dealId\\\\]/page.tsx 2>/dev/null)"
     ]
   }
 }
