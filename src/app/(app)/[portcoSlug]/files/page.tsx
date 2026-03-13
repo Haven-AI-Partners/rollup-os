@@ -133,12 +133,14 @@ export default async function FilesPage({
                 Connect Google Drive in Settings to browse IMs and deal documents.
               </p>
             </div>
-            <Button asChild variant="outline">
-              <Link href={`/${portcoSlug}/settings`}>
-                <Settings className="mr-1 size-4" />
-                Go to Settings
-              </Link>
-            </Button>
+{isAdmin && (
+              <Button asChild variant="outline">
+                <Link href={`/${portcoSlug}/settings/integrations`}>
+                  <Settings className="mr-1 size-4" />
+                  Go to Settings
+                </Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : gdriveFiles.length > 0 ? (

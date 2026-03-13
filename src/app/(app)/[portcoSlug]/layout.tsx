@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { users, portcoMemberships, portcos } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { isAllowedEmail } from "@/lib/allowed-domains";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
@@ -30,6 +31,10 @@ export default async function PortcoLayout({
 
   if (!dbUser) {
     redirect("/sign-in");
+  }
+
+  if (!isAllowedEmail(dbUser.email)) {
+    redirect("/access-denied");
   }
 
   // Get portco, membership, and switcher data in parallel

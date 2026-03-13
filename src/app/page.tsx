@@ -3,6 +3,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { users, portcoMemberships, portcos } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { isAllowedEmail } from "@/lib/allowed-domains";
 
 export default async function HomePage() {
   const { userId: clerkId } = await auth();
@@ -18,6 +19,10 @@ export default async function HomePage() {
     .where(eq(users.clerkId, clerkId))
     .limit(1);
 
+  if (dbUser && !isAllowedEmail(dbUser.email)) {
+    redirect("/access-denied");
+  }
+
   if (!dbUser) {
     const clerkUser = await currentUser();
     if (!clerkUser) {
@@ -27,6 +32,10 @@ export default async function HomePage() {
     const email = clerkUser.emailAddresses[0]?.emailAddress;
     if (!email) {
       redirect("/sign-in");
+    }
+
+    if (!isAllowedEmail(email)) {
+      redirect("/access-denied");
     }
 
     const fullName =
@@ -46,6 +55,12 @@ export default async function HomePage() {
       })
       .returning();
   }
+
+  // Track last login
+  await db
+    .update(users)
+    .set({ lastLoginAt: new Date() })
+    .where(eq(users.id, dbUser.id));
 
   const existingMemberships = await db
     .select({ slug: portcos.slug, role: portcoMemberships.role })

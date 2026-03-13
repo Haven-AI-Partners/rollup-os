@@ -11,6 +11,7 @@ interface SettingsNavProps {
 const tabs = [
   { title: "Integrations", href: "/settings/integrations" },
   { title: "Customization", href: "/settings/customization" },
+  { title: "Team", href: "/settings/team" },
 ];
 
 export function SettingsNav({ portcoSlug }: SettingsNavProps) {
