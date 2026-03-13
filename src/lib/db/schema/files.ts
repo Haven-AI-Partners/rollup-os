@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, bigint, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, bigint, jsonb, index } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { portcos } from "./portcos";
 import { deals } from "./deals";
@@ -43,4 +43,8 @@ export const files = pgTable("files", {
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+},
+(table) => [
+  index("idx_files_gdrive").on(table.gdriveFileId),
+  index("idx_files_portco_status").on(table.portcoId, table.processingStatus),
+]);

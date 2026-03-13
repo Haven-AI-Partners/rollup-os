@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import { deals } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { getTasksForDeal } from "@/lib/actions/tasks";
 import { TaskList } from "@/components/deals/task-list";
+import { getDeal } from "@/lib/db/cached-queries";
 
 export default async function TasksPage({
   params,
@@ -12,10 +10,12 @@ export default async function TasksPage({
 }) {
   const { portcoSlug, dealId } = await params;
 
-  const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
-  if (!deal) notFound();
+  const [deal, tasks] = await Promise.all([
+    getDeal(dealId),
+    getTasksForDeal(dealId),
+  ]);
 
-  const tasks = await getTasksForDeal(dealId);
+  if (!deal) notFound();
 
   return (
     <div className="max-w-2xl">

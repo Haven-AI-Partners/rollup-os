@@ -26,7 +26,14 @@
       "WebFetch(domain:jmai.co.jp)",
       "WebFetch(domain:ma-la.co.jp)",
       "WebFetch(domain:www.acn-consulting.jp)",
-      "WebFetch(domain:www.nihon-ma.co.jp)"
+      "WebFetch(domain:www.nihon-ma.co.jp)",
+      "Bash(pnpm lint:*)",
+      "Bash(find /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/pipeline -type f -name \"*.tsx\" | sort)",
+      "Bash(brew --prefix libpq)",
+      "Read(//opt/homebrew/opt/libpq/bin/**)",
+      "Read(//opt/homebrew/opt/**)",
+      "Bash(source /Users/alex/dev/haven/rollup-os/.env && /opt/homebrew/opt/libpq/bin/psql \"$DATABASE_URL\" -f /Users/alex/dev/haven/rollup-os/scripts/add-indexes.sql 2>&1)",
+      "Bash(brew list:*)"
     ]
   }
 }

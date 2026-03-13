@@ -123,9 +123,11 @@ export async function runEval(
       return { evalRunId, status: "failed", error: "Download failed" };
     }
 
-    // Build prompts once
-    const extractionPrompt = await buildExtractionPrompt();
-    const scoringPrompt = await buildScoringPrompt();
+    // Build prompts once (parallel)
+    const [extractionPrompt, scoringPrompt] = await Promise.all([
+      buildExtractionPrompt(),
+      buildScoringPrompt(),
+    ]);
 
     // In scoring-only mode, extract once and reuse
     let fixedExtraction: IMExtractionResult | null = null;
@@ -142,36 +144,40 @@ export async function runEval(
       infoGapIds: string[];
     }> = [];
 
-    for (let i = 0; i < iterations; i++) {
-      const extraction = fixedExtraction ?? await extractForEval(buffer, extractionPrompt, i);
-      const scoring = await scoreForEval(extraction, scoringPrompt, i);
-      const analysis = mergeResults(extraction, scoring);
+    const iterationResults = await Promise.all(
+      Array.from({ length: iterations }, async (_, i) => {
+        const extraction = fixedExtraction ?? await extractForEval(buffer, extractionPrompt, i);
+        const scoring = await scoreForEval(extraction, scoringPrompt, i);
+        const analysis = mergeResults(extraction, scoring);
 
-      const { scores, weighted } = computeScoresFromAnalysis(analysis);
+        const { scores, weighted } = computeScoresFromAnalysis(analysis);
 
-      const redFlagIds = analysis.redFlags.map((f) => f.flagId);
-      const infoGapIds = analysis.infoGaps.map((g) => g.flagId);
+        const redFlagIds = analysis.redFlags.map((f) => f.flagId);
+        const infoGapIds = analysis.infoGaps.map((g) => g.flagId);
 
-      const result = {
-        companyName: analysis.companyProfile.companyName,
-        overallScore: weighted,
-        scores,
-        redFlagIds,
-        infoGapIds,
-      };
-      results.push(result);
+        const result = {
+          companyName: analysis.companyProfile.companyName,
+          overallScore: weighted,
+          scores,
+          redFlagIds,
+          infoGapIds,
+        };
 
-      // Store iteration
-      await db.insert(evalIterations).values({
-        evalRunId,
-        iteration: i + 1,
-        companyName: result.companyName,
-        overallScore: result.overallScore.toString(),
-        scores: result.scores,
-        redFlagIds: result.redFlagIds,
-        infoGapIds: result.infoGapIds,
-      });
-    }
+        // Store iteration
+        await db.insert(evalIterations).values({
+          evalRunId,
+          iteration: i + 1,
+          companyName: result.companyName,
+          overallScore: result.overallScore.toString(),
+          scores: result.scores,
+          redFlagIds: result.redFlagIds,
+          infoGapIds: result.infoGapIds,
+        });
+
+        return result;
+      })
+    );
+    results.push(...iterationResults);
 
     // Compute metrics
     // 1. Per-dimension score std dev

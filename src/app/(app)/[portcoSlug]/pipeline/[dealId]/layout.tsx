@@ -1,23 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { deals, pipelineStages } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { getDeal, getStage } from "@/lib/db/cached-queries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
-
-const tabs = [
-  { label: "Overview", segment: "overview" },
-  { label: "Profile", segment: "profile" },
-  { label: "Organization", segment: "organization" },
-  { label: "Files", segment: "files" },
-  { label: "Tasks", segment: "tasks" },
-  { label: "Comments", segment: "comments" },
-  { label: "Financials", segment: "financials" },
-  { label: "Activity", segment: "activity" },
-];
+import { DealTabs } from "@/components/deals/deal-tabs";
 
 export default async function DealDetailLayout({
   children,
@@ -28,14 +16,10 @@ export default async function DealDetailLayout({
 }) {
   const { portcoSlug, dealId } = await params;
 
-  const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
+  const deal = await getDeal(dealId);
   if (!deal) notFound();
 
-  const [stage] = await db
-    .select()
-    .from(pipelineStages)
-    .where(eq(pipelineStages.id, deal.stageId))
-    .limit(1);
+  const stage = await getStage(deal.stageId);
 
   return (
     <div>
@@ -72,17 +56,7 @@ export default async function DealDetailLayout({
         </div>
 
         {/* Tab Navigation */}
-        <nav className="flex gap-1 -mb-px">
-          {tabs.map((tab) => (
-            <Link
-              key={tab.segment}
-              href={`/${portcoSlug}/pipeline/${dealId}/${tab.segment}`}
-              className="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-            >
-              {tab.label}
-            </Link>
-          ))}
-        </nav>
+        <DealTabs basePath={`/${portcoSlug}/pipeline/${dealId}`} />
       </div>
 
       {/* Tab Content */}

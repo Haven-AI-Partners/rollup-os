@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { deals, files, portcos } from "@/lib/db/schema";
+import { files, portcos } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { FileText, ExternalLink } from "lucide-react";
 import { ProcessIMButton } from "@/components/deals/process-im-button";
 import { ImportGdriveDialog } from "@/components/deals/import-gdrive-dialog";
+import { getDeal } from "@/lib/db/cached-queries";
 
 const fileTypeLabels: Record<string, string> = {
   im_pdf: "IM",
@@ -40,27 +41,32 @@ export default async function FilesPage({
 }) {
   const { portcoSlug, dealId } = await params;
 
-  const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
+  // Fetch deal, user, and files in parallel
+  const [deal, user] = await Promise.all([
+    getDeal(dealId),
+    getCurrentUser(),
+  ]);
+
   if (!deal) notFound();
 
-  const [portco] = await db
-    .select({ id: portcos.id, gdriveTokenEnc: portcos.gdriveServiceAccountEnc })
-    .from(portcos)
-    .where(eq(portcos.id, deal.portcoId))
-    .limit(1);
+  // These depend on deal/user results but are independent of each other
+  const [portco, role, dealFiles] = await Promise.all([
+    db
+      .select({ id: portcos.id, gdriveTokenEnc: portcos.gdriveServiceAccountEnc })
+      .from(portcos)
+      .where(eq(portcos.id, deal.portcoId))
+      .limit(1)
+      .then((r) => r[0] ?? null),
+    user ? getUserPortcoRole(user.id, deal.portcoId) : null,
+    db
+      .select()
+      .from(files)
+      .where(eq(files.dealId, dealId))
+      .orderBy(files.createdAt),
+  ]);
 
   const isGdriveConnected = Boolean(portco?.gdriveTokenEnc);
-
-  // Check user role for admin actions
-  const user = await getCurrentUser();
-  const role = user ? await getUserPortcoRole(user.id, deal.portcoId) : null;
   const isAdmin = role ? hasMinRole(role as UserRole, "admin") : false;
-
-  const dealFiles = await db
-    .select()
-    .from(files)
-    .where(eq(files.dealId, dealId))
-    .orderBy(files.createdAt);
 
   return (
     <div className="max-w-2xl">

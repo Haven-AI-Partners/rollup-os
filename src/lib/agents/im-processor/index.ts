@@ -288,9 +288,10 @@ async function storeResults(
     .where(eq(dealRedFlags.dealId, dealId));
 
   // Build flag rows from confirmed red flags + info gaps
+  const defMap = new Map(RED_FLAG_DEFINITIONS.map((d) => [d.id, d]));
   const flagRows = [
     ...confirmedFlags.map((flag) => {
-      const def = RED_FLAG_DEFINITIONS.find((d) => d.id === flag.flagId)!;
+      const def = defMap.get(flag.flagId)!;
       return {
         dealId,
         portcoId,
@@ -301,7 +302,7 @@ async function storeResults(
       };
     }),
     ...confirmedGaps.map((gap) => {
-      const def = RED_FLAG_DEFINITIONS.find((d) => d.id === gap.flagId)!;
+      const def = defMap.get(gap.flagId)!;
       return {
         dealId,
         portcoId,
@@ -371,19 +372,22 @@ async function storeResults(
       nodeIdMap.set(node.name, node.id);
     }
 
-    // Second pass: set parentId based on reportsTo
-    for (const member of analysis.managementTeam) {
-      if (member.reportsTo) {
+    // Second pass: set parentId based on reportsTo (parallel)
+    const parentUpdates = analysis.managementTeam
+      .filter((member) => member.reportsTo)
+      .map((member) => {
         const nodeId = nodeIdMap.get(member.name);
-        const parentId = nodeIdMap.get(member.reportsTo);
+        const parentId = nodeIdMap.get(member.reportsTo!);
         if (nodeId && parentId) {
-          await db
+          return db
             .update(orgChartNodes)
             .set({ parentId })
             .where(eq(orgChartNodes.id, nodeId));
         }
-      }
-    }
+        return null;
+      })
+      .filter(Boolean);
+    await Promise.all(parentUpdates);
   }
 
   return profile.id;

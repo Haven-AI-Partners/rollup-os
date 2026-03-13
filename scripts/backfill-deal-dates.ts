@@ -58,27 +58,27 @@ async function main() {
       }
     }
 
-    for (const file of imFiles) {
-      if (!file.gdriveFileId) {
-        skipped++;
-        continue;
-      }
-
-      const modifiedTime = modifiedTimeMap.get(file.gdriveFileId);
-      if (!modifiedTime) {
+    const validUpdates = imFiles.filter((file) => {
+      if (!file.gdriveFileId) { skipped++; return false; }
+      if (!modifiedTimeMap.has(file.gdriveFileId)) {
         console.log(`  File ${file.gdriveFileId}: no modifiedTime in GDrive, skipping.`);
         skipped++;
-        continue;
+        return false;
       }
+      return true;
+    });
 
-      await db
-        .update(deals)
-        .set({ createdAt: new Date(modifiedTime) })
-        .where(eq(deals.id, file.dealId));
-
-      console.log(`  Deal ${file.dealId}: set createdAt to ${modifiedTime}`);
-      updated++;
-    }
+    await Promise.all(
+      validUpdates.map(async (file) => {
+        const modifiedTime = modifiedTimeMap.get(file.gdriveFileId!)!;
+        await db
+          .update(deals)
+          .set({ createdAt: new Date(modifiedTime) })
+          .where(eq(deals.id, file.dealId));
+        console.log(`  Deal ${file.dealId}: set createdAt to ${modifiedTime}`);
+        updated++;
+      })
+    );
   }
 
   console.log(`\nDone. Updated: ${updated}, Skipped: ${skipped}`);

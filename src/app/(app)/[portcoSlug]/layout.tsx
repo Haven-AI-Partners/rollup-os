@@ -33,7 +33,7 @@ export default async function PortcoLayout({
   }
 
   // Get portco, membership, and switcher data in parallel
-  const [portcoResult, userPortcos] = await Promise.all([
+  const [portcoResult, userPortcosWithMembership] = await Promise.all([
     db.select().from(portcos).where(eq(portcos.slug, portcoSlug)).limit(1),
     db
       .select({
@@ -41,6 +41,7 @@ export default async function PortcoLayout({
         name: portcos.name,
         slug: portcos.slug,
         industry: portcos.industry,
+        role: portcoMemberships.role,
       })
       .from(portcoMemberships)
       .innerJoin(portcos, eq(portcoMemberships.portcoId, portcos.id))
@@ -52,21 +53,16 @@ export default async function PortcoLayout({
     notFound();
   }
 
-  // Check membership / RBAC
-  const [membership] = await db
-    .select()
-    .from(portcoMemberships)
-    .where(
-      and(
-        eq(portcoMemberships.userId, dbUser.id),
-        eq(portcoMemberships.portcoId, currentPortco.id)
-      )
-    )
-    .limit(1);
+  // Check membership from already-fetched data (no extra query)
+  const membership = userPortcosWithMembership.find(
+    (p) => p.id === currentPortco.id
+  );
 
   if (!membership) {
     notFound();
   }
+
+  const userPortcos = userPortcosWithMembership;
 
   return (
     <SidebarProvider>
