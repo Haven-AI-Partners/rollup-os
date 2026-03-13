@@ -1,6 +1,9 @@
-import { task, logger, metadata } from "@trigger.dev/sdk";
+import { task, logger, metadata, schedules } from "@trigger.dev/sdk";
 import { processIM, scanAndProcessFolder, reprocessAllFiles, processSingleGdriveFile, MODEL_ID } from "@/lib/agents/im-processor";
 import { runEval } from "@/lib/agents/im-processor/eval";
+import { db } from "@/lib/db";
+import { portcos } from "@/lib/db/schema";
+import { and, isNotNull } from "drizzle-orm";
 
 /** Process a single IM file */
 export const processIMTask = task({
@@ -115,6 +118,58 @@ export const reprocessAllTask = task({
     });
 
     return result;
+  },
+});
+
+/** Scheduled: scan all GDrive-connected portcos for new IMs every 15 minutes */
+export const scheduledGdriveScan = schedules.task({
+  id: "scheduled-gdrive-scan",
+  cron: {
+    pattern: "*/15 * * * *",
+    timezone: "Asia/Tokyo",
+  },
+  maxDuration: 600,
+  retry: {
+    maxAttempts: 1,
+  },
+  run: async () => {
+    // Find all portcos with GDrive connected
+    const connectedPortcos = await db
+      .select({ id: portcos.id, name: portcos.name })
+      .from(portcos)
+      .where(
+        and(
+          isNotNull(portcos.gdriveFolderId),
+          isNotNull(portcos.gdriveServiceAccountEnc),
+        )
+      );
+
+    if (connectedPortcos.length === 0) {
+      logger.info("No portcos with GDrive connected, skipping");
+      return { scanned: 0, results: [] };
+    }
+
+    logger.info(`Scanning ${connectedPortcos.length} portco(s) for new IMs`);
+
+    const results = [];
+    for (const portco of connectedPortcos) {
+      try {
+        const result = await scanAndProcessFolder(portco.id);
+        logger.info(`Scan complete for ${portco.name}`, {
+          newFiles: result.newFiles,
+          processed: result.processed,
+          failed: result.failed,
+        });
+        results.push({ portcoId: portco.id, name: portco.name, ...result });
+      } catch (error) {
+        logger.error(`Scan failed for ${portco.name}`, {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+        results.push({ portcoId: portco.id, name: portco.name, error: true });
+      }
+    }
+
+    return { scanned: connectedPortcos.length, results };
   },
 });
 
