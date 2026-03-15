@@ -31,9 +31,10 @@ function UserAvatar() {
 interface InterviewChatProps {
   sessionId: string;
   employeeName: string;
+  onSessionComplete?: () => void;
 }
 
-export function InterviewChat({ sessionId, employeeName }: InterviewChatProps) {
+export function InterviewChat({ sessionId, employeeName, onSessionComplete }: InterviewChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -157,10 +158,17 @@ export function InterviewChat({ sessionId, employeeName }: InterviewChatProps) {
             <p className="text-xs text-muted-foreground">{employeeName}さん</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => setPaused(true)}>
-          <Pause className="mr-1 size-3.5" />
-          一時停止
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setPaused(true)}>
+            <Pause className="mr-1 size-3.5" />
+            一時停止
+          </Button>
+          {onSessionComplete && (
+            <Button variant="ghost" size="sm" onClick={onSessionComplete} className="text-muted-foreground">
+              終了する
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}

@@ -39,6 +39,7 @@ export default async function InterviewSessionPage({
       sessionStatus={session.status}
       employeeName={employee.name}
       companyName={deal?.companyName ?? "会社"}
+      hasFeedback={session.feedbackRating != null}
     />
   );
 }

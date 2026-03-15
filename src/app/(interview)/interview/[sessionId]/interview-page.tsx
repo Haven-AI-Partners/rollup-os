@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PasswordGate } from "@/components/discovery/password-gate";
 import { InterviewChat } from "@/components/discovery/interview-chat";
+import { SessionFeedback } from "@/components/discovery/session-feedback";
 import { Card } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
 
@@ -11,12 +12,15 @@ interface InterviewPageProps {
   sessionStatus: string;
   employeeName: string;
   companyName: string;
+  hasFeedback: boolean;
 }
 
-export function InterviewPage({ sessionId, sessionStatus, employeeName, companyName }: InterviewPageProps) {
+export function InterviewPage({ sessionId, sessionStatus, employeeName, companyName, hasFeedback }: InterviewPageProps) {
   const [authenticated, setAuthenticated] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
-  if (sessionStatus === "completed") {
+  // Already completed and feedback given
+  if (sessionStatus === "completed" && hasFeedback) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md p-8 text-center">
@@ -30,6 +34,16 @@ export function InterviewPage({ sessionId, sessionStatus, employeeName, companyN
         </Card>
       </div>
     );
+  }
+
+  // Already completed but no feedback yet — show feedback form
+  if (sessionStatus === "completed" && !hasFeedback) {
+    return <SessionFeedback sessionId={sessionId} employeeName={employeeName} />;
+  }
+
+  // User ended the session — show feedback
+  if (showFeedback) {
+    return <SessionFeedback sessionId={sessionId} employeeName={employeeName} />;
   }
 
   if (!authenticated) {
@@ -47,6 +61,7 @@ export function InterviewPage({ sessionId, sessionStatus, employeeName, companyN
     <InterviewChat
       sessionId={sessionId}
       employeeName={employeeName}
+      onSessionComplete={() => setShowFeedback(true)}
     />
   );
 }

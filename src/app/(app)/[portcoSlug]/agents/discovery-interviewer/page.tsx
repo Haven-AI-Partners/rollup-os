@@ -23,6 +23,7 @@ import {
   CheckCircle,
   Pause,
   ExternalLink,
+  Star,
 } from "lucide-react";
 import Link from "next/link";
 import { PromptEditor } from "@/components/agents/prompt-editor";
@@ -97,6 +98,7 @@ export default async function DiscoveryInterviewerPage({
   let inProgressSessions = 0;
   let totalWorkflows = 0;
   let avgAutomationScore: number | null = null;
+  let avgFeedbackRating: number | null = null;
   type SessionRow = {
     id: string;
     campaignId: string;
@@ -106,13 +108,14 @@ export default async function DiscoveryInterviewerPage({
     jobTitle: string | null;
     workflowCount: number;
     sentimentScore: string | null;
+    feedbackRating: number | null;
     lastActiveAt: Date | null;
     startedAt: Date | null;
   };
   let sessions: SessionRow[] = [];
 
   if (campaignIds.length > 0) {
-    const [sessionStats, workflowStats, scoreStats, sessionRows] = await Promise.all([
+    const [sessionStats, workflowStats, scoreStats, feedbackStats, sessionRows] = await Promise.all([
       db
         .select({
           status: discoverySessions.status,
@@ -133,6 +136,11 @@ export default async function DiscoveryInterviewerPage({
         .where(sql`${discoveryWorkflows.campaignId} IN ${campaignIds}`),
 
       db
+        .select({ avg: avg(sql`${discoverySessions.feedbackRating}`) })
+        .from(discoverySessions)
+        .where(sql`${discoverySessions.campaignId} IN ${campaignIds} AND ${discoverySessions.feedbackRating} IS NOT NULL`),
+
+      db
         .select({
           id: discoverySessions.id,
           campaignId: discoverySessions.campaignId,
@@ -142,6 +150,7 @@ export default async function DiscoveryInterviewerPage({
           jobTitle: companyEmployees.jobTitle,
           workflowCount: discoverySessions.workflowCount,
           sentimentScore: discoverySessions.sentimentScore,
+          feedbackRating: discoverySessions.feedbackRating,
           lastActiveAt: discoverySessions.lastActiveAt,
           startedAt: discoverySessions.startedAt,
         })
@@ -157,6 +166,7 @@ export default async function DiscoveryInterviewerPage({
     inProgressSessions = (statusMap.get("in_progress") ?? 0) + (statusMap.get("pending") ?? 0);
     totalWorkflows = Number(workflowStats[0]?.count ?? 0);
     avgAutomationScore = scoreStats[0]?.avg ? Number(scoreStats[0].avg) : null;
+    avgFeedbackRating = feedbackStats[0]?.avg ? Number(feedbackStats[0].avg) : null;
     sessions = sessionRows;
   }
 
@@ -248,7 +258,7 @@ export default async function DiscoveryInterviewerPage({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <div className="rounded-lg border p-3">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <MessageSquare className="size-3" />
@@ -280,10 +290,19 @@ export default async function DiscoveryInterviewerPage({
             <div className="rounded-lg border p-3">
               <div className="flex items-center gap-1.5 text-xs text-amber-600">
                 <Activity className="size-3" />
-                Avg Score
+                Automation
               </div>
               <p className="mt-1 text-2xl font-semibold text-amber-600">
                 {avgAutomationScore ? `${avgAutomationScore.toFixed(0)}/100` : "—"}
+              </p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                <Star className="size-3" />
+                Feedback
+              </div>
+              <p className="mt-1 text-2xl font-semibold text-amber-600">
+                {avgFeedbackRating ? `${avgFeedbackRating.toFixed(1)}/5` : "—"}
               </p>
             </div>
           </div>
@@ -342,9 +361,10 @@ export default async function DiscoveryInterviewerPage({
                             <span className="text-xs text-muted-foreground">
                               {session.workflowCount} workflows
                             </span>
-                            {session.sentimentScore && (
-                              <span className="text-xs">
-                                Sentiment: {Number(session.sentimentScore).toFixed(0)}/10
+                            {session.feedbackRating && (
+                              <span className="flex items-center gap-0.5 text-xs">
+                                <Star className="size-3 text-amber-500 fill-amber-500" />
+                                {session.feedbackRating}/5
                               </span>
                             )}
                             {session.status === "in_progress" && (
