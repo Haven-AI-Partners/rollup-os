@@ -142,7 +142,7 @@ export function PromptEditor({
           <Textarea
             value={template}
             onChange={(e) => setTemplate(e.target.value)}
-            className="font-mono text-xs min-h-[400px] leading-relaxed"
+            className="font-mono text-xs h-[400px] resize-none leading-relaxed"
             readOnly={!isAdmin}
           />
           {isAdmin && (
@@ -180,7 +180,7 @@ export function PromptEditor({
       )}
 
       {tab === "preview" && (
-        <pre className="whitespace-pre-wrap text-xs font-mono bg-muted/50 rounded-md p-4 max-h-[500px] overflow-y-auto leading-relaxed">
+        <pre className="whitespace-pre-wrap text-xs font-mono bg-muted/50 rounded-md p-4 h-[400px] overflow-y-auto leading-relaxed">
           {renderedPrompt}
         </pre>
       )}

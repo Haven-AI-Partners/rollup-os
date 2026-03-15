@@ -120,7 +120,7 @@ export async function savePromptVersion(
   // Auto-trigger eval with the new prompt
   await autoTriggerEval(portco.id, portcoSlug, agentSlug, newVersion.id, `v${newVersion.version}`, user.id);
 
-  revalidatePath(`/${portcoSlug}/agents`);
+  revalidatePath(`/${portcoSlug}/agents`, "layout");
   return newVersion;
 }
 
@@ -166,7 +166,7 @@ export async function activatePromptVersion(
     user.id,
   );
 
-  revalidatePath(`/${portcoSlug}/agents`);
+  revalidatePath(`/${portcoSlug}/agents`, "layout");
 }
 
 /** Reset to the default (code-defined) prompt by deactivating all versions */
@@ -189,5 +189,5 @@ export async function resetToDefaultPrompt(
   // Auto-trigger eval with the default prompt
   await autoTriggerEval(portco.id, portcoSlug, agentSlug, null, "Default", user.id);
 
-  revalidatePath(`/${portcoSlug}/agents`);
+  revalidatePath(`/${portcoSlug}/agents`, "layout");
 }

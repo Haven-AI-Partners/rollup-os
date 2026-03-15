@@ -123,7 +123,7 @@ export async function runInterviewStream(
   ctx: InterviewContext,
   messages: Array<{ role: "user" | "assistant"; content: string }>,
 ) {
-  const systemPrompt = buildInterviewerPrompt({
+  const systemPrompt = await buildInterviewerPrompt({
     agentName: ctx.agentName ?? "太郎",
     employeeName: ctx.employeeName,
     companyName: ctx.companyName,
