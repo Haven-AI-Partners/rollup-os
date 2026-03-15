@@ -12,3 +12,5 @@ export * from "./kpis";
 export * from "./notifications";
 export * from "./org-charts";
 export * from "./evals";
+export * from "./company-employees";
+export * from "./discovery";
