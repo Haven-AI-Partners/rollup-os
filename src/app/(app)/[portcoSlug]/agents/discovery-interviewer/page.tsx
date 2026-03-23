@@ -334,9 +334,10 @@ export default async function DiscoveryInterviewerPage({
                     <h4 className="text-sm font-medium mb-2">Interview Sessions</h4>
                     <div className="space-y-1.5">
                       {campaignSessions.map((session) => (
-                        <div
+                        <Link
                           key={session.id}
-                          className="flex items-center justify-between rounded-md border px-3 py-2"
+                          href={`/${portcoSlug}/agents/discovery-interviewer/sessions/${session.id}`}
+                          className="flex items-center justify-between rounded-md border px-3 py-2 hover:bg-muted/50 transition-colors"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             {session.status === "completed" ? (
@@ -377,7 +378,7 @@ export default async function DiscoveryInterviewerPage({
                             )}
                             {statusBadge(session.status)}
                           </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </CardContent>

@@ -377,6 +377,45 @@ src/
 
 Recharts (already installed, v2.15.4) with existing shadcn `chart.tsx` wrapper. For the dependency graph, use SVG with a simple force-directed layout (no additional library unless complexity warrants reactflow).
 
+## Feedback & Continuous Improvement
+
+### Post-Session Feedback (implemented)
+
+When an employee finishes or ends an interview, a feedback card is shown:
+- 5-star rating (overall experience)
+- Quick tags: "自然な会話だった", "役に立った", "質問が多すぎた", "分かりにくかった", "テンポが遅かった", "テンポが速かった"
+- Optional free-text comment
+- Skip option
+
+Feedback is stored on `discovery_sessions` (`feedback_rating`, `feedback_tags`, `feedback_comment`, `feedback_at`). Each session also records its `prompt_version_id` to correlate ratings with specific prompt versions.
+
+### Feedback Loop Levels
+
+**Level 1: Manual review (current)**
+- Dashboard shows sessions sorted by rating — admins focus on low-rated ones
+- Read the transcript, spot patterns (e.g. "asks too many questions at once", "doesn't acknowledge answers")
+- Edit the prompt in the version editor, save a new version
+- Compare avg ratings before/after the prompt change via the per-version rating breakdown
+
+**Level 2: Automated pattern detection (future)**
+- Periodically run an LLM over low-rated transcripts with the prompt: "Analyze these low-rated interview sessions and identify recurring issues in the agent's behavior"
+- Surface the findings as actionable suggestions on the agent detail page
+- Admin reviews suggestions, applies prompt changes
+
+**Level 3: Prompt optimization (future)**
+- Feed high-rated + low-rated session pairs to an LLM: "Here's the current prompt. These sessions scored well, these scored poorly. Suggest specific prompt modifications."
+- Present the suggested prompt diff to the admin for approval
+- A/B test: randomly assign sessions to the current prompt vs candidate, compare ratings after N sessions
+
+**Level 4: Few-shot injection (advanced)**
+- Automatically select the best-rated session transcripts as few-shot examples
+- Inject 1-2 exemplar conversation snippets into the system prompt dynamically
+- This teaches the model "what good looks like" from real data
+
+### Key Insight
+
+Prompt versioning + ratings = a feedback loop. Each prompt version accumulates ratings, so you can always see which version performed best. The `prompt_version_id` on every session makes this correlation automatic.
+
 ## Key Design Decisions
 
 1. **Scoring in code, not LLM** — deterministic, auditable, consistent

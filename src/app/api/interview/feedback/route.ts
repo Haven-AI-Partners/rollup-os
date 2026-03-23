@@ -34,19 +34,15 @@ export async function POST(req: NextRequest) {
     (VALID_TAGS as readonly string[]).includes(t)
   );
 
-  // Verify session exists and hasn't already been rated
+  // Verify session exists
   const [session] = await db
-    .select({ feedbackRating: discoverySessions.feedbackRating })
+    .select({ id: discoverySessions.id })
     .from(discoverySessions)
     .where(eq(discoverySessions.id, sessionId))
     .limit(1);
 
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
-  }
-
-  if (session.feedbackRating) {
-    return NextResponse.json({ error: "Feedback already submitted" }, { status: 409 });
   }
 
   await db
