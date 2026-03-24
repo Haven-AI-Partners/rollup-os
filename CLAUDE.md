@@ -48,6 +48,9 @@ src/
 pnpm dev              # Start dev server
 pnpm build            # Production build
 pnpm lint             # ESLint
+pnpm test             # Run all tests (Vitest)
+pnpm test:watch       # Run tests in watch mode
+pnpm test:coverage    # Run tests with coverage report
 pnpm db:push          # Push schema to DB (dev only)
 pnpm db:generate      # Generate migration SQL files
 pnpm db:migrate       # Run pending migrations
@@ -64,6 +67,16 @@ pnpm db:seed          # Seed sample PortCo + pipeline stages
 - **Agents are pluggable**: Registered in `agent_definitions` table. Adding a new agent = 1 DB row + 1 Trigger.dev task file.
 - **KPIs are centralized**: `kpi_definitions` + `kpi_values` track metrics across all deal phases.
 - **GDrive**: Per-PortCo service accounts (different GSuites). Credentials encrypted at rest.
+
+## Testing Requirements
+
+- **Run tests after every change**: Always run `pnpm test` after making any code changes to ensure nothing is broken.
+- **Add tests for every new feature**: Every new feature or server action must include corresponding test files.
+- **Add tests for every feature change**: When modifying existing features, update or add tests to cover the changed behavior.
+- **Test framework**: Vitest (config in `vitest.config.ts`, setup in `src/test/setup.ts`).
+- **Test file location**: Co-locate test files next to the source file (e.g., `deals.ts` → `deals.test.ts`).
+- **Mocking**: Use `vi.hoisted()` for variables referenced inside `vi.mock()` factories. Mock helpers are in `src/test/mocks/` and factories in `src/test/factories.ts`.
+- **CI**: Tests run automatically on push/PR via GitHub Actions (`.github/workflows/test.yml`).
 
 ## Documentation
 
