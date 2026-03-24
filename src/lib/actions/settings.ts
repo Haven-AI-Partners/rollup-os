@@ -4,14 +4,13 @@ import { db } from "@/lib/db";
 import { portcos } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
 export async function updateGdriveFolderId(
   portcoSlug: string,
   folderId: string | null
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   await db
     .update(portcos)
@@ -22,8 +21,7 @@ export async function updateGdriveFolderId(
 }
 
 export async function disconnectGdrive(portcoSlug: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   await db
     .update(portcos)

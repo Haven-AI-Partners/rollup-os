@@ -66,3 +66,18 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
 export function hasMinRole(userRole: UserRole, requiredRole: UserRole): boolean {
   return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[requiredRole];
 }
+
+export async function requireAuth() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+  return user;
+}
+
+export async function requirePortcoRole(portcoId: string, minRole: UserRole) {
+  const user = await requireAuth();
+  const role = await getUserPortcoRole(user.id, portcoId);
+  if (!role) throw new Error("Not a member of this PortCo");
+  if (!hasMinRole(role as UserRole, minRole))
+    throw new Error("Insufficient permissions");
+  return { user, role: role as UserRole };
+}

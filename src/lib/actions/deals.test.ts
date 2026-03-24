@@ -17,7 +17,8 @@ const { mockInsert, mockUpdate, mockSelect, mockDelete, mockFrom, mockWhere, moc
 }));
 
 vi.mock("@/lib/auth", () => ({
-  getCurrentUser: vi.fn().mockResolvedValue(mockUser),
+  requireAuth: vi.fn().mockResolvedValue(mockUser),
+  requirePortcoRole: vi.fn().mockResolvedValue({ user: mockUser, role: "analyst" }),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -56,18 +57,19 @@ vi.mock("drizzle-orm", () => ({
   sql: Object.assign(vi.fn(), { raw: vi.fn() }),
 }));
 
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth, requirePortcoRole } from "@/lib/auth";
 
 describe("deals actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset auth mock
-    (getCurrentUser as any).mockResolvedValue(mockUser);
+    // Reset auth mocks
+    (requireAuth as any).mockResolvedValue(mockUser);
+    (requirePortcoRole as any).mockResolvedValue({ user: mockUser, role: "analyst" });
   });
 
   describe("createDeal", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { createDeal } = await import("./deals");
       await expect(
@@ -98,7 +100,7 @@ describe("deals actions", () => {
 
   describe("updateDeal", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { updateDeal } = await import("./deals");
       await expect(
@@ -109,7 +111,7 @@ describe("deals actions", () => {
 
   describe("addComment", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { addComment } = await import("./deals");
       await expect(

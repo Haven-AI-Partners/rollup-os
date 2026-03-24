@@ -12,6 +12,8 @@ interface RunStatus {
 
 type RunState = "idle" | "running" | "completed" | "failed";
 
+const POLL_INTERVAL_MS = 3000;
+
 export function useRunStatus(runId: string | null) {
   const [state, setState] = useState<RunState>(runId ? "running" : "idle");
   const [output, setOutput] = useState<unknown>(null);
@@ -62,7 +64,7 @@ export function useRunStatus(runId: string | null) {
         stopped = true;
         clearInterval(interval);
       }
-    }, 3000); // poll every 3 seconds
+    }, POLL_INTERVAL_MS);
 
     // Initial poll
     poll().then((done) => {

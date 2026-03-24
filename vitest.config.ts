@@ -11,6 +11,11 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       include: ["src/lib/**", "src/app/api/**"],
+      thresholds: {
+        lines: 60,
+        functions: 60,
+        branches: 50,
+      },
     },
   },
   resolve: {
