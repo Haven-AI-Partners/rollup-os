@@ -337,7 +337,7 @@ export function ThesisGraph({
   companyName: string;
 }) {
   return (
-    <div className="h-[600px] rounded-lg border bg-muted/20">
+    <div className="h-[calc(100vh-220px)] min-h-[400px] rounded-lg border bg-muted/20">
       <ReactFlowProvider>
         <ThesisFlowInner roots={roots} downloadRef={downloadRef} companyName={companyName} />
       </ReactFlowProvider>

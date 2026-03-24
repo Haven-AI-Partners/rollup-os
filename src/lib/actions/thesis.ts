@@ -38,8 +38,13 @@ async function createThesisTreeForDeal(dealId: string, portcoId: string): Promis
     return { ...node, generatedId: id };
   });
 
+  // Identify leaf nodes (no children in template)
+  const parentIds = new Set(template.filter((n) => n.parentId).map((n) => n.parentId));
+  const isLeaf = (nodeId: string) => !parentIds.has(nodeId);
+
   const inserts = rows.map((node) => {
     const preFill = extraction ? getPreFillForNode(node.id, extraction) : null;
+    const leaf = isLeaf(node.id);
     return {
       id: node.generatedId,
       dealId,
@@ -49,7 +54,7 @@ async function createThesisTreeForDeal(dealId: string, portcoId: string): Promis
       description: node.description,
       status: preFill?.status ?? ("unknown" as const),
       value: preFill?.value ?? null,
-      notes: preFill?.notes ?? null,
+      notes: preFill?.notes ?? (leaf && !preFill ? `Missing: ${node.description}` : null),
       source: preFill ? ("im_extracted" as const) : null,
       sortOrder: node.sortOrder,
       templateNodeId: node.id,

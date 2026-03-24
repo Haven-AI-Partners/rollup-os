@@ -19,6 +19,12 @@ export const thesisNodeSchema = z.object({
     .string()
     .nullable()
     .describe("Pre-filled value from the IM analysis if available, null otherwise"),
+  suggestedNotes: z
+    .string()
+    .nullable()
+    .describe(
+      "For partial/unknown nodes: explain what specific information is still missing and needs to be investigated. For risk nodes: describe the concern. Null only for complete nodes.",
+    ),
   sortOrder: z.number().describe("Order within siblings (0-indexed)"),
 });
 

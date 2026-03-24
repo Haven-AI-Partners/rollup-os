@@ -154,6 +154,7 @@ export async function insertGeneratedNodes(
       description: node.description,
       status: node.suggestedStatus,
       value: node.suggestedValue,
+      notes: node.suggestedNotes,
       source: "agent_generated" as const,
       sortOrder: node.sortOrder,
     }));
