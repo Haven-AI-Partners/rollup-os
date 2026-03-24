@@ -19,7 +19,7 @@ export const orgChartNodes = pgTable("org_chart_nodes", {
   versionId: uuid("version_id")
     .references(() => orgChartVersions.id, { onDelete: "cascade" })
     .notNull(),
-  parentId: uuid("parent_id"),
+  parentId: uuid("parent_id").references((): any => orgChartNodes.id),
   name: text("name").notNull(),
   title: text("title"),
   department: text("department"),

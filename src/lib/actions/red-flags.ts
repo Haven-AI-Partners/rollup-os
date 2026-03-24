@@ -5,6 +5,7 @@ import { dealRedFlags, dealActivityLog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAuth, requirePortcoRole } from "@/lib/auth";
+import { addRedFlagSchema } from "./schemas";
 
 export async function getRedFlagsForDeal(dealId: string) {
   await requireAuth();
@@ -27,16 +28,17 @@ export async function addRedFlag(
   }
 ) {
   const { user } = await requirePortcoRole(portcoId, "analyst");
+  const validated = addRedFlagSchema.parse(data);
 
   const [flag] = await db
     .insert(dealRedFlags)
     .values({
       dealId,
       portcoId,
-      flagId: data.flagId,
-      severity: data.severity,
-      category: data.category,
-      notes: data.notes,
+      flagId: validated.flagId,
+      severity: validated.severity,
+      category: validated.category,
+      notes: validated.notes,
       flaggedBy: user.id,
     })
     .returning();

@@ -5,6 +5,7 @@ import { dealTasks, dealActivityLog } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAuth, requirePortcoRole } from "@/lib/auth";
+import { createTaskSchema, updateTaskSchema } from "./schemas";
 
 export async function getTasksForDeal(dealId: string) {
   await requireAuth();
@@ -30,19 +31,20 @@ export async function createTask(
   }
 ) {
   const { user } = await requirePortcoRole(portcoId, "analyst");
+  const validated = createTaskSchema.parse(data);
 
   const [task] = await db
     .insert(dealTasks)
     .values({
       dealId,
       portcoId,
-      title: data.title,
-      description: data.description,
-      category: data.category as typeof dealTasks.$inferInsert.category,
-      priority: (data.priority as typeof dealTasks.$inferInsert.priority) ?? "medium",
-      assignedTo: data.assignedTo,
-      dueDate: data.dueDate,
-      parentTaskId: data.parentTaskId,
+      title: validated.title,
+      description: validated.description,
+      category: validated.category,
+      priority: validated.priority ?? "medium",
+      assignedTo: validated.assignedTo,
+      dueDate: validated.dueDate,
+      parentTaskId: validated.parentTaskId,
     })
     .returning();
 
@@ -74,6 +76,7 @@ export async function updateTask(
   }>
 ) {
   const user = await requireAuth();
+  const validated = updateTaskSchema.parse(data);
 
   const [current] = await db.select().from(dealTasks).where(eq(dealTasks.id, taskId)).limit(1);
   if (!current) throw new Error("Task not found");
@@ -81,25 +84,23 @@ export async function updateTask(
   const [updated] = await db
     .update(dealTasks)
     .set({
-      ...data,
-      status: data.status as typeof dealTasks.$inferInsert.status,
-      priority: data.priority as typeof dealTasks.$inferInsert.priority,
-      completedAt: data.status === "completed" ? new Date() : undefined,
+      ...validated,
+      completedAt: validated.status === "completed" ? new Date() : undefined,
       updatedAt: new Date(),
     })
     .where(eq(dealTasks.id, taskId))
     .returning();
 
-  if (data.status && data.status !== current.status) {
+  if (validated.status && validated.status !== current.status) {
     await db.insert(dealActivityLog).values({
       dealId,
       portcoId: current.portcoId,
       userId: user.id,
-      action: data.status === "completed" ? "task_completed" : "status_changed",
+      action: validated.status === "completed" ? "task_completed" : "status_changed",
       description:
-        data.status === "completed"
+        validated.status === "completed"
           ? `Completed task "${current.title}"`
-          : `Task "${current.title}" status changed to "${data.status}"`,
+          : `Task "${current.title}" status changed to "${validated.status}"`,
       referenceType: "task",
       referenceId: taskId,
     });

@@ -36,7 +36,7 @@ export const dealTasks = pgTable("deal_tasks", {
   assignedTo: uuid("assigned_to").references(() => users.id),
   dueDate: date("due_date"),
   completedAt: timestamp("completed_at", { withTimezone: true }),
-  parentTaskId: uuid("parent_task_id"),
+  parentTaskId: uuid("parent_task_id").references((): any => dealTasks.id),
   position: integer("position").notNull().default(0),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

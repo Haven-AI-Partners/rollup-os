@@ -5,6 +5,7 @@ import { dealFinancials, dealActivityLog } from "@/lib/db/schema";
 
 import { revalidatePath } from "next/cache";
 import { requirePortcoRole } from "@/lib/auth";
+import { addFinancialEntrySchema } from "./schemas";
 
 export async function addFinancialEntry(
   dealId: string,
@@ -20,18 +21,19 @@ export async function addFinancialEntry(
   }
 ) {
   const { user } = await requirePortcoRole(portcoId, "analyst");
+  const validated = addFinancialEntrySchema.parse(data);
 
   const [entry] = await db
     .insert(dealFinancials)
     .values({
       dealId,
       portcoId,
-      period: data.period,
-      periodType: data.periodType,
-      revenue: data.revenue,
-      ebitda: data.ebitda,
-      netIncome: data.netIncome,
-      ebitdaMarginPct: data.ebitdaMarginPct,
+      period: validated.period,
+      periodType: validated.periodType,
+      revenue: validated.revenue,
+      ebitda: validated.ebitda,
+      netIncome: validated.netIncome,
+      ebitdaMarginPct: validated.ebitdaMarginPct,
       source: "manual",
     })
     .returning();
