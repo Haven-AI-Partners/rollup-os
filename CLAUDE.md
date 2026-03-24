@@ -68,6 +68,35 @@ pnpm db:seed          # Seed sample PortCo + pipeline stages
 - **KPIs are centralized**: `kpi_definitions` + `kpi_values` track metrics across all deal phases.
 - **GDrive**: Per-PortCo service accounts (different GSuites). Credentials encrypted at rest.
 
+## Code Quality Rules
+
+### Server Actions — Auth & RBAC
+- **Every server action must authenticate**: Use `requireAuth()` for read operations and `requirePortcoRole(portcoId, minRole)` for write operations from `src/lib/auth/`. Never use raw `getCurrentUser()` + manual null check.
+- **Role requirements**: Reads require at minimum authenticated user. Writes (create/update) require `"analyst"` role. Deletes and settings require `"admin"` role. Use `requirePortcoRole()` which enforces both membership and role.
+- **Multi-tenant isolation**: Every read query must be scoped by `portcoId`. Never trust client-provided IDs without verifying the user has membership in the corresponding PortCo.
+
+### Input Validation
+- **Validate all server action inputs with Zod**: Define schemas in `src/lib/actions/schemas.ts` and call `.parse()` at the top of each action. Never use `as` type casts for user input — use schema validation instead.
+- **Enum fields**: Always validate against Zod `.enum()` rather than trusting string values for fields like `status`, `source`, `priority`, `category`, `severity`.
+
+### File Size & Modularity
+- **Max ~200 lines per file**: If a file exceeds 200 lines, split it into focused modules. Use barrel exports (`index.ts`) to maintain a clean public API.
+- **One component per file**: Do not nest component definitions inside other component files. Extract sub-components to their own files.
+- **Extract shared constants**: Icon mappings, label records, color functions, and other lookup tables belong in `src/lib/constants.ts`, not duplicated across components.
+
+### Database Schema
+- **Always add FK constraints**: Every UUID column referencing another table must have `.references(() => table.id)` in the Drizzle schema. This includes self-referential FKs (e.g., `parentId`).
+- **Prefer Drizzle query builder over raw SQL**: Use Drizzle's type-safe API. If raw SQL is unavoidable, document why.
+- **Activity log action names**: Use consistent, descriptive action names (e.g., `"deal_created"`, `"financial_entry_added"`). Never reuse action names for different operations.
+
+### Error Handling
+- **Wrap external service calls in try-catch**: Trigger.dev `tasks.trigger()`, GDrive API calls, and AI SDK calls must have error handling with meaningful error messages.
+- **Use consistent error messages**: Auth errors throw `"Unauthorized"`, membership errors throw `"Not a member of this PortCo"`, role errors throw `"Insufficient permissions"`, missing resources throw `"<Resource> not found"`.
+
+### Formatting & Utilities
+- **Use shared formatters**: Date formatting, currency formatting, and number formatting should use helpers from `src/lib/format.ts`. Do not use inline `toLocaleDateString()` or similar in components.
+- **No magic numbers**: Extract polling intervals, concurrency limits, retry counts, etc. into named constants.
+
 ## Testing Requirements
 
 - **Run tests after every change**: Always run `pnpm test` after making any code changes to ensure nothing is broken.
@@ -84,6 +113,7 @@ pnpm db:seed          # Seed sample PortCo + pipeline stages
 - `docs/production-readiness.md` — Operational checklist for launch
 - `docs/phase1-summary.md` — Phase 1 deliverables and setup instructions
 - `docs/testing.md` — Automated test plan, implementation summary, and guidelines for extending tests
+- `docs/refactoring-plan.md` — Codebase refactoring plan with prioritized phases
 
 ## Current Status
 
