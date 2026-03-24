@@ -69,9 +69,9 @@ export default async function PortfolioCompaniesPage({
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-6 text-sm text-right shrink-0">
+                  <div className="flex items-center gap-4 sm:gap-6 text-sm text-right shrink-0">
                     {deal.revenue && (
-                      <div>
+                      <div className="hidden sm:block">
                         <p className="font-medium">{formatCurrency(deal.revenue, deal.currency)}</p>
                         <p className="text-xs text-muted-foreground">Revenue</p>
                       </div>
@@ -83,13 +83,13 @@ export default async function PortfolioCompaniesPage({
                       </div>
                     )}
                     {deal.askingPrice && (
-                      <div>
+                      <div className="hidden md:block">
                         <p className="font-medium">{formatCurrency(deal.askingPrice, deal.currency)}</p>
                         <p className="text-xs text-muted-foreground">Purchase Price</p>
                       </div>
                     )}
                     {deal.closedAt && (
-                      <div>
+                      <div className="hidden sm:block">
                         <p className="font-medium">
                           {new Date(deal.closedAt).toLocaleDateString("en-US", {
                             month: "short",

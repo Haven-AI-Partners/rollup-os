@@ -316,7 +316,7 @@ function IssuesPanel({ roots }: { roots: ThesisNode[] }) {
   if (partial.length === 0 && unknown.length === 0 && risks.length === 0) return null;
 
   return (
-    <div className="w-72 shrink-0 space-y-4 overflow-y-auto h-[calc(100vh-200px)] min-h-[400px]">
+    <div className="w-full md:w-72 shrink-0 space-y-4 md:overflow-y-auto md:h-[calc(100vh-200px)] md:min-h-[400px]">
       {risks.length > 0 && (
         <div className="rounded-lg border border-red-200 bg-red-50/50 p-3">
           <h3 className="text-xs font-semibold text-red-700 flex items-center gap-1.5 mb-2">
@@ -391,8 +391,8 @@ export function ThesisTree({ roots, portcoSlug, dealId, companyName, stats }: Th
   return (
     <div className="space-y-2">
       {/* Summary bar + view toggle */}
-      <div className="flex items-center gap-4 text-xs">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 text-xs flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
           <span className="flex items-center gap-1">
             <CheckCircle className="size-3 text-green-600" />
             {stats.complete} complete
@@ -467,7 +467,7 @@ export function ThesisTree({ roots, portcoSlug, dealId, companyName, stats }: Th
 
       {/* Graph view */}
       {view === "graph" && (
-        <div className="flex gap-4">
+        <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 min-w-0">
             <ThesisGraph roots={roots} downloadRef={downloadRef} companyName={companyName} />
           </div>

@@ -104,7 +104,7 @@ export function OrgChart({ roots, orphans }: OrgChartProps) {
   return (
     <div className="space-y-6">
       {roots.length > 0 && (
-        <div className="overflow-x-auto pb-4">
+        <div className="overflow-x-auto pb-4 -webkit-overflow-scrolling-touch">
           <div className="inline-flex flex-col items-center min-w-full justify-center">
             {roots.map((root) => (
               <OrgNodeCard key={root.id} node={root} />

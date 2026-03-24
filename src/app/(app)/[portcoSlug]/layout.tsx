@@ -101,7 +101,7 @@ export default async function PortcoLayout({
       />
       <SidebarInset className="min-w-0 overflow-hidden">
         <AppHeader portcoName={currentPortco.name} />
-        <div className="flex-1 overflow-auto p-6">{children}</div>
+        <div className="flex-1 overflow-auto p-3 sm:p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

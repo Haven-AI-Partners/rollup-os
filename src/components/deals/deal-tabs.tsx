@@ -24,7 +24,7 @@ export function DealTabs({ basePath }: DealTabsProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-1 -mb-px">
+    <nav className="flex gap-1 -mb-px overflow-x-auto scrollbar-none">
       {tabs.map((tab) => {
         const href = `${basePath}/${tab.segment}`;
         const isActive = pathname === href || pathname.startsWith(`${href}/`);
@@ -33,7 +33,7 @@ export function DealTabs({ basePath }: DealTabsProps) {
             key={tab.segment}
             href={href}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
               isActive
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"

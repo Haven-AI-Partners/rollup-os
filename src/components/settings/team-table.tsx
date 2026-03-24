@@ -102,8 +102,8 @@ export function TeamTable({
   const availableRoles = getRolesForEditor(currentUserRole);
 
   return (
-    <div className="rounded-md border">
-      <table className="w-full text-sm">
+    <div className="rounded-md border overflow-x-auto">
+      <table className="w-full text-sm min-w-[600px]">
         <thead>
           <tr className="border-b bg-muted/50">
             <th className="px-4 py-2.5 text-left font-medium">Member</th>

@@ -81,7 +81,7 @@ export function CreateDealDialog({ portcoId, portcoSlug, stages }: CreateDealDia
             <Textarea id="description" name="description" rows={2} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="stageId">Pipeline Stage *</Label>
               <Select name="stageId" defaultValue={stages[0]?.id} required>
@@ -113,7 +113,7 @@ export function CreateDealDialog({ portcoId, portcoSlug, stages }: CreateDealDia
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="industry">Industry</Label>
               <Input id="industry" name="industry" />
@@ -124,7 +124,7 @@ export function CreateDealDialog({ portcoId, portcoSlug, stages }: CreateDealDia
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="askingPrice">Asking Price</Label>
               <Input id="askingPrice" name="askingPrice" type="number" />

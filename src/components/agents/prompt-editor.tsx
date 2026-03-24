@@ -146,12 +146,12 @@ export function PromptEditor({
             readOnly={!isAdmin}
           />
           {isAdmin && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Input
                 value={changeNote}
                 onChange={(e) => setChangeNote(e.target.value)}
                 placeholder="Change note (optional)"
-                className="text-sm flex-1"
+                className="text-sm flex-1 min-w-[150px]"
               />
               <Button
                 size="sm"

@@ -135,8 +135,8 @@ export function PipelineCharts({
                   dataKey="stageName"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 12 }}
-                  width={120}
+                  tick={{ fontSize: 11 }}
+                  width={90}
                 />
                 <Tooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="count" name="Deals" radius={[0, 4, 4, 0]}>

@@ -48,7 +48,7 @@ export function DealChat({ dealId }: { dealId: string }) {
           <MessageCircle className="size-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent className="flex flex-col w-[440px] sm:max-w-[440px] p-0">
+      <SheetContent className="flex flex-col w-full sm:w-[440px] sm:max-w-[440px] p-0">
         <SheetHeader className="px-4 py-3 border-b">
           <SheetTitle className="text-sm font-semibold flex items-center gap-2">
             <Globe className="size-4 text-muted-foreground" />
