@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { DealTabs } from "@/components/deals/deal-tabs";
+import { DealChat } from "@/components/deals/deal-chat";
 
 export default async function DealDetailLayout({
   children,
@@ -63,6 +64,8 @@ export default async function DealDetailLayout({
       <div className="pt-4">
         {children}
       </div>
+
+      <DealChat dealId={dealId} />
     </div>
   );
 }
