@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { dealThesisNodes, companyProfiles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TreePine } from "lucide-react";
 import { getDeal } from "@/lib/db/cached-queries";
@@ -146,17 +145,13 @@ export default async function ThesisPage({
         </Badge>
       </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <ThesisTree
-            roots={roots}
-            portcoSlug={portcoSlug}
-            dealId={dealId}
-            companyName={deal.companyName}
-            stats={stats}
-          />
-        </CardContent>
-      </Card>
+      <ThesisTree
+        roots={roots}
+        portcoSlug={portcoSlug}
+        dealId={dealId}
+        companyName={deal.companyName}
+        stats={stats}
+      />
     </div>
   );
 }

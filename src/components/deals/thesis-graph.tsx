@@ -9,9 +9,6 @@ import {
   Handle,
   type NodeProps,
   ReactFlowProvider,
-  useReactFlow,
-  getNodesBounds,
-  getViewportForBounds,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Badge } from "@/components/ui/badge";
@@ -232,35 +229,41 @@ function ThesisFlowInner({
   companyName: string;
 }) {
   const { nodes, edges } = useMemo(() => buildLayout(roots), [roots]);
-  const { getNodes } = useReactFlow();
 
   const handleDownload = useCallback(async () => {
     const { toSvg } = await import("html-to-image");
-    const allNodes = getNodes();
-    const bounds = getNodesBounds(allNodes);
     const headerHeight = 60;
-    const padding = 40;
-    const imageWidth = bounds.width + padding * 2;
-    const imageHeight = bounds.height + padding * 2 + headerHeight;
-    const viewport = getViewportForBounds(
-      bounds,
-      imageWidth,
-      imageHeight - headerHeight,
-      0.5,
-      2,
-      padding,
-    );
+    const padding = 20;
 
     const flowEl = document.querySelector<HTMLElement>(".react-flow__viewport");
     if (!flowEl) return;
 
+    // Measure actual rendered bounds from all node DOM elements
+    const nodeEls = flowEl.querySelectorAll<HTMLElement>(".react-flow__node");
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const el of nodeEls) {
+      const transform = el.style.transform;
+      const match = transform.match(/translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/);
+      if (!match) continue;
+      const x = parseFloat(match[1]);
+      const y = parseFloat(match[2]);
+      maxX = Math.max(maxX, x + el.offsetWidth);
+      maxY = Math.max(maxY, y + el.offsetHeight);
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+    }
+
+    const contentWidth = (maxX - minX) + padding * 2;
+    const contentHeight = (maxY - minY) + padding * 2;
+
+    // Render at 1:1 scale, translating so bounds start at (padding, padding)
     const svgDataUrl = await toSvg(flowEl, {
-      width: imageWidth,
-      height: imageHeight - headerHeight,
+      width: contentWidth,
+      height: contentHeight,
       style: {
-        width: `${imageWidth}px`,
-        height: `${imageHeight - headerHeight}px`,
-        transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+        width: `${contentWidth}px`,
+        height: `${contentHeight}px`,
+        transform: `translate(${-minX + padding}px, ${-minY + padding}px) scale(1)`,
       },
       backgroundColor: "#ffffff",
     });
@@ -269,13 +272,10 @@ function ThesisFlowInner({
     const svgResponse = await fetch(svgDataUrl);
     const svgText = await svgResponse.text();
 
-    // Parse the SVG to get its content
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
     const originalSvg = svgDoc.documentElement;
     const innerContent = originalSvg.innerHTML;
-    const originalWidth = originalSvg.getAttribute("width") || String(imageWidth);
-    const originalHeight = originalSvg.getAttribute("height") || String(imageHeight - headerHeight);
 
     const timestamp = new Date().toLocaleDateString("en-US", {
       year: "numeric",
@@ -285,11 +285,14 @@ function ThesisFlowInner({
       minute: "2-digit",
     });
 
-    const wrappedSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${originalWidth}" height="${Number(originalHeight) + headerHeight}" style="background: #ffffff;">
+    const totalWidth = contentWidth;
+    const totalHeight = contentHeight + headerHeight;
+
+    const wrappedSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${totalHeight}" style="background: #ffffff;">
   <text x="20" y="28" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="bold" fill="#111827">DD Thesis — ${companyName}</text>
   <text x="20" y="48" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#6b7280">${timestamp}</text>
   <g transform="translate(0, ${headerHeight})">
-    <svg width="${originalWidth}" height="${originalHeight}" xmlns="http://www.w3.org/2000/svg">${innerContent}</svg>
+    <svg width="${contentWidth}" height="${contentHeight}" xmlns="http://www.w3.org/2000/svg">${innerContent}</svg>
   </g>
 </svg>`;
 
@@ -301,7 +304,7 @@ function ThesisFlowInner({
     link.href = url;
     link.click();
     URL.revokeObjectURL(url);
-  }, [getNodes, companyName]);
+  }, [companyName]);
 
   downloadRef.current = handleDownload;
 
@@ -311,7 +314,7 @@ function ThesisFlowInner({
       edges={edges}
       nodeTypes={nodeTypes}
       fitView
-      fitViewOptions={{ padding: 0.15 }}
+      fitViewOptions={{ padding: 0.05 }}
       minZoom={0.2}
       maxZoom={1.5}
       nodesDraggable={false}
@@ -337,7 +340,7 @@ export function ThesisGraph({
   companyName: string;
 }) {
   return (
-    <div className="h-[calc(100vh-220px)] min-h-[400px] rounded-lg border bg-muted/20">
+    <div className="h-[calc(100vh-200px)] min-h-[400px] rounded-lg border bg-muted/20">
       <ReactFlowProvider>
         <ThesisFlowInner roots={roots} downloadRef={downloadRef} companyName={companyName} />
       </ReactFlowProvider>

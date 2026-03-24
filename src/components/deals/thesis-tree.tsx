@@ -316,7 +316,7 @@ function IssuesPanel({ roots }: { roots: ThesisNode[] }) {
   if (partial.length === 0 && unknown.length === 0 && risks.length === 0) return null;
 
   return (
-    <div className="w-72 shrink-0 space-y-4 overflow-y-auto h-[calc(100vh-220px)] min-h-[400px]">
+    <div className="w-72 shrink-0 space-y-4 overflow-y-auto h-[calc(100vh-200px)] min-h-[400px]">
       {risks.length > 0 && (
         <div className="rounded-lg border border-red-200 bg-red-50/50 p-3">
           <h3 className="text-xs font-semibold text-red-700 flex items-center gap-1.5 mb-2">
@@ -389,7 +389,7 @@ export function ThesisTree({ roots, portcoSlug, dealId, companyName, stats }: Th
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Summary bar + view toggle */}
       <div className="flex items-center gap-4 text-xs">
         <div className="flex items-center gap-4">
