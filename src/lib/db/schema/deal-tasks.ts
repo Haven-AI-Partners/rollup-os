@@ -36,6 +36,7 @@ export const dealTasks = pgTable("deal_tasks", {
   assignedTo: uuid("assigned_to").references(() => users.id),
   dueDate: date("due_date"),
   completedAt: timestamp("completed_at", { withTimezone: true }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Self-referential FK requires type assertion
   parentTaskId: uuid("parent_task_id").references((): any => dealTasks.id),
   position: integer("position").notNull().default(0),
   metadata: jsonb("metadata"),
