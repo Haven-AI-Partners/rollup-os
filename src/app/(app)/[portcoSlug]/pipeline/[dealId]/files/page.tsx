@@ -101,7 +101,6 @@ export default async function FilesPage({
                     portcoSlug={portcoSlug}
                     fileId={file.id}
                     processingStatus={file.processingStatus}
-                    fileName={file.fileName}
                   />
                 )}
                 {isPdf && !isAdmin && (

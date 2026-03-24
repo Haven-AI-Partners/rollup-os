@@ -3,7 +3,7 @@ import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type Us
 import { listFiles } from "@/lib/gdrive/client";
 import { db } from "@/lib/db";
 import { files as filesTable } from "@/lib/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

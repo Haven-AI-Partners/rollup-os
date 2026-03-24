@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, ChevronUp } from "lucide-react";
 import { addFinancialEntry } from "@/lib/actions/financials";
 
 interface FinancialEntryFormProps {

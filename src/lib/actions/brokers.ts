@@ -6,7 +6,7 @@ import {
   brokerContacts,
   brokerInteractions,
 } from "@/lib/db/schema";
-import { eq, sql, count, asc, desc } from "drizzle-orm";
+import { eq, sql, asc, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 

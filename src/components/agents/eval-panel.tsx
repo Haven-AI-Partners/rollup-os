@@ -211,6 +211,7 @@ export function EvalPanel({ portcoSlug, processedFiles, evalRuns, isAdmin }: Eva
   // When the Trigger.dev run completes, refresh the page to show results
   useEffect(() => {
     if (runState === "completed" || runState === "failed") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: sync local state when async polling completes
       setRunning(false);
       setTriggerRunId(null);
       router.refresh();

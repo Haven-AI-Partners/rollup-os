@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { dealTasks, dealActivityLog } from "@/lib/db/schema";
-import { eq, and, asc, isNull } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -38,8 +38,8 @@ export async function createTask(
       portcoId,
       title: data.title,
       description: data.description,
-      category: data.category as any,
-      priority: (data.priority as any) ?? "medium",
+      category: data.category as typeof dealTasks.$inferInsert.category,
+      priority: (data.priority as typeof dealTasks.$inferInsert.priority) ?? "medium",
       assignedTo: data.assignedTo,
       dueDate: data.dueDate,
       parentTaskId: data.parentTaskId,
@@ -83,8 +83,8 @@ export async function updateTask(
     .update(dealTasks)
     .set({
       ...data,
-      status: data.status as any,
-      priority: data.priority as any,
+      status: data.status as typeof dealTasks.$inferInsert.status,
+      priority: data.priority as typeof dealTasks.$inferInsert.priority,
       completedAt: data.status === "completed" ? new Date() : undefined,
       updatedAt: new Date(),
     })

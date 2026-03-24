@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { dealFinancials, dealActivityLog } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 

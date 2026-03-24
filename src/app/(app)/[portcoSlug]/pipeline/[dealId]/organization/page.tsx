@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { deals, orgChartVersions, orgChartNodes } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrgChart } from "@/components/deals/org-chart";
 import { Users } from "lucide-react";
@@ -64,7 +64,7 @@ export default async function OrganizationPage({
 }: {
   params: Promise<{ portcoSlug: string; dealId: string }>;
 }) {
-  const { portcoSlug, dealId } = await params;
+  const { dealId } = await params;
 
   const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
   if (!deal) notFound();

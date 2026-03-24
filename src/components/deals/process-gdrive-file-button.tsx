@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Brain, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Brain, CheckCircle } from "lucide-react";
 import { processSingleFile } from "@/lib/actions/im-processing";
 import { useRunStatus } from "@/hooks/use-run-status";
 

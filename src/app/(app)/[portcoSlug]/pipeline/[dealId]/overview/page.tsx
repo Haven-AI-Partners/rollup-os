@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { deals, dealTasks, dealActivityLog, pipelineStages, companyProfiles, dealRedFlags } from "@/lib/db/schema";
-import { eq, and, count, sql } from "drizzle-orm";
+import { deals, dealTasks, dealActivityLog, companyProfiles, dealRedFlags } from "@/lib/db/schema";
+import { eq, count, sql } from "drizzle-orm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RedFlagsPanel } from "@/components/deals/red-flags-panel";

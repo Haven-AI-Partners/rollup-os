@@ -221,8 +221,8 @@ async function seedDemoData() {
         employeeCount: d.employeeCount,
         assignedTo: user.id,
         kanbanPosition: i,
-        status: (d as any).status ?? "active",
-        closedAt: (d as any).status === "closed_won" || (d as any).status === "passed" ? new Date() : null,
+        status: ("status" in d ? d.status : "active") as typeof deals.$inferInsert.status,
+        closedAt: ("status" in d && (d.status === "closed_won" || d.status === "passed")) ? new Date() : null,
       })
       .returning();
     createdDeals.push(deal);
@@ -454,9 +454,9 @@ async function seedDemoData() {
         severity: flag.severity,
         category: flag.category,
         flaggedBy: user.id,
-        resolved: (flag as any).resolved ?? false,
-        resolvedAt: (flag as any).resolved ? new Date() : null,
-        resolvedBy: (flag as any).resolved ? user.id : null,
+        resolved: ("resolved" in flag && flag.resolved) ? true : false,
+        resolvedAt: ("resolved" in flag && flag.resolved) ? new Date() : null,
+        resolvedBy: ("resolved" in flag && flag.resolved) ? user.id : null,
       });
     }
   }

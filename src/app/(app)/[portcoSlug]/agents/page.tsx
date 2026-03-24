@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { files, deals, companyProfiles, promptVersions, evalRuns } from "@/lib/db/schema";
-import { eq, and, sql, count, desc, avg } from "drizzle-orm";
+import { eq, and, count, desc, avg } from "drizzle-orm";
 import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 import { MODEL_ID } from "@/lib/agents/im-processor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
