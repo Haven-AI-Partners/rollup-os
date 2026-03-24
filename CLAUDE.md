@@ -83,6 +83,7 @@ pnpm db:seed          # Seed sample PortCo + pipeline stages
 - `docs/architecture.md` — Full architecture, schema ERD, technical strategy, 5-phase plan
 - `docs/production-readiness.md` — Operational checklist for launch
 - `docs/phase1-summary.md` — Phase 1 deliverables and setup instructions
+- `docs/testing.md` — Automated test plan, implementation summary, and guidelines for extending tests
 
 ## Current Status
 
