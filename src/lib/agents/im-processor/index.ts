@@ -5,7 +5,6 @@ import { companyProfiles, dealRedFlags, files, deals, pipelineStages, orgChartVe
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { downloadFile, listFiles } from "@/lib/gdrive/client";
 import { calculateWeightedScore } from "@/lib/scoring/rubric";
-import { autoGenerateThesisTree } from "@/lib/actions/thesis";
 import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
 import { buildExtractionPrompt, buildScoringPrompt } from "./prompt";
 import { imExtractionSchema, imScoringSchema, mergeResults, type IMAnalysisResult, type IMExtractionResult, type IMScoringResult } from "./schema";
@@ -501,6 +500,7 @@ interface ScanFolderResult {
     gdriveFileId: string;
     status: "processed" | "failed" | "skipped";
     dealId?: string;
+    isNewDeal?: boolean;
     companyName?: string;
     overallScore?: number;
     error?: string;
@@ -607,32 +607,41 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
             .where(eq(files.gdriveFileId, gdriveFileId))
             .limit(1);
 
-          dealId = existingFile.dealId;
+          if (existingFile.dealId) {
+            dealId = existingFile.dealId;
 
-          // Update deal fields from new analysis
-          const fin = analysis.financialHighlights;
-          await db
-            .update(deals)
-            .set({
-              companyName: analysis.companyProfile.companyName,
-              description: analysis.companyProfile.summary.slice(0, 500),
-              location: analysis.companyProfile.location ?? null,
-              industry: analysis.companyProfile.industry ?? null,
-              askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
-              revenue: parseNumericValue(fin.revenue),
-              ebitda: parseNumericValue(fin.ebitda),
-              currency: fin.currency ?? "JPY",
-              employeeCount: fin.employeeCount ?? null,
-              metadata: {
-                gdriveSourceFileId: gdriveFileId,
-                currency: fin.currency ?? null,
-                askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
-                revenueRaw: fin.revenue ?? null,
-                ebitdaRaw: fin.ebitda ?? null,
-              },
-              updatedAt: new Date(),
-            })
-            .where(eq(deals.id, dealId));
+            // Update deal fields from new analysis
+            const fin = analysis.financialHighlights;
+            await db
+              .update(deals)
+              .set({
+                companyName: analysis.companyProfile.companyName,
+                description: analysis.companyProfile.summary.slice(0, 500),
+                location: analysis.companyProfile.location ?? null,
+                industry: analysis.companyProfile.industry ?? null,
+                askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
+                revenue: parseNumericValue(fin.revenue),
+                ebitda: parseNumericValue(fin.ebitda),
+                currency: fin.currency ?? "JPY",
+                employeeCount: fin.employeeCount ?? null,
+                metadata: {
+                  gdriveSourceFileId: gdriveFileId,
+                  currency: fin.currency ?? null,
+                  askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
+                  revenueRaw: fin.revenue ?? null,
+                  ebitdaRaw: fin.ebitda ?? null,
+                },
+                updatedAt: new Date(),
+              })
+              .where(eq(deals.id, dealId));
+          } else {
+            // File exists but has no deal (e.g. from scan orchestrator) — create one
+            dealId = await createDealFromAnalysis(portcoId, stageId, analysis, gdriveFileId, gdriveFile.modifiedTime);
+            await db
+              .update(files)
+              .set({ dealId, updatedAt: new Date() })
+              .where(eq(files.id, existingFile.id));
+          }
 
           await db
             .update(files)
@@ -643,13 +652,6 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
         // Store analysis results
         await storeResults(dealId, portcoId, analysis);
 
-        // Auto-generate DD thesis tree for new deals
-        if (isNew) {
-          autoGenerateThesisTree(dealId, portcoId).catch((e) =>
-            console.error(`Thesis generation failed for deal ${dealId}:`, e),
-          );
-        }
-
         const { weighted } = computeScoresFromAnalysis(analysis);
 
         return {
@@ -657,6 +659,7 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
           gdriveFileId,
           status: "processed" as const,
           dealId,
+          isNewDeal: isNew,
           companyName: analysis.companyProfile.companyName,
           overallScore: weighted,
         };
@@ -741,11 +744,12 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
   const results = await pMap(
     completedFiles,
     async (file) => {
+      const fileDealId = file.dealId!;
       if (!file.gdriveFileId) {
         return {
           fileId: file.id,
           fileName: file.fileName,
-          dealId: file.dealId,
+          dealId: fileDealId,
           status: "failed" as const,
           error: "No GDrive file ID",
         };
@@ -757,7 +761,7 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
 
         // Analyze with AI (PDF sent directly as multimodal input)
         const analysis = await analyzeIM(buffer);
-        await storeResults(file.dealId, portcoId, analysis);
+        await storeResults(fileDealId, portcoId, analysis);
 
         // Update deal fields from new analysis
         const fin = analysis.financialHighlights;
@@ -782,7 +786,7 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
             },
             updatedAt: new Date(),
           })
-          .where(eq(deals.id, file.dealId));
+          .where(eq(deals.id, fileDealId));
 
         await db
           .update(files)
@@ -794,7 +798,7 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
         return {
           fileId: file.id,
           fileName: file.fileName,
-          dealId: file.dealId,
+          dealId: fileDealId,
           status: "processed" as const,
           overallScore: weighted,
         };
@@ -808,7 +812,7 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
         return {
           fileId: file.id,
           fileName: file.fileName,
-          dealId: file.dealId,
+          dealId: fileDealId,
           status: "failed" as const,
           error: error instanceof Error ? error.message : "Unknown error",
         };
@@ -839,6 +843,7 @@ interface ProcessGdriveFileInput {
 interface ProcessGdriveFileResult {
   success: boolean;
   dealId?: string;
+  isNewDeal?: boolean;
   companyName?: string;
   overallScore?: number;
   redFlagCount?: number;
@@ -867,7 +872,7 @@ export async function processSingleGdriveFile(
       .limit(1);
 
     if (existingFile?.processingStatus === "completed" && !input.force) {
-      return { success: true, dealId: existingFile.dealId, companyName: "(already processed)" };
+      return { success: true, dealId: existingFile.dealId ?? undefined, companyName: "(already processed)" };
     }
 
     // Download PDF
@@ -882,7 +887,7 @@ export async function processSingleGdriveFile(
     let dealId: string;
     let fileId: string;
 
-    if (existingFile) {
+    if (existingFile && existingFile.dealId) {
       // Reuse existing file + deal, update deal fields from new analysis
       progress("Updating existing deal and file record...");
       dealId = existingFile.dealId;
@@ -916,40 +921,41 @@ export async function processSingleGdriveFile(
         .set({ processingStatus: "processing", updatedAt: new Date() })
         .where(eq(files.id, fileId));
     } else {
-      // Create new deal
+      // Create new deal (or existing file has no deal yet, e.g. from scan orchestrator)
       progress(`Creating deal for "${analysis.companyProfile.companyName}"...`);
       const stageId = await getDefaultStageId(portcoId);
       dealId = await createDealFromAnalysis(portcoId, stageId, analysis, gdriveFileId, input.gdriveModifiedTime);
 
-      // Create file record
-      const [newFile] = await db
-        .insert(files)
-        .values({
-          dealId,
-          portcoId,
-          fileName,
-          fileType: "im_pdf",
-          mimeType,
-          gdriveFileId,
-          gdriveUrl: webViewLink,
-          sizeBytes,
-          processingStatus: "processing",
-        })
-        .returning({ id: files.id });
-      fileId = newFile.id;
+      if (existingFile) {
+        // Link existing file record to the new deal
+        fileId = existingFile.id;
+        await db
+          .update(files)
+          .set({ dealId, processingStatus: "processing", updatedAt: new Date() })
+          .where(eq(files.id, fileId));
+      } else {
+        // Create file record
+        const [newFile] = await db
+          .insert(files)
+          .values({
+            dealId,
+            portcoId,
+            fileName,
+            fileType: "im_pdf",
+            mimeType,
+            gdriveFileId,
+            gdriveUrl: webViewLink,
+            sizeBytes,
+            processingStatus: "processing",
+          })
+          .returning({ id: files.id });
+        fileId = newFile.id;
+      }
     }
 
     // Store results
     progress("Storing scoring results and red flags...");
     await storeResults(dealId, portcoId, analysis);
-
-    // Auto-generate DD thesis tree for new deals
-    if (!existingFile) {
-      progress("Generating DD thesis tree...");
-      autoGenerateThesisTree(dealId, portcoId).catch((e) =>
-        console.error(`Thesis generation failed for deal ${dealId}:`, e),
-      );
-    }
 
     // Mark complete
     progress("Done!");
@@ -963,6 +969,7 @@ export async function processSingleGdriveFile(
     return {
       success: true,
       dealId,
+      isNewDeal: !existingFile?.dealId,
       companyName: analysis.companyProfile.companyName,
       overallScore: weighted,
       redFlagCount: filterRedFlags(analysis).confirmedFlags.length + filterRedFlags(analysis).confirmedGaps.length,

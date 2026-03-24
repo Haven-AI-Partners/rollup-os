@@ -1,9 +1,33 @@
-import { task, logger, metadata, schedules } from "@trigger.dev/sdk";
+import { task, logger, metadata, schedules, tasks } from "@trigger.dev/sdk";
 import { processIM, scanAndProcessFolder, reprocessAllFiles, processSingleGdriveFile, MODEL_ID } from "@/lib/agents/im-processor";
 import { runEval } from "@/lib/agents/im-processor/eval";
+import { scanClassifyAndProcess } from "@/lib/agents/scan-orchestrator";
+import { processDDDocument } from "@/lib/agents/dd-processor";
+import { autoGenerateThesisTree } from "@/lib/actions/thesis";
 import { db } from "@/lib/db";
 import { portcos } from "@/lib/db/schema";
 import { and, isNotNull } from "drizzle-orm";
+import type { FileType } from "@/lib/db/schema/files";
+
+/** Generate DD thesis tree for a deal (runs after IM processing) */
+export const generateThesisTreeTask = task({
+  id: "generate-thesis-tree",
+  maxDuration: 300, // 5 minutes
+  retry: {
+    maxAttempts: 2,
+    minTimeoutInMs: 5000,
+    maxTimeoutInMs: 30000,
+    factor: 2,
+  },
+  run: async (payload: { dealId: string; portcoId: string }) => {
+    logger.info("Generating thesis tree", { dealId: payload.dealId });
+
+    const count = await autoGenerateThesisTree(payload.dealId, payload.portcoId);
+
+    logger.info("Thesis tree generated", { dealId: payload.dealId, nodesCreated: count });
+    return { dealId: payload.dealId, nodesCreated: count };
+  },
+});
 
 /** Process a single IM file */
 export const processIMTask = task({
@@ -54,6 +78,19 @@ export const scanFolderTask = task({
       skipped: result.skipped,
     });
 
+    // Trigger thesis tree generation for each new deal
+    const newDeals = result.results
+      .filter((r) => r.status === "processed" && r.dealId && r.isNewDeal);
+    for (const r of newDeals) {
+      await tasks.trigger<typeof generateThesisTreeTask>("generate-thesis-tree", {
+        dealId: r.dealId!,
+        portcoId: payload.portcoId,
+      });
+    }
+    if (newDeals.length > 0) {
+      logger.info(`Triggered thesis tree generation for ${newDeals.length} new deal(s)`);
+    }
+
     return result;
   },
 });
@@ -91,6 +128,15 @@ export const processGdriveFileTask = task({
         overallScore: result.overallScore,
         dealId: result.dealId,
       });
+
+      // Trigger thesis tree generation as a separate task for new deals
+      if (result.isNewDeal && result.dealId) {
+        await tasks.trigger<typeof generateThesisTreeTask>("generate-thesis-tree", {
+          dealId: result.dealId,
+          portcoId: payload.portcoId,
+        });
+        logger.info("Triggered thesis tree generation", { dealId: result.dealId });
+      }
     } else {
       logger.error("GDrive file processing failed", { error: result.error });
     }
@@ -153,10 +199,12 @@ export const scheduledGdriveScanTask = schedules.task({
 
     const settled = await Promise.allSettled(
       connectedPortcos.map(async (portco) => {
-        const result = await scanAndProcessFolder(portco.id);
+        const result = await scanClassifyAndProcess(portco.id);
         logger.info(`Scan complete for ${portco.name}`, {
           newFiles: result.newFiles,
-          processed: result.processed,
+          classified: result.classified,
+          imsRouted: result.imsRouted,
+          ddRouted: result.ddRouted,
           failed: result.failed,
         });
         return { portcoId: portco.id, name: portco.name, ...result };
@@ -173,6 +221,43 @@ export const scheduledGdriveScanTask = schedules.task({
     });
 
     return { scanned: connectedPortcos.length, results };
+  },
+});
+
+/** Process a DD document and enrich thesis tree */
+export const processDDDocumentTask = task({
+  id: "process-dd-document",
+  maxDuration: 600,
+  retry: {
+    maxAttempts: 2,
+    minTimeoutInMs: 5000,
+    maxTimeoutInMs: 30000,
+    factor: 2,
+  },
+  run: async (payload: {
+    fileId: string;
+    dealId: string;
+    portcoId: string;
+    fileType: FileType;
+  }) => {
+    logger.info("Processing DD document", {
+      fileId: payload.fileId,
+      dealId: payload.dealId,
+      fileType: payload.fileType,
+    });
+
+    const result = await processDDDocument(payload);
+
+    if (result.success) {
+      logger.info("DD document processed", {
+        nodesUpdated: result.nodesUpdated,
+        summary: result.summary,
+      });
+    } else {
+      logger.error("DD processing failed", { error: result.error });
+    }
+
+    return result;
   },
 });
 

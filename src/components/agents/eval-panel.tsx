@@ -14,7 +14,7 @@ import { SCORING_DIMENSIONS } from "@/lib/scoring/rubric";
 interface ProcessedFile {
   id: string;
   fileName: string;
-  dealId: string;
+  dealId: string | null;
   companyName: string;
 }
 

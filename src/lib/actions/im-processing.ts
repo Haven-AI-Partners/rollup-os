@@ -33,6 +33,7 @@ export async function processIMFile(portcoSlug: string, fileId: string) {
     .limit(1);
 
   if (!file) throw new Error("File not found");
+  if (!file.dealId) throw new Error("File has no associated deal");
 
   // Mark as processing immediately
   await db
@@ -40,14 +41,16 @@ export async function processIMFile(portcoSlug: string, fileId: string) {
     .set({ processingStatus: "processing", updatedAt: new Date() })
     .where(eq(files.id, fileId));
 
+  const dealId = file.dealId;
+
   // Trigger background job
   const handle = await tasks.trigger<typeof processIMTask>("process-im", {
     fileId: file.id,
-    dealId: file.dealId,
+    dealId,
     portcoId: portco.id,
   });
 
-  revalidatePath(`/${portcoSlug}/pipeline/${file.dealId}`);
+  revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);
   return { triggered: true, runId: handle.id };
 }
 

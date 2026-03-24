@@ -74,8 +74,8 @@ async function main() {
         await db
           .update(deals)
           .set({ createdAt: new Date(modifiedTime) })
-          .where(eq(deals.id, file.dealId));
-        console.log(`  Deal ${file.dealId}: set createdAt to ${modifiedTime}`);
+          .where(eq(deals.id, file.dealId!));
+        console.log(`  Deal ${file.dealId!}: set createdAt to ${modifiedTime}`);
         updated++;
       })
     );

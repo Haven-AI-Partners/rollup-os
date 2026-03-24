@@ -18,7 +18,7 @@ export const dealThesisNodes = pgTable("deal_thesis_nodes", {
   >(),
   value: text("value"),
   source: text("source").$type<
-    "im_extracted" | "manual" | "agent_generated" | "interview"
+    "im_extracted" | "manual" | "agent_generated" | "interview" | "dd_extracted"
   >(),
   sourceDetail: text("source_detail"),
   notes: text("notes"),
