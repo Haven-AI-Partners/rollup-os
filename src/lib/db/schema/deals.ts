@@ -1,6 +1,7 @@
 import { pgTable, uuid, text, timestamp, numeric, integer, jsonb } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { portcos } from "./portcos";
+import { brokerFirms, brokerContacts } from "./brokers";
 
 export const pipelineStages = pgTable("pipeline_stages", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -38,8 +39,10 @@ export const deals = pgTable("deals", {
     "active" | "passed" | "closed_won" | "closed_lost"
   >(),
   assignedTo: uuid("assigned_to").references(() => users.id),
-  brokerFirmId: uuid("broker_firm_id"),
-  brokerContactId: uuid("broker_contact_id"),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Circular FK with brokers.ts
+  brokerFirmId: uuid("broker_firm_id").references((): any => brokerFirms.id),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Circular FK with brokers.ts
+  brokerContactId: uuid("broker_contact_id").references((): any => brokerContacts.id),
   kanbanPosition: integer("kanban_position").notNull().default(0),
   closedAt: timestamp("closed_at", { withTimezone: true }),
   metadata: jsonb("metadata"),

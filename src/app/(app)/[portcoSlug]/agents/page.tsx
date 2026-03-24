@@ -1,7 +1,4 @@
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import { files, deals, companyProfiles, promptVersions, evalRuns } from "@/lib/db/schema";
-import { eq, and, count, desc, avg } from "drizzle-orm";
 import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 import { MODEL_ID } from "@/lib/agents/im-processor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,16 +14,23 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
+import { formatDateShort } from "@/lib/format";
 import { EvalPanel } from "@/components/agents/eval-panel";
 import { PromptTabs } from "@/components/agents/prompt-tabs";
 import {
   EXTRACTION_TEMPLATE,
   SCORING_TEMPLATE,
   renderTemplate,
-  AGENT_SLUG,
   EXTRACTION_SLUG,
   SCORING_SLUG,
 } from "@/lib/agents/im-processor/prompt";
+import {
+  getAgentStats,
+  getRecentProcessedFiles,
+  getProcessedFilesForEval,
+  getRecentEvalRuns,
+  getAllPromptVersions,
+} from "@/lib/actions/agents";
 
 export default async function AgentsPage({
   params,
@@ -41,128 +45,15 @@ export default async function AgentsPage({
   const role = user ? await getUserPortcoRole(user.id, portco.id) : null;
   const isAdmin = role ? hasMinRole(role as UserRole, "admin") : false;
 
-  const [statusCounts, recentFiles, scoreStats, extractionVersions, scoringVersions, legacyVersions, processedFiles, recentEvals] = await Promise.all([
-    // Processing status breakdown
-    db
-      .select({
-        status: files.processingStatus,
-        count: count(files.id),
-      })
-      .from(files)
-      .where(eq(files.portcoId, portco.id))
-      .groupBy(files.processingStatus),
-
-    // Last 3 processed files with deal info
-    db
-      .select({
-        fileId: files.id,
-        fileName: files.fileName,
-        status: files.processingStatus,
-        processedAt: files.processedAt,
-        dealId: files.dealId,
-        companyName: deals.companyName,
-        aiScore: companyProfiles.aiOverallScore,
-      })
-      .from(files)
-      .innerJoin(deals, eq(files.dealId, deals.id))
-      .leftJoin(companyProfiles, eq(companyProfiles.dealId, deals.id))
-      .where(eq(files.portcoId, portco.id))
-      .orderBy(desc(files.updatedAt))
-      .limit(3),
-
-    // Average score across all processed IMs
-    db
-      .select({
-        avgScore: avg(companyProfiles.aiOverallScore),
-      })
-      .from(companyProfiles)
-      .innerJoin(deals, eq(companyProfiles.dealId, deals.id))
-      .where(eq(deals.portcoId, portco.id)),
-
-    // Prompt versions for extraction pass
-    db
-      .select({
-        id: promptVersions.id,
-        version: promptVersions.version,
-        template: promptVersions.template,
-        isActive: promptVersions.isActive,
-        changeNote: promptVersions.changeNote,
-        createdAt: promptVersions.createdAt,
-      })
-      .from(promptVersions)
-      .where(eq(promptVersions.agentSlug, EXTRACTION_SLUG))
-      .orderBy(desc(promptVersions.version)),
-
-    // Prompt versions for scoring pass
-    db
-      .select({
-        id: promptVersions.id,
-        version: promptVersions.version,
-        template: promptVersions.template,
-        isActive: promptVersions.isActive,
-        changeNote: promptVersions.changeNote,
-        createdAt: promptVersions.createdAt,
-      })
-      .from(promptVersions)
-      .where(eq(promptVersions.agentSlug, SCORING_SLUG))
-      .orderBy(desc(promptVersions.version)),
-
-    // Legacy single-pass prompt versions (for history)
-    db
-      .select({
-        id: promptVersions.id,
-        version: promptVersions.version,
-        template: promptVersions.template,
-        isActive: promptVersions.isActive,
-        changeNote: promptVersions.changeNote,
-        createdAt: promptVersions.createdAt,
-      })
-      .from(promptVersions)
-      .where(eq(promptVersions.agentSlug, AGENT_SLUG))
-      .orderBy(desc(promptVersions.version)),
-
-    // Processed files for eval dropdown
-    db
-      .select({
-        id: files.id,
-        fileName: files.fileName,
-        dealId: files.dealId,
-        companyName: deals.companyName,
-      })
-      .from(files)
-      .innerJoin(deals, eq(files.dealId, deals.id))
-      .where(and(eq(files.portcoId, portco.id), eq(files.processingStatus, "completed")))
-      .orderBy(desc(files.processedAt)),
-
-    // Recent eval runs
-    db
-      .select({
-        id: evalRuns.id,
-        fileName: evalRuns.fileName,
-        iterations: evalRuns.iterations,
-        status: evalRuns.status,
-        overallScoreStdDev: evalRuns.overallScoreStdDev,
-        flagAgreementRate: evalRuns.flagAgreementRate,
-        nameConsistent: evalRuns.nameConsistent,
-        scoreVariance: evalRuns.scoreVariance,
-        promptVersionLabel: evalRuns.promptVersionLabel,
-        modelId: evalRuns.modelId,
-        createdAt: evalRuns.createdAt,
-        completedAt: evalRuns.completedAt,
-      })
-      .from(evalRuns)
-      .where(eq(evalRuns.agentSlug, AGENT_SLUG))
-      .orderBy(desc(evalRuns.createdAt))
-      .limit(10),
+  const [stats, recentFiles, processedFiles, recentEvals, promptData] = await Promise.all([
+    getAgentStats(portco.id),
+    getRecentProcessedFiles(portco.id),
+    getProcessedFilesForEval(portco.id),
+    getRecentEvalRuns(),
+    getAllPromptVersions(),
   ]);
 
-  const statusMap = new Map(statusCounts.map((s) => [s.status, Number(s.count)]));
-  const completed = statusMap.get("completed") ?? 0;
-  const failed = statusMap.get("failed") ?? 0;
-  const processing = statusMap.get("processing") ?? 0;
-  const pending = statusMap.get("pending") ?? 0;
-  const total = completed + failed + processing + pending;
-  const avgScore = scoreStats[0]?.avgScore ? Number(scoreStats[0].avgScore) : null;
+  const { extractionVersions, scoringVersions, legacyVersions } = promptData;
 
   // Determine which templates are active
   const activeExtraction = extractionVersions.find((v) => v.isActive);
@@ -173,24 +64,16 @@ export default async function AgentsPage({
   const currentScoringTemplate = activeScoring?.template ?? SCORING_TEMPLATE;
   const renderedScoringPrompt = renderTemplate(currentScoringTemplate);
 
-  // Serialize versions for the client components
-  const extractionVersionsForClient = extractionVersions.map((v) => ({
-    id: v.id,
-    version: v.version,
-    template: v.template,
-    isActive: v.isActive,
-    changeNote: v.changeNote,
-    createdAt: v.createdAt.toISOString(),
-  }));
-
-  const scoringVersionsForClient = scoringVersions.map((v) => ({
-    id: v.id,
-    version: v.version,
-    template: v.template,
-    isActive: v.isActive,
-    changeNote: v.changeNote,
-    createdAt: v.createdAt.toISOString(),
-  }));
+  // Serialize versions for client components
+  const serializeVersions = (versions: typeof extractionVersions) =>
+    versions.map((v) => ({
+      id: v.id,
+      version: v.version,
+      template: v.template,
+      isActive: v.isActive,
+      changeNote: v.changeNote,
+      createdAt: v.createdAt.toISOString(),
+    }));
 
   return (
     <div className="space-y-6">
@@ -230,28 +113,28 @@ export default async function AgentsPage({
                 <FileText className="size-3" />
                 Total
               </div>
-              <p className="mt-1 text-2xl font-semibold">{total}</p>
+              <p className="mt-1 text-2xl font-semibold">{stats.total}</p>
             </div>
             <div className="rounded-lg border p-3">
               <div className="flex items-center gap-1.5 text-xs text-green-700">
                 <CheckCircle className="size-3" />
                 Completed
               </div>
-              <p className="mt-1 text-2xl font-semibold text-green-700">{completed}</p>
+              <p className="mt-1 text-2xl font-semibold text-green-700">{stats.completed}</p>
             </div>
             <div className="rounded-lg border p-3">
               <div className="flex items-center gap-1.5 text-xs text-red-600">
                 <XCircle className="size-3" />
                 Failed
               </div>
-              <p className="mt-1 text-2xl font-semibold text-red-600">{failed}</p>
+              <p className="mt-1 text-2xl font-semibold text-red-600">{stats.failed}</p>
             </div>
             <div className="rounded-lg border p-3">
               <div className="flex items-center gap-1.5 text-xs text-blue-600">
                 <Loader2 className="size-3" />
                 In Progress
               </div>
-              <p className="mt-1 text-2xl font-semibold text-blue-600">{processing + pending}</p>
+              <p className="mt-1 text-2xl font-semibold text-blue-600">{stats.inProgress}</p>
             </div>
             <div className="rounded-lg border p-3">
               <div className="flex items-center gap-1.5 text-xs text-amber-600">
@@ -259,7 +142,7 @@ export default async function AgentsPage({
                 Avg Score
               </div>
               <p className="mt-1 text-2xl font-semibold text-amber-600">
-                {avgScore ? `${avgScore.toFixed(1)}/5` : "—"}
+                {stats.avgScore ? `${stats.avgScore.toFixed(1)}/5` : "—"}
               </p>
             </div>
           </div>
@@ -305,10 +188,7 @@ export default async function AgentsPage({
                       )}
                       {file.processedAt && (
                         <span className="text-xs text-muted-foreground">
-                          {new Date(file.processedAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
+                          {formatDateShort(file.processedAt)}
                         </span>
                       )}
                     </div>
@@ -388,7 +268,7 @@ export default async function AgentsPage({
             currentTemplate: currentExtractionTemplate,
             defaultTemplate: EXTRACTION_TEMPLATE,
             renderedPrompt: renderedExtractionPrompt,
-            versions: extractionVersionsForClient,
+            versions: serializeVersions(extractionVersions),
             description: "Extracts facts, numbers, and quotes from the PDF. No scoring or judgment.",
           },
           {
@@ -398,7 +278,7 @@ export default async function AgentsPage({
             currentTemplate: currentScoringTemplate,
             defaultTemplate: SCORING_TEMPLATE,
             renderedPrompt: renderedScoringPrompt,
-            versions: scoringVersionsForClient,
+            versions: serializeVersions(scoringVersions),
             description: "Scores dimensions and identifies red flags from the structured extraction.",
           },
         ]}

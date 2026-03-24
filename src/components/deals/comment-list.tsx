@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { addComment } from "@/lib/actions/deals";
+import { formatDateTime } from "@/lib/format";
 
 interface Comment {
   id: string;
@@ -56,7 +57,7 @@ export function CommentList({ dealId, portcoId, portcoSlug, initialComments }: C
           <div key={comment.id} className="rounded-md border p-3">
             <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {new Date(comment.createdAt).toLocaleString()}
+              {formatDateTime(comment.createdAt)}
             </p>
           </div>
         ))}

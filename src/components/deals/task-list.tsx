@@ -11,8 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, Circle, Clock, AlertTriangle, Plus } from "lucide-react";
+import { Circle, Plus } from "lucide-react";
 import { createTask, updateTask } from "@/lib/actions/tasks";
+import { TASK_STATUS_ICONS } from "@/lib/constants";
 
 interface Task {
   id: string;
@@ -31,13 +32,6 @@ interface TaskListProps {
   portcoSlug: string;
   initialTasks: Task[];
 }
-
-const statusIcons: Record<string, typeof Circle> = {
-  todo: Circle,
-  in_progress: Clock,
-  blocked: AlertTriangle,
-  completed: Check,
-};
 
 const CATEGORIES = [
   "sourcing",
@@ -107,7 +101,7 @@ export function TaskList({ dealId, portcoId, portcoSlug, initialTasks }: TaskLis
 
       <div className="space-y-1">
         {initialTasks.map((task) => {
-          const StatusIcon = statusIcons[task.status] ?? Circle;
+          const StatusIcon = TASK_STATUS_ICONS[task.status] ?? Circle;
           return (
             <div
               key={task.id}

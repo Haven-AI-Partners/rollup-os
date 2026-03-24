@@ -47,6 +47,7 @@ src/
 ```bash
 pnpm dev              # Start dev server
 pnpm build            # Production build
+pnpm typecheck        # TypeScript type checking (tsc --noEmit)
 pnpm lint             # ESLint
 pnpm test             # Run all tests (Vitest)
 pnpm test:watch       # Run tests in watch mode
@@ -99,6 +100,7 @@ pnpm db:seed          # Seed sample PortCo + pipeline stages
 
 ## Testing Requirements
 
+- **Run typecheck after every change**: Always run `pnpm typecheck` after making any code changes to ensure TypeScript compiles without errors. This catches type errors that tests and lint may miss.
 - **Run tests after every change**: Always run `pnpm test` after making any code changes to ensure nothing is broken.
 - **Add tests for every new feature**: Every new feature or server action must include corresponding test files.
 - **Add tests for every feature change**: When modifying existing features, update or add tests to cover the changed behavior.

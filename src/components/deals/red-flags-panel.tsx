@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, ShieldAlert, Info, Zap, Plus, Check, X, Undo2 } from "lucide-react";
+import { AlertTriangle, Plus, Check, X, Undo2 } from "lucide-react";
 import {
   RED_FLAG_DEFINITIONS,
   SEVERITY_CONFIG,
@@ -20,6 +20,7 @@ import {
   type RedFlagSeverity,
 } from "@/lib/scoring/red-flags";
 import { addRedFlag, resolveRedFlag, unresolveRedFlag, removeRedFlag } from "@/lib/actions/red-flags";
+import { SEVERITY_ICONS } from "@/lib/constants";
 
 interface FlagRecord {
   id: string;
@@ -36,13 +37,6 @@ interface RedFlagsPanelProps {
   portcoSlug: string;
   initialFlags: FlagRecord[];
 }
-
-const severityIcons: Record<string, typeof AlertTriangle> = {
-  critical: ShieldAlert,
-  serious: AlertTriangle,
-  moderate: Zap,
-  info_gap: Info,
-};
 
 export function RedFlagsPanel({ dealId, portcoId, portcoSlug, initialFlags }: RedFlagsPanelProps) {
   const [showAdd, setShowAdd] = useState(false);
@@ -121,7 +115,7 @@ export function RedFlagsPanel({ dealId, portcoId, portcoSlug, initialFlags }: Re
         {activeFlags.map((flag) => {
           const def = RED_FLAG_DEFINITIONS.find((d) => d.id === flag.flagId);
           const config = SEVERITY_CONFIG[flag.severity as RedFlagSeverity];
-          const Icon = severityIcons[flag.severity] ?? AlertTriangle;
+          const Icon = SEVERITY_ICONS[flag.severity] ?? AlertTriangle;
           return (
             <div key={flag.id} className={`rounded-md border p-2 ${config?.bgColor ?? ""}`}>
               <div className="flex items-start gap-2">

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, RotateCcw, History, Eye, Pencil, Check } from "lucide-react";
+import { formatDateTime } from "@/lib/format";
 import { savePromptVersion, activatePromptVersion, resetToDefaultPrompt } from "@/lib/actions/prompt-versions";
 
 interface PromptVersion {
@@ -212,12 +213,7 @@ export function PromptEditor({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
-                    {new Date(v.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatDateTime(v.createdAt)}
                   </span>
                   {isAdmin && !v.isActive && (
                     <Button

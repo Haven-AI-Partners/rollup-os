@@ -10,6 +10,8 @@ import { FlaskConical, CheckCircle, XCircle, Loader2, TrendingDown, TrendingUp, 
 import { triggerEvalRun } from "@/lib/actions/im-processing";
 import { useRunStatus } from "@/hooks/use-run-status";
 import { SCORING_DIMENSIONS } from "@/lib/scoring/rubric";
+import { stdDevBadgeColor, flagAgreementBadgeColor } from "@/lib/constants";
+import { formatDateTime, formatDuration } from "@/lib/format";
 
 interface ProcessedFile {
   id: string;
@@ -69,18 +71,6 @@ function VarianceBadge({ value }: { value: number }) {
   );
 }
 
-function stdDevBadgeColor(value: number): string {
-  if (value <= 0.2) return "bg-green-50 text-green-700 border-green-200";
-  if (value <= 0.5) return "bg-amber-50 text-amber-700 border-amber-200";
-  return "bg-red-50 text-red-700 border-red-200";
-}
-
-function flagAgreementBadgeColor(value: number): string {
-  if (value >= 0.7) return "bg-green-50 text-green-700 border-green-200";
-  if (value >= 0.4) return "bg-amber-50 text-amber-700 border-amber-200";
-  return "bg-red-50 text-red-700 border-red-200";
-}
-
 function EvalRunRow({ run, dimNameMap }: { run: EvalRun; dimNameMap: Map<string, string> }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -123,25 +113,15 @@ function EvalRunRow({ run, dimNameMap }: { run: EvalRun; dimNameMap: Map<string,
               {(Number(run.flagAgreementRate) * 100).toFixed(0)}% flags
             </Badge>
           )}
-          {run.status === "completed" && run.completedAt && (() => {
-            const ms = new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime();
-            const secs = Math.round(ms / 1000);
-            const label = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
-            return (
-              <Badge variant="outline" className="text-[10px] gap-0.5">
-                <Clock className="size-2.5" /> {label}
-              </Badge>
-            );
-          })()}
+          {run.status === "completed" && run.completedAt && (
+            <Badge variant="outline" className="text-[10px] gap-0.5">
+              <Clock className="size-2.5" /> {formatDuration(new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime())}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-2">
           <span className="text-xs text-muted-foreground">
-            {new Date(run.createdAt).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {formatDateTime(run.createdAt)}
           </span>
           {run.status === "completed" && (
             <ChevronRight className={`size-4 text-muted-foreground transition-transform ${expanded ? "rotate-90" : ""}`} />
