@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PromptEditor } from "./prompt-editor";
+import { formatDateTime } from "@/lib/format";
 
 interface PromptVersion {
   id: string;
@@ -117,12 +118,7 @@ export function PromptTabs({ portcoSlug, tabs, legacyVersions, isAdmin }: Prompt
                   )}
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {new Date(v.createdAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatDateTime(v.createdAt)}
                 </span>
               </div>
             ))}

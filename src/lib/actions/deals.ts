@@ -6,14 +6,18 @@ import {
   pipelineStages,
   dealComments,
   dealActivityLog,
+  companyProfiles,
+  dealRedFlags,
 } from "@/lib/db/schema";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, count, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAuth, requirePortcoRole } from "@/lib/auth";
 
 export async function getDealsForPortco(portcoId: string) {
   await requireAuth();
-  return db
+
+  // Fetch deals
+  const dealRows = await db
     .select({
       id: deals.id,
       portcoId: deals.portcoId,
@@ -29,12 +33,48 @@ export async function getDealsForPortco(portcoId: string) {
       status: deals.status,
       source: deals.source,
       kanbanPosition: deals.kanbanPosition,
-      aiScore: sql<string | null>`(SELECT ai_overall_score FROM company_profiles WHERE deal_id = deals.id LIMIT 1)`.as("ai_score"),
-      redFlagCount: sql<number>`(SELECT count(*) FROM deal_red_flags WHERE deal_id = deals.id AND resolved = false AND severity IN ('critical', 'serious'))`.as("red_flag_count"),
     })
     .from(deals)
     .where(eq(deals.portcoId, portcoId))
     .orderBy(asc(deals.kanbanPosition));
+
+  if (dealRows.length === 0) return [];
+
+  const dealIds = dealRows.map((d) => d.id);
+
+  // Fetch AI scores and red flag counts in parallel
+  const [scoreRows, flagRows] = await Promise.all([
+    db
+      .select({
+        dealId: companyProfiles.dealId,
+        aiOverallScore: companyProfiles.aiOverallScore,
+      })
+      .from(companyProfiles)
+      .where(inArray(companyProfiles.dealId, dealIds)),
+    db
+      .select({
+        dealId: dealRedFlags.dealId,
+        count: count(dealRedFlags.id),
+      })
+      .from(dealRedFlags)
+      .where(
+        and(
+          inArray(dealRedFlags.dealId, dealIds),
+          eq(dealRedFlags.resolved, false),
+          inArray(dealRedFlags.severity, ["critical", "serious"]),
+        )
+      )
+      .groupBy(dealRedFlags.dealId),
+  ]);
+
+  const scoreMap = new Map(scoreRows.map((s) => [s.dealId, s.aiOverallScore]));
+  const flagMap = new Map(flagRows.map((f) => [f.dealId, Number(f.count)]));
+
+  return dealRows.map((d) => ({
+    ...d,
+    aiScore: scoreMap.get(d.id) ?? null,
+    redFlagCount: flagMap.get(d.id) ?? 0,
+  }));
 }
 
 export async function getStagesForPortco(portcoId: string) {
@@ -224,5 +264,5 @@ export async function getActivityLog(dealId: string) {
     .select()
     .from(dealActivityLog)
     .where(eq(dealActivityLog.dealId, dealId))
-    .orderBy(sql`${dealActivityLog.createdAt} DESC`);
+    .orderBy(desc(dealActivityLog.createdAt));
 }

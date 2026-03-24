@@ -141,3 +141,92 @@ export function buildTask(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+export function buildBrokerContact(overrides: Record<string, unknown> = {}) {
+  const id = nextId("contact");
+  return {
+    id,
+    brokerFirmId: "firm-001",
+    fullName: `Contact ${id}`,
+    email: `${id}@example.com`,
+    phone: null,
+    title: null,
+    metadata: null,
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
+    ...overrides,
+  };
+}
+
+export function buildFile(overrides: Record<string, unknown> = {}) {
+  const id = nextId("file");
+  return {
+    id,
+    dealId: "deal-001",
+    portcoId: "portco-001",
+    fileName: `file-${id}.pdf`,
+    fileType: "im_pdf" as const,
+    mimeType: "application/pdf",
+    gdriveFileId: nextId("gdrive"),
+    gdriveUrl: null,
+    sizeBytes: 1024,
+    processingStatus: "pending" as const,
+    processedAt: null,
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
+    ...overrides,
+  };
+}
+
+export function buildFinancialEntry(overrides: Record<string, unknown> = {}) {
+  const id = nextId("fin");
+  return {
+    id,
+    dealId: "deal-001",
+    portcoId: "portco-001",
+    period: "2024-Q1",
+    periodType: "quarterly" as const,
+    revenue: null,
+    ebitda: null,
+    netIncome: null,
+    grossMarginPct: null,
+    ebitdaMarginPct: null,
+    cashFlow: null,
+    customerCount: null,
+    employeeCount: null,
+    arr: null,
+    purchasePrice: null,
+    purchaseMultiple: null,
+    source: "manual" as const,
+    notes: null,
+    metadata: null,
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
+    ...overrides,
+  };
+}
+
+export function buildComment(overrides: Record<string, unknown> = {}) {
+  const id = nextId("comment");
+  return {
+    id,
+    dealId: "deal-001",
+    userId: "user-001",
+    content: `Comment ${id}`,
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
+    ...overrides,
+  };
+}
+
+export function buildPortcoMembership(overrides: Record<string, unknown> = {}) {
+  const id = nextId("membership");
+  return {
+    id,
+    userId: "user-001",
+    portcoId: "portco-001",
+    role: "analyst" as const,
+    createdAt: new Date("2024-01-01"),
+    ...overrides,
+  };
+}

@@ -6,7 +6,7 @@ import {
   brokerContacts,
   brokerInteractions,
 } from "@/lib/db/schema";
-import { eq, sql, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, count, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 
@@ -14,21 +14,51 @@ import { requireAuth } from "@/lib/auth";
 
 export async function getBrokerFirms() {
   await requireAuth();
-  return db
+
+  // Fetch all firms
+  const firms = await db
     .select({
       id: brokerFirms.id,
       name: brokerFirms.name,
       website: brokerFirms.website,
       region: brokerFirms.region,
       specialty: brokerFirms.specialty,
-      contactCount: sql<number>`(SELECT count(*) FROM broker_contacts WHERE broker_firm_id = broker_firms.id)`.as("contact_count"),
-      interactionCount: sql<number>`(SELECT count(*) FROM broker_interactions bi JOIN broker_contacts bc ON bi.broker_contact_id = bc.id WHERE bc.broker_firm_id = broker_firms.id)`.as("interaction_count"),
       listingUrl: brokerFirms.listingUrl,
       metadata: brokerFirms.metadata,
       createdAt: brokerFirms.createdAt,
     })
     .from(brokerFirms)
     .orderBy(asc(brokerFirms.name));
+
+  if (firms.length === 0) return [];
+
+  // Fetch contact counts and interaction counts in parallel
+  const [contactCounts, interactionCounts] = await Promise.all([
+    db
+      .select({
+        brokerFirmId: brokerContacts.brokerFirmId,
+        count: count(brokerContacts.id),
+      })
+      .from(brokerContacts)
+      .groupBy(brokerContacts.brokerFirmId),
+    db
+      .select({
+        brokerFirmId: brokerContacts.brokerFirmId,
+        count: count(brokerInteractions.id),
+      })
+      .from(brokerInteractions)
+      .innerJoin(brokerContacts, eq(brokerInteractions.brokerContactId, brokerContacts.id))
+      .groupBy(brokerContacts.brokerFirmId),
+  ]);
+
+  const contactMap = new Map(contactCounts.map((c) => [c.brokerFirmId, Number(c.count)]));
+  const interactionMap = new Map(interactionCounts.map((i) => [i.brokerFirmId, Number(i.count)]));
+
+  return firms.map((firm) => ({
+    ...firm,
+    contactCount: contactMap.get(firm.id) ?? 0,
+    interactionCount: interactionMap.get(firm.id) ?? 0,
+  }));
 }
 
 export async function getBrokerFirm(firmId: string) {
@@ -93,9 +123,15 @@ export async function deleteBrokerFirm(firmId: string, portcoSlug: string) {
   await requireAuth();
 
   // Delete interactions for this firm's contacts, then contacts, then firm
-  await db.execute(
-    sql`DELETE FROM broker_interactions WHERE broker_contact_id IN (SELECT id FROM broker_contacts WHERE broker_firm_id = ${firmId})`
-  );
+  const contactIds = await db
+    .select({ id: brokerContacts.id })
+    .from(brokerContacts)
+    .where(eq(brokerContacts.brokerFirmId, firmId));
+  if (contactIds.length > 0) {
+    await db
+      .delete(brokerInteractions)
+      .where(inArray(brokerInteractions.brokerContactId, contactIds.map((c) => c.id)));
+  }
   await db.delete(brokerContacts).where(eq(brokerContacts.brokerFirmId, firmId));
   await db.delete(brokerFirms).where(eq(brokerFirms.id, firmId));
 

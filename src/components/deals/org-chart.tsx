@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { User } from "lucide-react";
+import { ROLE_BADGE_COLORS } from "@/lib/constants";
 
 interface OrgNode {
   id: string;
@@ -17,15 +18,6 @@ interface OrgChartProps {
   roots: OrgNode[];
   orphans: OrgNode[];
 }
-
-const roleBadgeColors: Record<string, string> = {
-  executive: "bg-purple-100 text-purple-800 border-purple-200",
-  management: "bg-blue-100 text-blue-800 border-blue-200",
-  staff: "bg-gray-100 text-gray-800 border-gray-200",
-  board: "bg-amber-100 text-amber-800 border-amber-200",
-  advisor: "bg-teal-100 text-teal-800 border-teal-200",
-  contractor: "bg-orange-100 text-orange-800 border-orange-200",
-};
 
 function OrgNodeCard({ node }: { node: OrgNode }) {
   return (
@@ -48,7 +40,7 @@ function OrgNodeCard({ node }: { node: OrgNode }) {
             {node.role && (
               <Badge
                 variant="outline"
-                className={`text-[10px] ${roleBadgeColors[node.role] ?? ""}`}
+                className={`text-[10px] ${ROLE_BADGE_COLORS[node.role] ?? ""}`}
               >
                 {node.role}
               </Badge>
@@ -138,7 +130,7 @@ export function OrgChart({ roots, orphans }: OrgChartProps) {
                     {node.role && (
                       <Badge
                         variant="outline"
-                        className={`text-[10px] ${roleBadgeColors[node.role] ?? ""}`}
+                        className={`text-[10px] ${ROLE_BADGE_COLORS[node.role] ?? ""}`}
                       >
                         {node.role}
                       </Badge>
