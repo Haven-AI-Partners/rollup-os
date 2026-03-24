@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { evalRuns, evalIterations, files } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { downloadFile } from "@/lib/gdrive/client";
-import { calculateWeightedScore } from "@/lib/scoring/rubric";
+
+
 import { buildExtractionPrompt, buildScoringPrompt } from "./prompt";
 import {
   imExtractionSchema,
@@ -12,7 +13,6 @@ import {
   mergeResults,
   type IMExtractionResult,
   type IMScoringResult,
-  type IMAnalysisResult,
 } from "./schema";
 import { MODEL_ID, computeScoresFromAnalysis } from "./index";
 

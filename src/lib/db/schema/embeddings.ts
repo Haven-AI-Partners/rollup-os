@@ -1,5 +1,6 @@
 import { pgTable, uuid, text, timestamp, integer, jsonb, index } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+
+
 import { files } from "./files";
 import { deals } from "./deals";
 import { portcos } from "./portcos";

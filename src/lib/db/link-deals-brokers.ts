@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { db } from "./index";
 import { deals, brokerFirms } from "./schema";
-import { sql, eq, isNull } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 
 async function main() {
   // Get all broker firm IDs

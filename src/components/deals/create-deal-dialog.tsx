@@ -42,7 +42,7 @@ export function CreateDealDialog({ portcoId, portcoSlug, stages }: CreateDealDia
         companyName: formData.get("companyName") as string,
         description: (formData.get("description") as string) || undefined,
         stageId: formData.get("stageId") as string,
-        source: (formData.get("source") as any) || "manual",
+        source: (formData.get("source") as "agent_scraped" | "manual" | "broker_referral") || "manual",
         askingPrice: (formData.get("askingPrice") as string) || undefined,
         revenue: (formData.get("revenue") as string) || undefined,
         ebitda: (formData.get("ebitda") as string) || undefined,

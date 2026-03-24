@@ -6,7 +6,6 @@ import {
   DragOverlay,
   DragStartEvent,
   DragOverEvent,
-  DragEndEvent,
   closestCorners,
   PointerSensor,
   useSensor,
@@ -157,7 +156,7 @@ export function KanbanBoard({ stages, initialDeals, portcoSlug }: KanbanBoardPro
     });
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = async () => {
     const draggedIds = getDraggedIds();
     setActiveId(null);
 

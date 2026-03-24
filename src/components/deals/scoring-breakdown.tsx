@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   SCORING_DIMENSIONS,
   SCORE_LABELS,
-  RECOMMENDATION_BANDS,
   calculateWeightedScore,
 } from "@/lib/scoring/rubric";
 

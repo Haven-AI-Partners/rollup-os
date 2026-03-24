@@ -10,14 +10,12 @@ interface ProcessIMButtonProps {
   portcoSlug: string;
   fileId: string;
   processingStatus: string;
-  fileName: string;
 }
 
 export function ProcessIMButton({
   portcoSlug,
   fileId,
   processingStatus,
-  fileName,
 }: ProcessIMButtonProps) {
   const [runId, setRunId] = useState<string | null>(null);
   const [triggerError, setTriggerError] = useState<string | null>(null);

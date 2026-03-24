@@ -5,10 +5,9 @@ import {
   deals,
   pipelineStages,
   dealComments,
-  dealTransfers,
   dealActivityLog,
 } from "@/lib/db/schema";
-import { eq, and, asc, sql } from "drizzle-orm";
+import { eq, asc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 

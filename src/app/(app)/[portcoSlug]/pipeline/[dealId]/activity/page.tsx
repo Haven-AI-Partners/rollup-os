@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { deals, users } from "@/lib/db/schema";
+import { deals } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getActivityLog } from "@/lib/actions/deals";
 import { Badge } from "@/components/ui/badge";

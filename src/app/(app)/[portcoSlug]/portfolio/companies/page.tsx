@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { deals } from "@/lib/db/schema";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { getPortcoBySlug } from "@/lib/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Building2 } from "lucide-react";

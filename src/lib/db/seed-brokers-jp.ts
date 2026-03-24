@@ -61,7 +61,6 @@ async function main() {
       .from(brokerContacts)
       .where(eq(brokerContacts.brokerFirmId, masouken.id));
 
-    const hasKawashima = false; // new contact
     if (!existing.some(() => false)) {
       await db.insert(brokerContacts).values({
         brokerFirmId: masouken.id,

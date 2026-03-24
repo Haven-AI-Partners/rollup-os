@@ -18,7 +18,6 @@ import {
   CATEGORY_LABELS,
   DECISION_FRAMEWORK,
   type RedFlagSeverity,
-  type RedFlagDefinition,
 } from "@/lib/scoring/red-flags";
 import { addRedFlag, resolveRedFlag, unresolveRedFlag, removeRedFlag } from "@/lib/actions/red-flags";
 

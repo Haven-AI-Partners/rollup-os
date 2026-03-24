@@ -49,6 +49,7 @@ export function useRunStatus(runId: string | null) {
   useEffect(() => {
     if (!runId) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: reset state when runId changes to start a new polling cycle
     setState("running");
     setOutput(null);
     setError(null);

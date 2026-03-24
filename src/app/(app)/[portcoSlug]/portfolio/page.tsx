@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { portcos, deals, portcoMemberships, users, dealFinancials, pipelineStages } from "@/lib/db/schema";
-import { eq, and, sql, count, sum, desc } from "drizzle-orm";
+import { deals, portcoMemberships, users, dealFinancials } from "@/lib/db/schema";
+import { eq, and, count, sum } from "drizzle-orm";
 import { getPortcoBySlug } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

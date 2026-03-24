@@ -1,4 +1,4 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { users, portcoMemberships, portcos } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";

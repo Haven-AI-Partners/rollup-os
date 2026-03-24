@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,13 +40,7 @@ export function ImportGdriveDialog({
   const [importing, setImporting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      loadFiles();
-    }
-  }, [open]);
-
-  async function loadFiles() {
+  const loadFiles = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -59,7 +53,13 @@ export function ImportGdriveDialog({
     } finally {
       setLoading(false);
     }
-  }
+  }, [portcoId]);
+
+  useEffect(() => {
+    if (open) {
+      loadFiles();
+    }
+  }, [open, loadFiles]);
 
   async function handleImport(file: GdriveFile, autoProcess: boolean) {
     setImporting(file.id);
