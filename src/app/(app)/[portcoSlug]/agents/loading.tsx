@@ -8,8 +8,8 @@ export default function AgentsLoading() {
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-4 w-64 mt-1" />
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        {Array.from({ length: 2 }).map((_, i) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
           <Card key={i}>
             <CardHeader>
               <div className="flex items-center gap-3">

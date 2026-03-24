@@ -29,7 +29,8 @@
       "Read",
       "Bash(source *)",
       "Bash(ls /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/)",
-      "Bash(node -e \"const { tool } = require\\('ai'\\); const { z } = require\\('zod'\\); const t = tool\\({ description: 'test', parameters: z.object\\({ name: z.string\\(\\) }\\), execute: async \\(p\\) => 'ok' }\\); console.log\\('tool created:', typeof t\\)\")"
+      "Bash(node -e \"const { tool } = require\\('ai'\\); const { z } = require\\('zod'\\); const t = tool\\({ description: 'test', parameters: z.object\\({ name: z.string\\(\\) }\\), execute: async \\(p\\) => 'ok' }\\); console.log\\('tool created:', typeof t\\)\")",
+      "Bash(ls /Users/alex/dev/haven/rollup-os/src/app/\\\\\\(app\\\\\\)/\\\\[portcoSlug\\\\]/deals/\\\\[dealId\\\\]/)"
     ]
   }
 }

@@ -5,6 +5,7 @@ import { companyProfiles, dealRedFlags, files, deals, pipelineStages, orgChartVe
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { downloadFile, listFiles } from "@/lib/gdrive/client";
 import { calculateWeightedScore } from "@/lib/scoring/rubric";
+import { autoGenerateThesisTree } from "@/lib/actions/thesis";
 import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
 import { buildExtractionPrompt, buildScoringPrompt } from "./prompt";
 import { imExtractionSchema, imScoringSchema, mergeResults, type IMAnalysisResult, type IMExtractionResult, type IMScoringResult } from "./schema";
@@ -642,6 +643,13 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
         // Store analysis results
         await storeResults(dealId, portcoId, analysis);
 
+        // Auto-generate DD thesis tree for new deals
+        if (isNew) {
+          autoGenerateThesisTree(dealId, portcoId).catch((e) =>
+            console.error(`Thesis generation failed for deal ${dealId}:`, e),
+          );
+        }
+
         const { weighted } = computeScoresFromAnalysis(analysis);
 
         return {
@@ -934,6 +942,14 @@ export async function processSingleGdriveFile(
     // Store results
     progress("Storing scoring results and red flags...");
     await storeResults(dealId, portcoId, analysis);
+
+    // Auto-generate DD thesis tree for new deals
+    if (!existingFile) {
+      progress("Generating DD thesis tree...");
+      autoGenerateThesisTree(dealId, portcoId).catch((e) =>
+        console.error(`Thesis generation failed for deal ${dealId}:`, e),
+      );
+    }
 
     // Mark complete
     progress("Done!");
