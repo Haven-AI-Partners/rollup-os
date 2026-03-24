@@ -8,11 +8,12 @@ import {
 } from "@/lib/db/schema";
 import { eq, sql, asc, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
 // ── Broker Firms ──
 
 export async function getBrokerFirms() {
+  await requireAuth();
   return db
     .select({
       id: brokerFirms.id,
@@ -31,6 +32,7 @@ export async function getBrokerFirms() {
 }
 
 export async function getBrokerFirm(firmId: string) {
+  await requireAuth();
   const [firm] = await db
     .select()
     .from(brokerFirms)
@@ -48,8 +50,7 @@ export async function createBrokerFirm(
     specialty?: string;
   }
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   const [firm] = await db
     .insert(brokerFirms)
@@ -75,8 +76,7 @@ export async function updateBrokerFirm(
     specialty: string;
   }>
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   const [updated] = await db
     .update(brokerFirms)
@@ -90,8 +90,7 @@ export async function updateBrokerFirm(
 }
 
 export async function deleteBrokerFirm(firmId: string, portcoSlug: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   // Delete interactions for this firm's contacts, then contacts, then firm
   await db.execute(
@@ -106,6 +105,7 @@ export async function deleteBrokerFirm(firmId: string, portcoSlug: string) {
 // ── Broker Contacts ──
 
 export async function getContactsForFirm(firmId: string) {
+  await requireAuth();
   return db
     .select()
     .from(brokerContacts)
@@ -123,8 +123,7 @@ export async function createBrokerContact(
     title?: string;
   }
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   const [contact] = await db
     .insert(brokerContacts)
@@ -152,8 +151,7 @@ export async function updateBrokerContact(
     title: string;
   }>
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   const [updated] = await db
     .update(brokerContacts)
@@ -170,8 +168,7 @@ export async function deleteBrokerContact(
   portcoSlug: string,
   firmId: string
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   await db.delete(brokerInteractions).where(eq(brokerInteractions.brokerContactId, contactId));
   await db.delete(brokerContacts).where(eq(brokerContacts.id, contactId));
@@ -182,6 +179,7 @@ export async function deleteBrokerContact(
 // ── Broker Interactions ──
 
 export async function getInteractionsForFirm(firmId: string) {
+  await requireAuth();
   return db
     .select({
       id: brokerInteractions.id,
@@ -213,8 +211,7 @@ export async function createInteraction(
     occurredAt: string;
   }
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   const [interaction] = await db
     .insert(brokerInteractions)

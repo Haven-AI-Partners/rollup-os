@@ -6,17 +6,12 @@ import { promptVersions, files, evalRuns } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk";
 import type { runEvalTask } from "@/trigger/im-processing";
-import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
+import { getPortcoBySlug, requirePortcoRole } from "@/lib/auth";
 
 async function requireAdmin(portcoSlug: string) {
   const portco = await getPortcoBySlug(portcoSlug);
   if (!portco) throw new Error("PortCo not found");
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Not authenticated");
-  const role = await getUserPortcoRole(user.id, portco.id);
-  if (!role || !hasMinRole(role as UserRole, "admin")) {
-    throw new Error("Admin access required");
-  }
+  const { user } = await requirePortcoRole(portco.id, "admin");
   return { portco, user };
 }
 

@@ -1,11 +1,10 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { listFiles } from "@/lib/gdrive/client";
 
 export async function getGdriveFiles(portcoId: string, pageToken?: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   const result = await listFiles(portcoId, 50, pageToken);
   if (!result) return null;

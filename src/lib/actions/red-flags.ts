@@ -4,9 +4,10 @@ import { db } from "@/lib/db";
 import { dealRedFlags, dealActivityLog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth, requirePortcoRole } from "@/lib/auth";
 
 export async function getRedFlagsForDeal(dealId: string) {
+  await requireAuth();
   return db
     .select()
     .from(dealRedFlags)
@@ -25,8 +26,7 @@ export async function addRedFlag(
     notes?: string;
   }
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { user } = await requirePortcoRole(portcoId, "analyst");
 
   const [flag] = await db
     .insert(dealRedFlags)
@@ -45,7 +45,7 @@ export async function addRedFlag(
     dealId,
     portcoId,
     userId: user.id,
-    action: "status_changed",
+    action: "red_flag_added",
     description: `Flagged red flag: ${data.flagId} (${data.severity})`,
   });
 
@@ -58,8 +58,7 @@ export async function resolveRedFlag(
   portcoSlug: string,
   dealId: string
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await requireAuth();
 
   const [updated] = await db
     .update(dealRedFlags)
@@ -76,8 +75,7 @@ export async function unresolveRedFlag(
   portcoSlug: string,
   dealId: string
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   const [updated] = await db
     .update(dealRedFlags)
@@ -94,8 +92,7 @@ export async function removeRedFlag(
   portcoSlug: string,
   dealId: string
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireAuth();
 
   await db.delete(dealRedFlags).where(eq(dealRedFlags.id, flagRecordId));
   revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);

@@ -9,9 +9,10 @@ import {
 } from "@/lib/db/schema";
 import { eq, asc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth, requirePortcoRole } from "@/lib/auth";
 
 export async function getDealsForPortco(portcoId: string) {
+  await requireAuth();
   return db
     .select({
       id: deals.id,
@@ -37,6 +38,7 @@ export async function getDealsForPortco(portcoId: string) {
 }
 
 export async function getStagesForPortco(portcoId: string) {
+  await requireAuth();
   return db
     .select()
     .from(pipelineStages)
@@ -60,8 +62,7 @@ export async function createDeal(
     employeeCount?: number;
   }
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { user } = await requirePortcoRole(portcoId, "analyst");
 
   const [deal] = await db
     .insert(deals)
@@ -112,8 +113,7 @@ export async function updateDeal(
     kanbanPosition: number;
   }>
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await requireAuth();
 
   // Get current deal for activity logging
   const [currentDeal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
@@ -188,8 +188,7 @@ export async function addComment(
   portcoSlug: string,
   content: string
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { user } = await requirePortcoRole(portcoId, "analyst");
 
   const [comment] = await db
     .insert(dealComments)
@@ -211,6 +210,7 @@ export async function addComment(
 }
 
 export async function getComments(dealId: string) {
+  await requireAuth();
   return db
     .select()
     .from(dealComments)
@@ -219,6 +219,7 @@ export async function getComments(dealId: string) {
 }
 
 export async function getActivityLog(dealId: string) {
+  await requireAuth();
   return db
     .select()
     .from(dealActivityLog)

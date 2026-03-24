@@ -5,7 +5,8 @@ const { mockUser } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  getCurrentUser: vi.fn().mockResolvedValue(mockUser),
+  requireAuth: vi.fn().mockResolvedValue(mockUser),
+  requirePortcoRole: vi.fn().mockResolvedValue({ user: mockUser, role: "analyst" }),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -31,17 +32,18 @@ vi.mock("drizzle-orm", () => ({
   isNull: vi.fn(),
 }));
 
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth, requirePortcoRole } from "@/lib/auth";
 
 describe("tasks actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getCurrentUser as any).mockResolvedValue(mockUser);
+    (requireAuth as any).mockResolvedValue(mockUser);
+    (requirePortcoRole as any).mockResolvedValue({ user: mockUser, role: "analyst" });
   });
 
   describe("createTask", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { createTask } = await import("./tasks");
       await expect(
@@ -55,7 +57,7 @@ describe("tasks actions", () => {
 
   describe("updateTask", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { updateTask } = await import("./tasks");
       await expect(

@@ -30,6 +30,8 @@ export function setupAuthMocks() {
   const getUserPortcoRole = vi.fn().mockResolvedValue("admin");
   const getUserPortcos = vi.fn().mockResolvedValue([]);
   const hasMinRole = vi.fn().mockReturnValue(true);
+  const requireAuth = vi.fn().mockResolvedValue(mockUser);
+  const requirePortcoRole = vi.fn().mockResolvedValue({ user: mockUser, role: "admin" });
 
   vi.doMock("@/lib/auth", () => ({
     getCurrentUser,
@@ -37,7 +39,9 @@ export function setupAuthMocks() {
     getUserPortcoRole,
     getUserPortcos,
     hasMinRole,
+    requireAuth,
+    requirePortcoRole,
   }));
 
-  return { getCurrentUser, getPortcoBySlug, getUserPortcoRole, getUserPortcos, hasMinRole };
+  return { getCurrentUser, getPortcoBySlug, getUserPortcoRole, getUserPortcos, hasMinRole, requireAuth, requirePortcoRole };
 }

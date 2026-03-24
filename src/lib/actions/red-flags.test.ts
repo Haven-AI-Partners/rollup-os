@@ -5,7 +5,8 @@ const { mockUser } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  getCurrentUser: vi.fn().mockResolvedValue(mockUser),
+  requireAuth: vi.fn().mockResolvedValue(mockUser),
+  requirePortcoRole: vi.fn().mockResolvedValue({ user: mockUser, role: "analyst" }),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -29,17 +30,18 @@ vi.mock("drizzle-orm", () => ({
   and: vi.fn((...args: unknown[]) => ({ args })),
 }));
 
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth, requirePortcoRole } from "@/lib/auth";
 
 describe("red-flags actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getCurrentUser as any).mockResolvedValue(mockUser);
+    (requireAuth as any).mockResolvedValue(mockUser);
+    (requirePortcoRole as any).mockResolvedValue({ user: mockUser, role: "analyst" });
   });
 
   describe("addRedFlag", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { addRedFlag } = await import("./red-flags");
       await expect(
@@ -54,7 +56,7 @@ describe("red-flags actions", () => {
 
   describe("resolveRedFlag", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { resolveRedFlag } = await import("./red-flags");
       await expect(
@@ -65,7 +67,7 @@ describe("red-flags actions", () => {
 
   describe("unresolveRedFlag", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { unresolveRedFlag } = await import("./red-flags");
       await expect(
@@ -76,7 +78,7 @@ describe("red-flags actions", () => {
 
   describe("removeRedFlag", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { removeRedFlag } = await import("./red-flags");
       await expect(

@@ -5,7 +5,7 @@ const { mockUser } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  getCurrentUser: vi.fn().mockResolvedValue(mockUser),
+  requireAuth: vi.fn().mockResolvedValue(mockUser),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -33,17 +33,17 @@ vi.mock("drizzle-orm", () => ({
   desc: vi.fn(),
 }));
 
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
 describe("broker actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getCurrentUser as any).mockResolvedValue(mockUser);
+    (requireAuth as any).mockResolvedValue(mockUser);
   });
 
   describe("createBrokerFirm", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { createBrokerFirm } = await import("./brokers");
       await expect(
@@ -54,7 +54,7 @@ describe("broker actions", () => {
 
   describe("updateBrokerFirm", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { updateBrokerFirm } = await import("./brokers");
       await expect(
@@ -65,7 +65,7 @@ describe("broker actions", () => {
 
   describe("deleteBrokerFirm", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { deleteBrokerFirm } = await import("./brokers");
       await expect(
@@ -76,7 +76,7 @@ describe("broker actions", () => {
 
   describe("createBrokerContact", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { createBrokerContact } = await import("./brokers");
       await expect(
@@ -87,7 +87,7 @@ describe("broker actions", () => {
 
   describe("deleteBrokerContact", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { deleteBrokerContact } = await import("./brokers");
       await expect(
@@ -98,7 +98,7 @@ describe("broker actions", () => {
 
   describe("createInteraction", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { createInteraction } = await import("./brokers");
       await expect(

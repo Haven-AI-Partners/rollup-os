@@ -5,7 +5,7 @@ const { mockUser } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  getCurrentUser: vi.fn().mockResolvedValue(mockUser),
+  requirePortcoRole: vi.fn().mockResolvedValue({ user: mockUser, role: "analyst" }),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -28,17 +28,17 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn((a, b) => ({ a, b })),
 }));
 
-import { getCurrentUser } from "@/lib/auth";
+import { requirePortcoRole } from "@/lib/auth";
 
 describe("financials actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getCurrentUser as any).mockResolvedValue(mockUser);
+    (requirePortcoRole as any).mockResolvedValue({ user: mockUser, role: "analyst" });
   });
 
   describe("addFinancialEntry", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { addFinancialEntry } = await import("./financials");
       await expect(

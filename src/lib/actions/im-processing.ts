@@ -6,15 +6,10 @@ import { files, deals, evalRuns, promptVersions } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk";
 import type { processIMTask, scanFolderTask, reprocessAllTask, processGdriveFileTask, runEvalTask } from "@/trigger/im-processing";
-import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
+import { getPortcoBySlug, requireAuth, requirePortcoRole } from "@/lib/auth";
 
 async function requireAdmin(portcoId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Not authenticated");
-  const role = await getUserPortcoRole(user.id, portcoId);
-  if (!role || !hasMinRole(role as UserRole, "admin")) {
-    throw new Error("Admin access required");
-  }
+  await requirePortcoRole(portcoId, "admin");
 }
 
 /**
@@ -207,7 +202,7 @@ export async function triggerEvalRun(
   if (!portco) throw new Error("PortCo not found");
   await requireAdmin(portco.id);
 
-  const user = await getCurrentUser();
+  const user = await requireAuth();
 
   // Get the file
   const [file] = await db

@@ -4,9 +4,10 @@ import { db } from "@/lib/db";
 import { dealTasks, dealActivityLog } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth, requirePortcoRole } from "@/lib/auth";
 
 export async function getTasksForDeal(dealId: string) {
+  await requireAuth();
   return db
     .select()
     .from(dealTasks)
@@ -28,8 +29,7 @@ export async function createTask(
     parentTaskId?: string;
   }
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { user } = await requirePortcoRole(portcoId, "analyst");
 
   const [task] = await db
     .insert(dealTasks)
@@ -73,8 +73,7 @@ export async function updateTask(
     dueDate: string;
   }>
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await requireAuth();
 
   const [current] = await db.select().from(dealTasks).where(eq(dealTasks.id, taskId)).limit(1);
   if (!current) throw new Error("Task not found");

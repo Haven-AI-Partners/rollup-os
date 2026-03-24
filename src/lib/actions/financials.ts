@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { dealFinancials, dealActivityLog } from "@/lib/db/schema";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePortcoRole } from "@/lib/auth";
 
 export async function addFinancialEntry(
   dealId: string,
@@ -19,8 +19,7 @@ export async function addFinancialEntry(
     ebitdaMarginPct?: string;
   }
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { user } = await requirePortcoRole(portcoId, "analyst");
 
   const [entry] = await db
     .insert(dealFinancials)
@@ -41,7 +40,7 @@ export async function addFinancialEntry(
     dealId,
     portcoId,
     userId: user.id,
-    action: "file_uploaded",
+    action: "financial_entry_added",
     description: `Added financial data for ${data.period}`,
   });
 

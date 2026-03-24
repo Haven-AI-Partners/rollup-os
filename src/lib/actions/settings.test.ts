@@ -5,7 +5,7 @@ const { mockUser } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  getCurrentUser: vi.fn().mockResolvedValue(mockUser),
+  requireAuth: vi.fn().mockResolvedValue(mockUser),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -27,17 +27,17 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn((a, b) => ({ a, b })),
 }));
 
-import { getCurrentUser } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
 describe("settings actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getCurrentUser as any).mockResolvedValue(mockUser);
+    (requireAuth as any).mockResolvedValue(mockUser);
   });
 
   describe("updateGdriveFolderId", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { updateGdriveFolderId } = await import("./settings");
       await expect(
@@ -48,7 +48,7 @@ describe("settings actions", () => {
 
   describe("disconnectGdrive", () => {
     it("throws when user is not authenticated", async () => {
-      (getCurrentUser as any).mockResolvedValue(null);
+      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { disconnectGdrive } = await import("./settings");
       await expect(
