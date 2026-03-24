@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Rollup OS
+
+M&A deal flow analysis and automation platform for managing rollup acquisitions across multiple portfolio companies (PortCos). Built for teams running buy-and-build strategies who need to source, score, and manage deal pipelines at scale.
+
+## Key Features
+
+- **Multi-PortCo Management** — Switch between portfolio companies with scoped dashboards, pipelines, and settings
+- **Deal Pipeline & Kanban** — Track deals through customizable pipeline stages with drag-and-drop
+- **Broker CRM** — Global broker directory with per-PortCo interaction tracking and relationship scoring
+- **IM Scoring** — Per-PortCo scoring rubrics with 8-dimension weighted criteria for evaluating deals
+- **Google Drive Integration** — Per-PortCo service accounts for document management
+- **RBAC** — Role-based access control (owner, admin, analyst, viewer) per PortCo membership
+- **Activity Logging** — Full audit trail across deal lifecycle events
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 15 (App Router) + TypeScript |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Auth | Clerk (Google SSO) |
+| Database | Supabase (PostgreSQL) + Drizzle ORM + pgvector |
+| Background Jobs | Trigger.dev v3 |
+| AI | Vercel AI SDK + Zod |
+| Package Manager | pnpm |
+| Deployment | Vercel |
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20+
+- [pnpm](https://pnpm.io/) 9+
+- A [Supabase](https://supabase.com/) project (PostgreSQL)
+- A [Clerk](https://clerk.com/) application
+
+### Setup
+
+1. **Clone and install dependencies:**
+
+   ```bash
+   git clone https://github.com/haven-ai-partners/rollup-os.git
+   cd rollup-os
+   pnpm install
+   ```
+
+2. **Configure environment variables:**
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Fill in your Supabase `DATABASE_URL`, Clerk keys, and encryption key. See `.env.example` for all required variables.
+
+3. **Push the database schema and seed data:**
+
+   ```bash
+   pnpm db:push
+   pnpm db:seed
+   ```
+
+4. **Start the dev server:**
+
+   ```bash
+   pnpm dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000) to get started.
+
+## Scripts
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm dev              # Start dev server
+pnpm build            # Production build
+pnpm typecheck        # TypeScript type checking
+pnpm lint             # ESLint
+pnpm test             # Run tests (Vitest)
+pnpm test:watch       # Run tests in watch mode
+pnpm test:coverage    # Run tests with coverage
+
+# Database
+pnpm db:push          # Push schema to DB (dev only)
+pnpm db:generate      # Generate migration SQL
+pnpm db:migrate       # Run pending migrations
+pnpm db:studio        # Open Drizzle Studio
+pnpm db:seed          # Seed sample data
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+├── app/
+│   ├── (auth)/                    — Sign-in / sign-up pages
+│   ├── (app)/[portcoSlug]/        — PortCo-scoped routes (dashboard, deals, brokers, etc.)
+│   └── api/webhooks/clerk/        — Clerk user sync webhook
+├── components/
+│   ├── layout/                    — App sidebar, header, PortCo switcher
+│   ├── dashboard/                 — Dashboard components
+│   └── ui/                        — shadcn/ui primitives
+├── hooks/                         — Custom React hooks
+├── lib/
+│   ├── auth/                      — Clerk helpers, RBAC utilities
+│   ├── db/schema/                 — Drizzle schema (one file per domain)
+│   ├── db/migrations/             — Generated SQL migrations
+│   └── actions/                   — Server actions grouped by domain
+└── middleware.ts                   — Clerk auth middleware
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Architecture
 
-## Learn More
+- **Multi-tenancy** is application-level, scoped by `portco_id` on nearly every table
+- **Brokers are global** — shared across PortCos, scoped via interaction records
+- **Agents are pluggable** — registered in `agent_definitions` table (1 DB row + 1 Trigger.dev task)
 
-To learn more about Next.js, take a look at the following resources:
+See [`docs/architecture.md`](docs/architecture.md) for the full schema ERD and technical design.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Documentation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [`docs/architecture.md`](docs/architecture.md) — Schema ERD, technical strategy, and 5-phase plan
+- [`docs/testing.md`](docs/testing.md) — Test plan and guidelines
+- [`docs/production-readiness.md`](docs/production-readiness.md) — Operational checklist for launch
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Private — all rights reserved.
