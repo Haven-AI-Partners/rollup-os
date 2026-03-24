@@ -4,9 +4,23 @@
 
 Rollup OS is an M&A deal flow SaaS (Next.js 15 + Drizzle + Clerk). Phase 1 is complete, Phase 2 (Deal Pipeline & Kanban) is active. A thorough audit identified security gaps, code duplication, monolithic files, and test gaps that increase risk and slow development. This refactoring addresses the most impactful issues in prioritized phases that won't disrupt active development.
 
+## Status
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Security & Auth Hardening | **Done** |
+| 2 | Split Monolithic IM Processor | **Done** |
+| 3 | Input Validation with Zod | **Done** |
+| 4 | Extract Duplicated UI Patterns | Pending |
+| 5 | Schema & Database Cleanup | Pending |
+| 6 | Test Coverage | Pending |
+| 7 | Configuration & Error Handling | Pending |
+
+**To continue:** Resume from Phase 4 below.
+
 ---
 
-## Phase 1: Security & Auth Hardening (HIGH PRIORITY)
+## Phase 1: Security & Auth Hardening ✅ COMPLETE
 
 ### 1A. Create authenticated action wrapper
 
@@ -65,7 +79,7 @@ export async function requirePortcoRole(portcoId: string, minRole: UserRole) {
 
 ---
 
-## Phase 2: Split Monolithic IM Processor (HIGH PRIORITY)
+## Phase 2: Split Monolithic IM Processor ✅ COMPLETE
 
 ### Problem
 `src/lib/agents/im-processor/index.ts` is 1,035 lines mixing extraction, scoring, consensus, storage, folder scanning, and reprocessing.
@@ -84,7 +98,7 @@ export async function requirePortcoRole(portcoId: string, minRole: UserRole) {
 
 ---
 
-## Phase 3: Input Validation with Zod (MEDIUM PRIORITY)
+## Phase 3: Input Validation with Zod ✅ COMPLETE
 
 ### Problem
 Server actions accept raw objects with no runtime validation. Unsafe `as` casts in `tasks.ts`.
