@@ -22,6 +22,7 @@
     "db:add-member": "tsx src/lib/db/add-member.ts",
     "db:seed-demo": "tsx src/lib/db/seed-demo-data.ts",
     "db:reset-demo": "tsx src/lib/db/reset-demo-data.ts",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

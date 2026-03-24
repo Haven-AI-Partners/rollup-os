@@ -5,17 +5,16 @@ import { db } from "@/lib/db";
 import { files, deals, evalRuns, promptVersions } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk";
-import type { processIMTask, scanFolderTask, reprocessAllTask, processGdriveFileTask, runEvalTask } from "@/trigger/im-processing";
 import { getPortcoBySlug, requireAuth, requirePortcoRole } from "@/lib/auth";
 
 async function requireAdmin(portcoId: string) {
   await requirePortcoRole(portcoId, "admin");
 }
 
-async function triggerTask<T>(taskId: string, payload: object): Promise<{ id: string }> {
+async function triggerTask(taskId: string, payload: object): Promise<{ id: string }> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trigger.dev SDK requires generic task type
-    return await tasks.trigger<T>(taskId as any, payload as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trigger.dev SDK typing requires task type references
+    return await (tasks as any).trigger(taskId, payload);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     throw new Error(`Failed to trigger background job "${taskId}": ${message}`);
@@ -45,7 +44,7 @@ export async function processIMFile(portcoSlug: string, fileId: string) {
     .set({ processingStatus: "processing", updatedAt: new Date() })
     .where(eq(files.id, fileId));
 
-  const handle = await triggerTask<typeof processIMTask>("process-im", {
+  const handle = await triggerTask("process-im", {
     fileId: file.id,
     dealId: file.dealId,
     portcoId: portco.id,
@@ -90,7 +89,7 @@ export async function importGdriveFile(
 
   if (existing) {
     if (autoProcess && existing.processingStatus !== "completed") {
-      await triggerTask<typeof processIMTask>("process-im", {
+      await triggerTask("process-im", {
         fileId: existing.id,
         dealId,
         portcoId: portco.id,
@@ -121,7 +120,7 @@ export async function importGdriveFile(
     .returning({ id: files.id });
 
   if (autoProcess && mimeType === "application/pdf") {
-    await triggerTask<typeof processIMTask>("process-im", {
+    await triggerTask("process-im", {
       fileId: newFile.id,
       dealId,
       portcoId: portco.id,
@@ -143,7 +142,7 @@ export async function scanGdriveFolder(portcoSlug: string) {
   if (!portco) throw new Error("PortCo not found");
   await requireAdmin(portco.id);
 
-  const handle = await triggerTask<typeof scanFolderTask>("scan-gdrive-folder", {
+  const handle = await triggerTask("scan-gdrive-folder", {
     portcoId: portco.id,
   });
 
@@ -159,7 +158,7 @@ export async function reprocessAllIMFiles(portcoSlug: string) {
   if (!portco) throw new Error("PortCo not found");
   await requireAdmin(portco.id);
 
-  const handle = await triggerTask<typeof reprocessAllTask>("reprocess-all-ims", {
+  const handle = await triggerTask("reprocess-all-ims", {
     portcoId: portco.id,
   });
 
@@ -184,7 +183,7 @@ export async function processSingleFile(
   if (!portco) throw new Error("PortCo not found");
   await requireAdmin(portco.id);
 
-  const handle = await triggerTask<typeof processGdriveFileTask>("process-gdrive-file", {
+  const handle = await triggerTask("process-gdrive-file", {
     portcoId: portco.id,
     gdriveFileId,
     fileName,
@@ -248,7 +247,7 @@ export async function triggerEvalRun(
     })
     .returning({ id: evalRuns.id });
 
-  const handle = await triggerTask<typeof runEvalTask>("run-im-eval", {
+  const handle = await triggerTask("run-im-eval", {
     evalRunId: evalRun.id,
     fileId,
     portcoId: portco.id,
