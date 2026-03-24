@@ -109,8 +109,13 @@ pnpm db:seed          # Seed sample PortCo + pipeline stages
 - **Mocking**: Use `vi.hoisted()` for variables referenced inside `vi.mock()` factories. Mock helpers are in `src/test/mocks/` and factories in `src/test/factories.ts`.
 - **CI**: Tests run automatically on push/PR via GitHub Actions (`.github/workflows/test.yml`).
 
+## README Maintenance
+
+- **Keep `README.md` up to date**: When making changes that affect the README — such as adding/removing features, changing the tech stack, adding new scripts to `package.json`, modifying the project structure, or updating setup steps — update `README.md` to reflect those changes in the same commit.
+
 ## Documentation
 
+- `README.md` — Project overview, setup guide, tech stack, and quick reference
 - `docs/architecture.md` — Full architecture, schema ERD, technical strategy, 5-phase plan
 - `docs/production-readiness.md` — Operational checklist for launch
 - `docs/phase1-summary.md` — Phase 1 deliverables and setup instructions
