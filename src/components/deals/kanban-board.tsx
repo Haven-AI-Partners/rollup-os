@@ -38,7 +38,7 @@ interface Deal {
   currency: string | null;
   status: string;
   source: string | null;
-  kanbanPosition: number;
+  kanbanPosition: number | null;
   aiScore: string | null;
   redFlagCount: number;
 }
@@ -59,7 +59,7 @@ export function KanbanBoard({ stages, initialDeals, portcoSlug }: KanbanBoardPro
           const scoreA = a.aiScore ? Number(a.aiScore) : -1;
           const scoreB = b.aiScore ? Number(b.aiScore) : -1;
           if (scoreB !== scoreA) return scoreB - scoreA;
-          return a.kanbanPosition - b.kanbanPosition;
+          return (a.kanbanPosition ?? 0) - (b.kanbanPosition ?? 0);
         });
     }
     return grouped;

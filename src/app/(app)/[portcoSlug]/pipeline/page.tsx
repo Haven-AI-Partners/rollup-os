@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPortcoBySlug } from "@/lib/auth";
 import { getDealsForPortco, getStagesForPortco } from "@/lib/actions/deals";
-import { KanbanBoard } from "@/components/deals/kanban-board";
+import { PipelineView } from "@/components/deals/pipeline-view";
 import { CreateDealDialog } from "@/components/deals/create-deal-dialog";
 
 export default async function PipelinePage({
@@ -32,9 +32,9 @@ export default async function PipelinePage({
           stages={stages}
         />
       </div>
-      <KanbanBoard
+      <PipelineView
         stages={stages}
-        initialDeals={activeDeals}
+        deals={activeDeals}
         portcoSlug={portcoSlug}
       />
     </div>

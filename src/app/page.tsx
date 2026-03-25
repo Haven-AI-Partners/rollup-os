@@ -41,19 +41,34 @@ export default async function HomePage() {
     const fullName =
       [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || null;
 
-    [dbUser] = await db
-      .insert(users)
-      .values({
-        clerkId: clerkUser.id,
-        email,
-        fullName,
-        avatarUrl: clerkUser.imageUrl,
-      })
-      .onConflictDoUpdate({
-        target: users.clerkId,
-        set: { email, fullName, avatarUrl: clerkUser.imageUrl, updatedAt: new Date() },
-      })
-      .returning();
+    // Check if user exists by email (handles Clerk environment changes)
+    const [existingByEmail] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (existingByEmail) {
+      await db
+        .update(users)
+        .set({ clerkId: clerkUser.id, fullName, avatarUrl: clerkUser.imageUrl, updatedAt: new Date() })
+        .where(eq(users.email, email));
+      [dbUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    } else {
+      [dbUser] = await db
+        .insert(users)
+        .values({
+          clerkId: clerkUser.id,
+          email,
+          fullName,
+          avatarUrl: clerkUser.imageUrl,
+        })
+        .onConflictDoUpdate({
+          target: users.clerkId,
+          set: { email, fullName, avatarUrl: clerkUser.imageUrl, updatedAt: new Date() },
+        })
+        .returning();
+    }
   }
 
   // Track last login

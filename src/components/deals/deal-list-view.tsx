@@ -1,0 +1,231 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import Link from "next/link";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, Star, AlertTriangle, ArrowUpDown } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
+
+interface Deal {
+  id: string;
+  companyName: string;
+  description: string | null;
+  industry: string | null;
+  location: string | null;
+  askingPrice: string | null;
+  revenue: string | null;
+  ebitda: string | null;
+  currency: string | null;
+  status: string;
+  source: string | null;
+  stageId: string;
+  aiScore: string | null;
+  redFlagCount: number;
+}
+
+interface Stage {
+  id: string;
+  name: string;
+  phase: string;
+  color: string | null;
+}
+
+type SortField = "companyName" | "aiScore" | "revenue" | "ebitda" | "redFlagCount";
+type SortDir = "asc" | "desc";
+
+interface DealListViewProps {
+  deals: Deal[];
+  stages: Stage[];
+  portcoSlug: string;
+}
+
+export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
+  const [query, setQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState<string>("all");
+  const [sortField, setSortField] = useState<SortField>("companyName");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const stageMap = useMemo(
+    () => new Map(stages.map((s) => [s.id, s])),
+    [stages]
+  );
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return deals
+      .filter((d) => {
+        if (stageFilter !== "all" && d.stageId !== stageFilter) return false;
+        if (!q) return true;
+        return (
+          d.companyName.toLowerCase().includes(q) ||
+          d.description?.toLowerCase().includes(q) ||
+          d.industry?.toLowerCase().includes(q) ||
+          d.location?.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const dir = sortDir === "asc" ? 1 : -1;
+        switch (sortField) {
+          case "companyName":
+            return dir * a.companyName.localeCompare(b.companyName);
+          case "aiScore":
+            return dir * ((Number(a.aiScore) || 0) - (Number(b.aiScore) || 0));
+          case "revenue":
+            return dir * ((Number(a.revenue) || 0) - (Number(b.revenue) || 0));
+          case "ebitda":
+            return dir * ((Number(a.ebitda) || 0) - (Number(b.ebitda) || 0));
+          case "redFlagCount":
+            return dir * (a.redFlagCount - b.redFlagCount);
+          default:
+            return 0;
+        }
+      });
+  }, [deals, query, stageFilter, sortField, sortDir]);
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir(field === "companyName" ? "asc" : "desc");
+    }
+  }
+
+  function SortHeader({ field, children }: { field: SortField; children: React.ReactNode }) {
+    const active = sortField === field;
+    return (
+      <button
+        onClick={() => toggleSort(field)}
+        className={`flex items-center gap-1 text-xs font-medium ${
+          active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        {children}
+        <ArrowUpDown className={`size-3 ${active ? "opacity-100" : "opacity-40"}`} />
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search deals..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={stageFilter} onValueChange={setStageFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All stages" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All stages</SelectItem>
+            {stages.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground">
+          {filtered.length} deal{filtered.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      <div className="rounded-md border">
+        {/* Header */}
+        <div className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-2 border-b bg-muted/50">
+          <SortHeader field="companyName">Company</SortHeader>
+          <span className="text-xs font-medium text-muted-foreground">Stage</span>
+          <SortHeader field="aiScore">Score</SortHeader>
+          <SortHeader field="revenue">Revenue</SortHeader>
+          <SortHeader field="ebitda">EBITDA</SortHeader>
+          <SortHeader field="redFlagCount">Flags</SortHeader>
+        </div>
+
+        {/* Rows */}
+        {filtered.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+            {query || stageFilter !== "all" ? "No deals match your filters." : "No deals yet."}
+          </div>
+        ) : (
+          filtered.map((deal) => {
+            const stage = stageMap.get(deal.stageId);
+            return (
+              <Link
+                key={deal.id}
+                href={`/${portcoSlug}/pipeline/${deal.id}/overview`}
+                className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors items-center"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{deal.companyName}</div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    {deal.industry && (
+                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {deal.industry}
+                      </span>
+                    )}
+                    {deal.location && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                        {deal.location}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  {stage && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px]"
+                      style={stage.color ? { borderColor: stage.color, color: stage.color } : undefined}
+                    >
+                      {stage.name}
+                    </Badge>
+                  )}
+                </div>
+                <div>
+                  {deal.aiScore ? (
+                    <span className="flex items-center gap-1 text-sm">
+                      <Star className="size-3.5 text-amber-500 fill-amber-500" />
+                      {Number(deal.aiScore).toFixed(1)}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">--</span>
+                  )}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {deal.revenue ? formatCurrency(deal.revenue, deal.currency) : "--"}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {deal.ebitda ? formatCurrency(deal.ebitda, deal.currency) : "--"}
+                </div>
+                <div>
+                  {deal.redFlagCount > 0 ? (
+                    <span className="flex items-center gap-1 text-sm text-red-600">
+                      <AlertTriangle className="size-3.5" />
+                      {deal.redFlagCount}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">--</span>
+                  )}
+                </div>
+              </Link>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
