@@ -3,11 +3,19 @@ import { formatCurrency, formatDateTime, formatDateShort, formatDuration } from 
 
 describe("formatCurrency", () => {
   it("formats JPY by default", () => {
-    expect(formatCurrency(1000000)).toBe("¥1,000,000");
+    expect(formatCurrency(1000000)).toBe("¥100万");
   });
 
   it("formats JPY explicitly", () => {
-    expect(formatCurrency(250000000, "JPY")).toBe("¥250,000,000");
+    expect(formatCurrency(250000000, "JPY")).toBe("¥2.5億");
+  });
+
+  it("formats JPY with 億 for exact oku", () => {
+    expect(formatCurrency(100000000, "JPY")).toBe("¥1億");
+  });
+
+  it("formats JPY small values without units", () => {
+    expect(formatCurrency(5000, "JPY")).toBe("¥5,000");
   });
 
   it("formats USD", () => {
@@ -32,7 +40,7 @@ describe("formatCurrency", () => {
   });
 
   it("parses string numbers", () => {
-    expect(formatCurrency("5000000", "JPY")).toBe("¥5,000,000");
+    expect(formatCurrency("5000000", "JPY")).toBe("¥500万");
   });
 
   it("handles zero", () => {

@@ -25,6 +25,22 @@ export function formatDuration(ms: number): string {
   return `${secs}s`;
 }
 
+/** Format JPY using Japanese units (億, 万) */
+function formatJPY(num: number): string {
+  const abs = Math.abs(num);
+  const sign = num < 0 ? "-" : "";
+
+  if (abs >= 1_0000_0000) {
+    const oku = abs / 1_0000_0000;
+    return `${sign}¥${oku % 1 === 0 ? oku.toFixed(0) : oku.toFixed(1)}億`;
+  }
+  if (abs >= 1_0000) {
+    const man = abs / 1_0000;
+    return `${sign}¥${man % 1 === 0 ? man.toFixed(0) : man.toFixed(1)}万`;
+  }
+  return `${sign}¥${abs.toLocaleString("en-US")}`;
+}
+
 /** Format a numeric value with the appropriate currency symbol */
 export function formatCurrency(value: string | number | null, currency?: string | null): string {
   if (value === null || value === undefined) return "—";
@@ -33,8 +49,9 @@ export function formatCurrency(value: string | number | null, currency?: string 
 
   const code = currency ?? "JPY";
 
+  if (code === "JPY") return formatJPY(num);
+
   try {
-    // For JPY, no decimal places. For others, 0 decimals for large values.
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: code,
