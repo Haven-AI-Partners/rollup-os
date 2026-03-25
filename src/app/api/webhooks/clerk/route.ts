@@ -61,23 +61,43 @@ export async function POST(req: Request) {
 
     const fullName = [data.first_name, data.last_name].filter(Boolean).join(" ") || null;
 
-    await db
-      .insert(users)
-      .values({
-        clerkId: data.id,
-        email,
-        fullName,
-        avatarUrl: data.image_url,
-      })
-      .onConflictDoUpdate({
-        target: users.clerkId,
-        set: {
-          email,
+    // Upsert by email first (handles Clerk environment/account changes),
+    // then fall back to clerkId conflict for normal updates
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (existing.length > 0) {
+      await db
+        .update(users)
+        .set({
+          clerkId: data.id,
           fullName,
           avatarUrl: data.image_url,
           updatedAt: new Date(),
-        },
-      });
+        })
+        .where(eq(users.email, email));
+    } else {
+      await db
+        .insert(users)
+        .values({
+          clerkId: data.id,
+          email,
+          fullName,
+          avatarUrl: data.image_url,
+        })
+        .onConflictDoUpdate({
+          target: users.clerkId,
+          set: {
+            email,
+            fullName,
+            avatarUrl: data.image_url,
+            updatedAt: new Date(),
+          },
+        });
+    }
   }
 
   if (type === "user.deleted") {

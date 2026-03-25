@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockInsert, mockValues, mockOnConflictDoUpdate, mockDelete, mockWhere } = vi.hoisted(() => ({
+const { mockInsert, mockValues, mockOnConflictDoUpdate, mockDelete, mockWhere, mockSelect, mockFrom, mockLimit, mockUpdate, mockSet } = vi.hoisted(() => ({
   mockInsert: vi.fn(),
   mockValues: vi.fn(),
   mockOnConflictDoUpdate: vi.fn(),
   mockDelete: vi.fn(),
   mockWhere: vi.fn(),
+  mockSelect: vi.fn(),
+  mockFrom: vi.fn(),
+  mockLimit: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockSet: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -15,12 +20,22 @@ vi.mock("@/lib/db", () => {
     onConflictDoUpdate: mockOnConflictDoUpdate,
     delete: mockDelete,
     where: mockWhere,
+    select: mockSelect,
+    from: mockFrom,
+    limit: mockLimit,
+    update: mockUpdate,
+    set: mockSet,
   };
   mockInsert.mockReturnValue(chain);
   mockValues.mockReturnValue(chain);
   mockOnConflictDoUpdate.mockResolvedValue(undefined);
   mockDelete.mockReturnValue(chain);
-  mockWhere.mockResolvedValue(undefined);
+  mockWhere.mockReturnValue(chain);
+  mockSelect.mockReturnValue(chain);
+  mockFrom.mockReturnValue(chain);
+  mockLimit.mockResolvedValue([]);
+  mockUpdate.mockReturnValue(chain);
+  mockSet.mockReturnValue(chain);
   return { db: chain };
 });
 
