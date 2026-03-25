@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { files, deals } from "@/lib/db/schema";
 import { eq, inArray, and, sql } from "drizzle-orm";
+import { tasks } from "@trigger.dev/sdk";
 import { listFilesRecursive } from "@/lib/gdrive/scanner";
 import { classifyFile } from "./file-classifier";
 import { processDDDocument } from "./dd-processor";
@@ -183,18 +184,37 @@ export async function scanClassifyAndProcess(
 
       // Route based on classification
       if (fileType === "im_pdf" && confidence >= IM_CONFIDENCE_THRESHOLD) {
-        // Route to IM processor — it creates deals and does full analysis
-        // For now, just mark as pending for the existing IM processing pipeline
-        imsRouted++;
-        results.push({
-          fileName: pdf.name,
-          gdriveFileId: pdf.id,
-          parentPath: pdf.parentPath,
-          fileType,
-          confidence,
-          status: "im_routed",
-          dealId,
-        });
+        // Route to IM processor — trigger async processing task
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trigger.dev SDK typing requires task type references
+          await (tasks as any).trigger("process-im", {
+            fileId: fileRecord.id,
+            dealId,
+            portcoId,
+          });
+          imsRouted++;
+          results.push({
+            fileName: pdf.name,
+            gdriveFileId: pdf.id,
+            parentPath: pdf.parentPath,
+            fileType,
+            confidence,
+            status: "im_routed",
+            dealId,
+          });
+        } catch (e) {
+          failed++;
+          results.push({
+            fileName: pdf.name,
+            gdriveFileId: pdf.id,
+            parentPath: pdf.parentPath,
+            fileType,
+            confidence,
+            status: "failed",
+            dealId,
+            error: e instanceof Error ? e.message : "IM trigger failed",
+          });
+        }
       } else if (DD_TYPES.has(fileType) && dealId) {
         // Route to DD processor if we have a deal to enrich
         try {
