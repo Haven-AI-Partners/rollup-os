@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { deals, dealTasks, dealActivityLog, companyProfiles, dealRedFlags } from "@/lib/db/schema";
+import { dealTasks, dealActivityLog, companyProfiles, dealRedFlags } from "@/lib/db/schema";
 import { eq, count, sql } from "drizzle-orm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RedFlagsPanel } from "@/components/deals/red-flags-panel";
 import { formatCurrency } from "@/lib/format";
+import { getDeal } from "@/lib/db/cached-queries";
 
 export default async function DealOverviewPage({
   params,
@@ -14,43 +15,36 @@ export default async function DealOverviewPage({
 }) {
   const { portcoSlug, dealId } = await params;
 
-  const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
-  if (!deal) notFound();
+  const [deal, taskStats, recentActivity, profile, redFlags] = await Promise.all([
+    getDeal(dealId),
+    db
+      .select({ status: dealTasks.status, count: count() })
+      .from(dealTasks)
+      .where(eq(dealTasks.dealId, dealId))
+      .groupBy(dealTasks.status),
+    db
+      .select()
+      .from(dealActivityLog)
+      .where(eq(dealActivityLog.dealId, dealId))
+      .orderBy(sql`${dealActivityLog.createdAt} DESC`)
+      .limit(5),
+    db
+      .select()
+      .from(companyProfiles)
+      .where(eq(companyProfiles.dealId, dealId))
+      .limit(1)
+      .then((r) => r[0] ?? null),
+    db
+      .select()
+      .from(dealRedFlags)
+      .where(eq(dealRedFlags.dealId, dealId))
+      .orderBy(dealRedFlags.createdAt),
+  ]);
 
-  // Task stats
-  const taskStats = await db
-    .select({
-      status: dealTasks.status,
-      count: count(),
-    })
-    .from(dealTasks)
-    .where(eq(dealTasks.dealId, dealId))
-    .groupBy(dealTasks.status);
+  if (!deal) notFound();
 
   const totalTasks = taskStats.reduce((sum, t) => sum + Number(t.count), 0);
   const completedTasks = taskStats.find((t) => t.status === "completed")?.count ?? 0;
-
-  // Recent activity
-  const recentActivity = await db
-    .select()
-    .from(dealActivityLog)
-    .where(eq(dealActivityLog.dealId, dealId))
-    .orderBy(sql`${dealActivityLog.createdAt} DESC`)
-    .limit(5);
-
-  // Profile
-  const [profile] = await db
-    .select()
-    .from(companyProfiles)
-    .where(eq(companyProfiles.dealId, dealId))
-    .limit(1);
-
-  // Red flags
-  const redFlags = await db
-    .select()
-    .from(dealRedFlags)
-    .where(eq(dealRedFlags.dealId, dealId))
-    .orderBy(dealRedFlags.createdAt);
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">

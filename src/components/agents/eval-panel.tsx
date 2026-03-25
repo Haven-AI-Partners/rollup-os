@@ -16,7 +16,7 @@ import { formatDateTime, formatDuration } from "@/lib/format";
 interface ProcessedFile {
   id: string;
   fileName: string;
-  dealId: string;
+  dealId: string | null;
   companyName: string;
 }
 

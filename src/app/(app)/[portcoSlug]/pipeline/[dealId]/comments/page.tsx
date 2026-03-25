@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import { deals } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { getComments } from "@/lib/actions/deals";
 import { CommentList } from "@/components/deals/comment-list";
+import { getDeal } from "@/lib/db/cached-queries";
 
 export default async function CommentsPage({
   params,
@@ -12,10 +10,12 @@ export default async function CommentsPage({
 }) {
   const { portcoSlug, dealId } = await params;
 
-  const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
-  if (!deal) notFound();
+  const [deal, comments] = await Promise.all([
+    getDeal(dealId),
+    getComments(dealId),
+  ]);
 
-  const comments = await getComments(dealId);
+  if (!deal) notFound();
 
   return (
     <div className="max-w-2xl">

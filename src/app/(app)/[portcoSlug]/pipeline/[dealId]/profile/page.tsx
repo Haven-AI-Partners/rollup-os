@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { deals, companyProfiles } from "@/lib/db/schema";
+import { companyProfiles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoringBreakdown } from "@/components/deals/scoring-breakdown";
 import { SCORING_DIMENSIONS } from "@/lib/scoring/rubric";
+import { getDeal } from "@/lib/db/cached-queries";
 
 export default async function ProfilePage({
   params,
@@ -14,14 +15,17 @@ export default async function ProfilePage({
 }) {
   const { dealId } = await params;
 
-  const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
-  if (!deal) notFound();
+  const [deal, profile] = await Promise.all([
+    getDeal(dealId),
+    db
+      .select()
+      .from(companyProfiles)
+      .where(eq(companyProfiles.dealId, dealId))
+      .limit(1)
+      .then((r) => r[0] ?? null),
+  ]);
 
-  const [profile] = await db
-    .select()
-    .from(companyProfiles)
-    .where(eq(companyProfiles.dealId, dealId))
-    .limit(1);
+  if (!deal) notFound();
 
   if (!profile) {
     return (

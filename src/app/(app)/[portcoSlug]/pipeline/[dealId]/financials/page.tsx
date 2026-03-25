@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { deals, dealFinancials } from "@/lib/db/schema";
+import { dealFinancials } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FinancialEntryForm } from "@/components/deals/financial-entry-form";
 import { formatCurrency } from "@/lib/format";
+import { getDeal } from "@/lib/db/cached-queries";
 
 function pct(val: string | null) {
   if (!val) return "—";
@@ -19,14 +20,16 @@ export default async function FinancialsPage({
 }) {
   const { portcoSlug, dealId } = await params;
 
-  const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
-  if (!deal) notFound();
+  const [deal, financials] = await Promise.all([
+    getDeal(dealId),
+    db
+      .select()
+      .from(dealFinancials)
+      .where(eq(dealFinancials.dealId, dealId))
+      .orderBy(dealFinancials.period),
+  ]);
 
-  const financials = await db
-    .select()
-    .from(dealFinancials)
-    .where(eq(dealFinancials.dealId, dealId))
-    .orderBy(dealFinancials.period);
+  if (!deal) notFound();
 
   return (
     <div className="max-w-3xl space-y-6">

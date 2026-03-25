@@ -8,5 +8,5 @@ export async function GET(req: NextRequest) {
   }
 
   const url = getAuthUrl(portcoSlug);
-  return NextResponse.redirect(url);
+  return NextResponse.json({ url });
 }

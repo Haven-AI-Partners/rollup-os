@@ -22,6 +22,7 @@ export function GdriveSettings({ portcoSlug, isConnected, folderId, folderName, 
   const [folderIdInput, setFolderIdInput] = useState(folderId ?? "");
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   async function handleSaveFolder(e: React.FormEvent) {
     e.preventDefault();
@@ -126,11 +127,21 @@ export function GdriveSettings({ portcoSlug, isConnected, folderId, folderName, 
             <p className="text-sm text-muted-foreground text-center">
               Connect a Google account to browse IMs and deal documents from Google Drive.
             </p>
-            <Button asChild>
-              <a href={`/api/auth/gdrive/connect?portcoSlug=${portcoSlug}`}>
-                <ExternalLink className="mr-1 size-4" />
-                Connect Google Drive
-              </a>
+            <Button
+              disabled={connecting}
+              onClick={async () => {
+                setConnecting(true);
+                try {
+                  const res = await fetch(`/api/auth/gdrive/connect?portcoSlug=${portcoSlug}`);
+                  const { url } = await res.json();
+                  window.location.href = url;
+                } catch {
+                  setConnecting(false);
+                }
+              }}
+            >
+              <ExternalLink className="mr-1 size-4" />
+              {connecting ? "Connecting..." : "Connect Google Drive"}
             </Button>
           </div>
         )}

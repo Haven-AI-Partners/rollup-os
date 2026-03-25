@@ -3,6 +3,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { users, portcoMemberships, portcos } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { isAllowedEmail } from "@/lib/allowed-domains";
 
 export default async function HomePage() {
   const { userId: clerkId } = await auth();
@@ -18,6 +19,10 @@ export default async function HomePage() {
     .where(eq(users.clerkId, clerkId))
     .limit(1);
 
+  if (dbUser && !isAllowedEmail(dbUser.email)) {
+    redirect("/access-denied");
+  }
+
   if (!dbUser) {
     const clerkUser = await currentUser();
     if (!clerkUser) {
@@ -27,6 +32,10 @@ export default async function HomePage() {
     const email = clerkUser.emailAddresses[0]?.emailAddress;
     if (!email) {
       redirect("/sign-in");
+    }
+
+    if (!isAllowedEmail(email)) {
+      redirect("/access-denied");
     }
 
     const fullName =
@@ -47,30 +56,57 @@ export default async function HomePage() {
       .returning();
   }
 
-  let [firstMembership] = await db
-    .select({ slug: portcos.slug })
+  // Track last login
+  await db
+    .update(users)
+    .set({ lastLoginAt: new Date() })
+    .where(eq(users.id, dbUser.id));
+
+  const existingMemberships = await db
+    .select({ slug: portcos.slug, role: portcoMemberships.role })
     .from(portcoMemberships)
     .innerJoin(portcos, eq(portcoMemberships.portcoId, portcos.id))
-    .where(eq(portcoMemberships.userId, dbUser.id))
-    .limit(1);
+    .where(eq(portcoMemberships.userId, dbUser.id));
+
+  let firstMembership: { slug: string } | undefined = existingMemberships[0];
+
+  // Owners get access to all portcos — backfill any missing memberships
+  const isOwner = existingMemberships.some((m) => m.role === "owner");
+  if (isOwner) {
+    const allPortcos = await db.select({ id: portcos.id, slug: portcos.slug }).from(portcos);
+    const memberPortcoSlugs = new Set(existingMemberships.map((m) => m.slug));
+    const missing = allPortcos.filter((p) => !memberPortcoSlugs.has(p.slug));
+
+    if (missing.length > 0) {
+      await db
+        .insert(portcoMemberships)
+        .values(missing.map((p) => ({ userId: dbUser.id, portcoId: p.id, role: "owner" as const })))
+        .onConflictDoNothing();
+    }
+  }
 
   // Auto-join portcos by email domain if user has no memberships yet
   if (!firstMembership) {
     const emailDomain = dbUser.email.split("@")[1];
+    const allPortcos = await db.select().from(portcos);
+
     if (emailDomain) {
-      const allPortcos = await db.select().from(portcos);
       for (const portco of allPortcos) {
         const allowed = portco.allowedDomains as
           | { domain: string; defaultRole: string }[]
           | null;
         const match = allowed?.find((d) => d.domain === emailDomain);
         if (match) {
+          // Check for per-email role overrides in settings.roleOverrides
+          const overrides = (portco.settings as { roleOverrides?: Record<string, string> } | null)?.roleOverrides;
+          const role = (overrides?.[dbUser.email] ?? match.defaultRole) as "owner" | "admin" | "analyst" | "viewer";
+
           await db
             .insert(portcoMemberships)
             .values({
               userId: dbUser.id,
               portcoId: portco.id,
-              role: (match.defaultRole as "owner" | "admin" | "analyst" | "viewer") ?? "analyst",
+              role,
             })
             .onConflictDoNothing();
 
@@ -78,6 +114,22 @@ export default async function HomePage() {
             firstMembership = { slug: portco.slug };
           }
         }
+      }
+    }
+
+    // Fallback: auto-assign to demo portco if no domain match
+    if (!firstMembership) {
+      const demoPortco = allPortcos.find((p) => p.slug === "demo");
+      if (demoPortco) {
+        await db
+          .insert(portcoMemberships)
+          .values({
+            userId: dbUser.id,
+            portcoId: demoPortco.id,
+            role: "analyst",
+          })
+          .onConflictDoNothing();
+        firstMembership = { slug: demoPortco.slug };
       }
     }
   }
@@ -88,11 +140,19 @@ export default async function HomePage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
+      <div className="mx-auto max-w-md text-center">
+        <div className="mb-6 text-5xl">🏢</div>
         <h1 className="text-2xl font-bold">Welcome to Rollup OS</h1>
-        <p className="mt-2 text-muted-foreground">
-          You don&apos;t have access to any PortCos yet. Contact your administrator.
+        <p className="mt-3 text-muted-foreground">
+          You&apos;re signed in as <span className="font-medium text-foreground">{dbUser.email}</span>, but you don&apos;t have access to any portfolio companies yet.
         </p>
+        <div className="mt-6 rounded-lg border bg-muted/50 p-4 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground mb-1">How to get access</p>
+          <ul className="space-y-1 text-left list-disc pl-4">
+            <li>Ask your team admin to add you to a PortCo</li>
+            <li>Sign in with an email domain that matches an existing PortCo</li>
+          </ul>
+        </div>
       </div>
     </div>
   );

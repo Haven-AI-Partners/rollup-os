@@ -8,6 +8,7 @@ import {
   DragOverEvent,
   closestCorners,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -68,7 +69,8 @@ export function KanbanBoard({ stages, initialDeals, portcoSlug }: KanbanBoardPro
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   );
 
   const activeDeal = activeId

@@ -8,6 +8,13 @@
       "when": 1773108132078,
       "tag": "0000_spooky_pyro",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773375692878,
+      "tag": "0001_daily_trish_tilby",
+      "breakpoints": true
     }
   ]
 }

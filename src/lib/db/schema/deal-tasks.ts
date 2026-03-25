@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, date, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, date, jsonb, index } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { portcos } from "./portcos";
 import { deals } from "./deals";
@@ -42,7 +42,11 @@ export const dealTasks = pgTable("deal_tasks", {
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+},
+(table) => [
+  index("idx_tasks_deal").on(table.dealId),
+  index("idx_tasks_deal_status").on(table.dealId, table.status),
+]);
 
 export const dealActivityLog = pgTable("deal_activity_log", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -59,4 +63,8 @@ export const dealActivityLog = pgTable("deal_activity_log", {
   referenceId: uuid("reference_id"),
   changes: jsonb("changes"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+},
+(table) => [
+  index("idx_activity_deal").on(table.dealId),
+  index("idx_activity_deal_ts").on(table.dealId, table.createdAt),
+]);
