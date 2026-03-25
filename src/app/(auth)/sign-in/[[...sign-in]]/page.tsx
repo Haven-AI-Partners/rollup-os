@@ -6,12 +6,10 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { GoogleIcon } from "@/components/icons/google";
-import Link from "next/link";
 import { useState } from "react";
 
 export default function SignInPage() {
@@ -51,17 +49,6 @@ export default function SignInPage() {
           {isLoading ? "Redirecting..." : "Continue with Google"}
         </Button>
       </CardContent>
-      <CardFooter className="justify-center">
-        <p className="text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link
-            href="/sign-up"
-            className="font-medium text-primary hover:underline"
-          >
-            Sign up
-          </Link>
-        </p>
-      </CardFooter>
     </Card>
   );
 }
