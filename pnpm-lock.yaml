@@ -16,7 +16,7 @@ importers:
         version: 2.0.10(zod@4.3.6)
       '@ai-sdk/openai':
         specifier: ^3.0.41
-        version: 3.0.41(zod@4.3.6)
+        version: 3.0.46(zod@4.3.6)
       '@clerk/nextjs':
         specifier: ^7.0.1
         version: 7.0.1(next@16.1.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -180,8 +180,8 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/openai@3.0.41':
-    resolution: {integrity: sha512-IZ42A+FO+vuEQCVNqlnAPYQnnUpUfdJIwn1BEDOBywiEHa23fw7PahxVtlX9zm3/zMvTW4JKPzWyvAgDu+SQ2A==}
+  '@ai-sdk/openai@3.0.46':
+    resolution: {integrity: sha512-8grBb4sAMU0MAC6uOOD/wP/+SyX/3MMS/Lf+ToGgeUzoF9oWU9dWBLkvgjXpn7Ro81bPDeycW2GCCT63V/Vnvg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -7820,10 +7820,10 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.19(zod@4.3.6)
       zod: 4.3.6
 
-  '@ai-sdk/openai@3.0.41(zod@4.3.6)':
+  '@ai-sdk/openai@3.0.46(zod@4.3.6)':
     dependencies:
       '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.19(zod@4.3.6)
+      '@ai-sdk/provider-utils': 4.0.20(zod@4.3.6)
       zod: 4.3.6
 
   '@ai-sdk/provider-utils@4.0.19(zod@4.3.6)':
