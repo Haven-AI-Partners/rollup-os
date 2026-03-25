@@ -40,7 +40,7 @@ interface PipelineViewProps {
 }
 
 export function PipelineView({ stages, deals, portcoSlug }: PipelineViewProps) {
-  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [view, setView] = useState<"kanban" | "list">("list");
 
   return (
     <div className="space-y-4">

@@ -50,8 +50,8 @@ interface DealListViewProps {
 export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
   const [query, setQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<SortField>("companyName");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortField, setSortField] = useState<SortField>("aiScore");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const stageMap = useMemo(
     () => new Map(stages.map((s) => [s.id, s])),
@@ -169,16 +169,16 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
                 href={`/${portcoSlug}/pipeline/${deal.id}/overview`}
                 className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors items-center"
               >
-                <div className="min-w-0">
+                <div className="min-w-0 overflow-hidden">
                   <div className="text-sm font-medium truncate">{deal.companyName}</div>
-                  <div className="flex items-center gap-1 mt-0.5">
+                  <div className="flex items-center gap-1 mt-0.5 overflow-hidden">
                     {deal.industry && (
-                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                      <span className="text-xs text-muted-foreground truncate shrink min-w-0">
                         {deal.industry}
                       </span>
                     )}
                     {deal.location && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 truncate max-w-[100px]">
                         {deal.location}
                       </Badge>
                     )}
