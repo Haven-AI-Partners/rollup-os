@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { users, portcoMemberships, portcos } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { users, portcoMemberships } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 

@@ -1,13 +1,9 @@
 import { db } from "@/lib/db";
 import { files, deals } from "@/lib/db/schema";
 import { eq, inArray, and, sql } from "drizzle-orm";
-import { listFilesRecursive, type GDriveFileWithPath } from "@/lib/gdrive/scanner";
+import { listFilesRecursive } from "@/lib/gdrive/scanner";
 import { classifyFile } from "./file-classifier";
 import { processDDDocument } from "./dd-processor";
-import {
-  scanAndProcessFolder as legacyScanIM,
-} from "./im-processor";
-import { downloadFile } from "@/lib/gdrive/client";
 import type { FileType } from "@/lib/db/schema/files";
 
 const IM_CONFIDENCE_THRESHOLD = 0.7;

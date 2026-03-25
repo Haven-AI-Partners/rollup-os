@@ -4,6 +4,7 @@
  *
  * Outputs the interview URL and password.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "dotenv/config";
 
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -19,6 +20,7 @@ async function main() {
   const db = drizzle(client);
 
   // Find a deal with closed_won status (or any deal for testing)
+
   const [deal] = await db.execute(sql`
     SELECT d.id as deal_id, d.company_name, d.portco_id
     FROM deals d
@@ -28,6 +30,7 @@ async function main() {
 
   if (!deal) {
     // Fall back to any deal
+  
     const [anyDeal] = await db.execute(sql`
       SELECT d.id as deal_id, d.company_name, d.portco_id
       FROM deals d
@@ -45,6 +48,7 @@ async function main() {
   console.log(`Using deal: ${deal.company_name} (${deal.deal_id})`);
 
   // Create a test employee
+
   const [employee] = await db.execute(sql`
     INSERT INTO company_employees (deal_id, portco_id, name, email, department, job_title)
     VALUES (${deal.deal_id}, ${deal.portco_id}, '田中 花子', 'hanako@example.com', '経理部', '経理主任')
@@ -54,6 +58,7 @@ async function main() {
   console.log(`Created employee: 田中 花子 (${employee.id})`);
 
   // Create a campaign
+
   const [campaign] = await db.execute(sql`
     INSERT INTO discovery_campaigns (deal_id, portco_id, name, description, campaign_type, status)
     VALUES (
@@ -72,6 +77,7 @@ async function main() {
   // Create a session with password
   const password = Math.random().toString(36).slice(2, 8).toUpperCase();
   const passwordHash = await bcrypt.hash(password, 10);
+
 
   const [session] = await db.execute(sql`
     INSERT INTO discovery_sessions (campaign_id, employee_id, password_hash, status)

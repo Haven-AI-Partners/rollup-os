@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, TreePine, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, TreePine, XCircle } from "lucide-react";
 import { generateThesisTree } from "@/lib/actions/thesis";
 import { useRouter } from "next/navigation";
 

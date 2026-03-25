@@ -2,7 +2,7 @@ import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { db } from "@/lib/db";
 import { dealThesisNodes, files } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { downloadFile } from "@/lib/gdrive/client";
 import { ddExtractionSchema, type DDExtractionResult } from "./schema";
 import { buildDDProcessorPrompt } from "./prompt";

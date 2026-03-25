@@ -241,7 +241,7 @@ async function storeResults(
   portcoId: string,
   analysis: IMAnalysisResult
 ): Promise<string> {
-  const { scores, scoringBreakdown, weighted } = computeScoresFromAnalysis(analysis);
+  const { scoringBreakdown, weighted } = computeScoresFromAnalysis(analysis);
   const { confirmedFlags, confirmedGaps } = filterRedFlags(analysis);
 
   // Upsert company profile

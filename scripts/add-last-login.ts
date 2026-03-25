@@ -3,11 +3,12 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql } from "drizzle-orm";
 
+import fs from "fs";
+import path from "path";
+
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   // Try .env.local
-  const fs = require("fs");
-  const path = require("path");
   const envLocal = fs.readFileSync(path.join(__dirname, "../.env.local"), "utf8");
   const match = envLocal.match(/^DATABASE_URL=(.+)$/m);
   if (match) process.env.DATABASE_URL = match[1];

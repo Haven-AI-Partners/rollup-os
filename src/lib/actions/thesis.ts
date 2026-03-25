@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { dealThesisNodes, companyProfiles } from "@/lib/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getBaseTemplate } from "@/lib/thesis/template";
