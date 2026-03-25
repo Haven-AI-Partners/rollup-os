@@ -51,7 +51,7 @@ Your task is ONLY to extract facts. Do NOT score, judge, rate, or evaluate the c
 
 ## What to extract
 1. Company profile: name, summary, business model, market position, industry trends, strengths, risks, location, industry, asking price
-2. Financial highlights: revenue, EBITDA, margins, growth, employee count, client concentration, debt levels
+2. Financial highlights: revenue, EBITDA, margins, growth, employee count (with full-time vs contractor breakdown when available — look for 正社員, 業務委託, 派遣社員, 契約社員, パート), client concentration, debt levels
 3. Management team: ALL named individuals with titles and reporting relationships
 4. Raw observations: for each topic area below, extract ALL relevant facts, numbers, and direct quotes from the IM
 

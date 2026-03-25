@@ -23,7 +23,9 @@ const financialHighlightsSchema = z.object({
   operatingMargin: z.string().nullable().describe("Operating margin percentage, or null if not mentioned"),
   ebitdaMargin: z.string().nullable().describe("EBITDA margin percentage, or null if not mentioned"),
   recurringRevenue: z.string().nullable().describe("Recurring revenue percentage or description, or null if not mentioned"),
-  employeeCount: z.number().nullable().describe("Number of employees, or null if not mentioned"),
+  employeeCount: z.number().nullable().describe("Total number of employees (full-time + contractors combined), or null if not mentioned"),
+  fullTimeCount: z.number().nullable().describe("Number of full-time (正社員) employees, or null if not separately mentioned"),
+  contractorCount: z.number().nullable().describe("Number of contractors/contract workers (業務委託/派遣社員/契約社員), or null if not separately mentioned"),
   topClientConcentration: z.string().nullable().describe("Top client as % of revenue, or null if not mentioned"),
   debtLevel: z.string().nullable().describe("Debt-to-equity or debt-to-EBITDA ratio, or null if not mentioned"),
 });

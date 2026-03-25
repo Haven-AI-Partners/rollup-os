@@ -79,6 +79,16 @@ export default async function DealOverviewPage({
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Employees</p>
               <p className="text-lg font-bold">{deal.employeeCount ?? "--"}</p>
+              {(deal.fullTimeCount != null || deal.contractorCount != null) && (
+                <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                  {deal.fullTimeCount != null && (
+                    <span>{deal.fullTimeCount} full-time</span>
+                  )}
+                  {deal.contractorCount != null && (
+                    <span>{deal.contractorCount} contractors</span>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

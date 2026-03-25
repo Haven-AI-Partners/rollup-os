@@ -31,6 +31,8 @@ function buildValidExtraction(): IMExtractionResult {
       ebitdaMargin: "20%",
       recurringRevenue: "40%",
       employeeCount: 100,
+      fullTimeCount: 80,
+      contractorCount: 20,
       topClientConcentration: "25%",
       debtLevel: "0.5x D/E",
     },

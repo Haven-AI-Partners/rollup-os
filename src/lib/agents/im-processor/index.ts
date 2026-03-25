@@ -473,6 +473,8 @@ async function createDealFromAnalysis(
       ebitda: parseNumericValue(fin.ebitda),
       currency: fin.currency ?? "JPY",
       employeeCount: fin.employeeCount ?? null,
+      fullTimeCount: fin.fullTimeCount ?? null,
+      contractorCount: fin.contractorCount ?? null,
       status: "active",
       kanbanPosition: 0,
       metadata: {
@@ -624,6 +626,8 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
                 ebitda: parseNumericValue(fin.ebitda),
                 currency: fin.currency ?? "JPY",
                 employeeCount: fin.employeeCount ?? null,
+      fullTimeCount: fin.fullTimeCount ?? null,
+      contractorCount: fin.contractorCount ?? null,
                 metadata: {
                   gdriveSourceFileId: gdriveFileId,
                   currency: fin.currency ?? null,
@@ -777,6 +781,8 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
             ebitda: parseNumericValue(fin.ebitda),
             currency: fin.currency ?? "JPY",
             employeeCount: fin.employeeCount ?? null,
+      fullTimeCount: fin.fullTimeCount ?? null,
+      contractorCount: fin.contractorCount ?? null,
             metadata: {
               gdriveSourceFileId: file.gdriveFileId,
               currency: fin.currency ?? null,
@@ -905,6 +911,8 @@ export async function processSingleGdriveFile(
           revenue: parseNumericValue(fin.revenue),
           ebitda: parseNumericValue(fin.ebitda),
           employeeCount: fin.employeeCount ?? null,
+      fullTimeCount: fin.fullTimeCount ?? null,
+      contractorCount: fin.contractorCount ?? null,
           metadata: {
             gdriveSourceFileId: gdriveFileId,
             currency: fin.currency ?? null,

@@ -35,6 +35,8 @@ export const deals = pgTable("deals", {
   location: text("location"),
   industry: text("industry"),
   employeeCount: integer("employee_count"),
+  fullTimeCount: integer("full_time_count"),
+  contractorCount: integer("contractor_count"),
   status: text("status").notNull().default("active").$type<
     "active" | "passed" | "closed_won" | "closed_lost"
   >(),
@@ -105,6 +107,8 @@ export const dealFinancials = pgTable("deal_financials", {
   cashFlow: numeric("cash_flow"),
   customerCount: integer("customer_count"),
   employeeCount: integer("employee_count"),
+  fullTimeCount: integer("full_time_count"),
+  contractorCount: integer("contractor_count"),
   arr: numeric("arr"),
   purchasePrice: numeric("purchase_price"),
   purchaseMultiple: numeric("purchase_multiple"),
