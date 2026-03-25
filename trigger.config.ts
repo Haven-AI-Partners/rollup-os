@@ -5,5 +5,6 @@ export default defineConfig({
   runtime: "node",
   logLevel: "log",
   maxDuration: 600,
+  machine: "small-2x",
   dirs: ["src/trigger"],
 });

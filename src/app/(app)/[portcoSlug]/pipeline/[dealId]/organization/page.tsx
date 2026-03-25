@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { deals, orgChartVersions, orgChartNodes } from "@/lib/db/schema";
+import { orgChartVersions, orgChartNodes } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrgChart } from "@/components/deals/org-chart";
 import { Users } from "lucide-react";
+import { getDeal } from "@/lib/db/cached-queries";
 
 interface OrgNode {
   id: string;
@@ -66,36 +67,37 @@ export default async function OrganizationPage({
 }) {
   const { dealId } = await params;
 
-  const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
+  // Fetch deal and active version in parallel
+  const [deal, activeVersion, allVersions] = await Promise.all([
+    getDeal(dealId),
+    db
+      .select()
+      .from(orgChartVersions)
+      .where(
+        and(
+          eq(orgChartVersions.dealId, dealId),
+          eq(orgChartVersions.isActive, true),
+        )
+      )
+      .orderBy(desc(orgChartVersions.version))
+      .limit(1)
+      .then((r) => r[0] ?? null),
+    db
+      .select({
+        id: orgChartVersions.id,
+        version: orgChartVersions.version,
+        label: orgChartVersions.label,
+        isActive: orgChartVersions.isActive,
+        createdAt: orgChartVersions.createdAt,
+      })
+      .from(orgChartVersions)
+      .where(eq(orgChartVersions.dealId, dealId))
+      .orderBy(desc(orgChartVersions.version)),
+  ]);
+
   if (!deal) notFound();
 
-  // Get the active org chart version
-  const [activeVersion] = await db
-    .select()
-    .from(orgChartVersions)
-    .where(
-      and(
-        eq(orgChartVersions.dealId, dealId),
-        eq(orgChartVersions.isActive, true),
-      )
-    )
-    .orderBy(desc(orgChartVersions.version))
-    .limit(1);
-
-  // Get all versions for version selector
-  const allVersions = await db
-    .select({
-      id: orgChartVersions.id,
-      version: orgChartVersions.version,
-      label: orgChartVersions.label,
-      isActive: orgChartVersions.isActive,
-      createdAt: orgChartVersions.createdAt,
-    })
-    .from(orgChartVersions)
-    .where(eq(orgChartVersions.dealId, dealId))
-    .orderBy(desc(orgChartVersions.version));
-
-  // Get nodes for the active version
+  // Get nodes for the active version (depends on activeVersion result)
   const nodes = activeVersion
     ? await db
         .select({

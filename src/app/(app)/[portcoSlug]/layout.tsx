@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { users, portcoMemberships, portcos } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { isAllowedEmail } from "@/lib/allowed-domains";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
@@ -32,8 +33,12 @@ export default async function PortcoLayout({
     redirect("/sign-in");
   }
 
+  if (!isAllowedEmail(dbUser.email)) {
+    redirect("/access-denied");
+  }
+
   // Get portco, membership, and switcher data in parallel
-  const [portcoResult, userPortcos] = await Promise.all([
+  const [portcoResult, userPortcosWithMembership] = await Promise.all([
     db.select().from(portcos).where(eq(portcos.slug, portcoSlug)).limit(1),
     db
       .select({
@@ -41,6 +46,7 @@ export default async function PortcoLayout({
         name: portcos.name,
         slug: portcos.slug,
         industry: portcos.industry,
+        role: portcoMemberships.role,
       })
       .from(portcoMemberships)
       .innerJoin(portcos, eq(portcoMemberships.portcoId, portcos.id))
@@ -52,17 +58,29 @@ export default async function PortcoLayout({
     notFound();
   }
 
-  // Check membership / RBAC
-  const [membership] = await db
-    .select()
-    .from(portcoMemberships)
-    .where(
-      and(
-        eq(portcoMemberships.userId, dbUser.id),
-        eq(portcoMemberships.portcoId, currentPortco.id)
-      )
-    )
-    .limit(1);
+  // Owners get access to all portcos — backfill missing memberships
+  const isOwner = userPortcosWithMembership.some((m) => m.role === "owner");
+  let userPortcos = userPortcosWithMembership;
+
+  if (isOwner) {
+    const memberIds = new Set(userPortcosWithMembership.map((p) => p.id));
+    if (!memberIds.has(currentPortco.id)) {
+      // Backfill membership for this portco
+      await db
+        .insert(portcoMemberships)
+        .values({ userId: dbUser.id, portcoId: currentPortco.id, role: "owner" })
+        .onConflictDoNothing();
+      userPortcos = [
+        ...userPortcosWithMembership,
+        { id: currentPortco.id, name: currentPortco.name, slug: currentPortco.slug, industry: currentPortco.industry, role: "owner" as const },
+      ];
+    }
+  }
+
+  // Check membership from already-fetched data (no extra query)
+  const membership = userPortcos.find(
+    (p) => p.id === currentPortco.id
+  );
 
   if (!membership) {
     notFound();
@@ -83,7 +101,7 @@ export default async function PortcoLayout({
       />
       <SidebarInset className="min-w-0 overflow-hidden">
         <AppHeader portcoName={currentPortco.name} />
-        <div className="flex-1 overflow-auto p-6">{children}</div>
+        <div className="flex-1 overflow-auto p-3 sm:p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

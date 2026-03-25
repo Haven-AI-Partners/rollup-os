@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import { deals } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { getActivityLog } from "@/lib/actions/deals";
 import { Badge } from "@/components/ui/badge";
+import { getDeal } from "@/lib/db/cached-queries";
 
 const actionLabels: Record<string, string> = {
   deal_created: "Created",
@@ -25,10 +23,12 @@ export default async function ActivityPage({
 }) {
   const { dealId } = await params;
 
-  const [deal] = await db.select().from(deals).where(eq(deals.id, dealId)).limit(1);
-  if (!deal) notFound();
+  const [deal, activity] = await Promise.all([
+    getDeal(dealId),
+    getActivityLog(dealId),
+  ]);
 
-  const activity = await getActivityLog(dealId);
+  if (!deal) notFound();
 
   return (
     <div className="max-w-2xl">

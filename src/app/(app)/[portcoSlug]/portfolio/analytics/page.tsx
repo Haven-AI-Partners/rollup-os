@@ -77,7 +77,7 @@ export default async function PortfolioAnalyticsPage({
                       </div>
                     )}
                     {acq.revenue && (
-                      <div>
+                      <div className="hidden sm:block">
                         <p className="text-sm font-medium">
                           ${Number(acq.revenue).toLocaleString()}
                         </p>
@@ -85,7 +85,7 @@ export default async function PortfolioAnalyticsPage({
                       </div>
                     )}
                     {acq.closedAt && (
-                      <div>
+                      <div className="hidden sm:block">
                         <p className="text-sm font-medium">
                           {new Date(acq.closedAt).toLocaleDateString("en-US", {
                             month: "short",

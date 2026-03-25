@@ -176,13 +176,13 @@ export default async function AnalyticsPage({
                           <p className="text-[10px] text-muted-foreground">deals</p>
                         </div>
                         {Number(broker.wonDeals) > 0 && (
-                          <div>
+                          <div className="hidden sm:block">
                             <p className="text-sm font-medium text-green-600">{String(broker.wonDeals)}</p>
                             <p className="text-[10px] text-muted-foreground">won</p>
                           </div>
                         )}
                         {score && (
-                          <div>
+                          <div className="hidden sm:block">
                             <p className="text-sm font-medium flex items-center gap-0.5">
                               <Star className="size-3 text-yellow-500 fill-yellow-500" />
                               {score}

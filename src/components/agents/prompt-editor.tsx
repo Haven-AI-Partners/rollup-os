@@ -143,16 +143,16 @@ export function PromptEditor({
           <Textarea
             value={template}
             onChange={(e) => setTemplate(e.target.value)}
-            className="font-mono text-xs min-h-[400px] leading-relaxed"
+            className="font-mono text-xs h-[400px] resize-none leading-relaxed"
             readOnly={!isAdmin}
           />
           {isAdmin && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Input
                 value={changeNote}
                 onChange={(e) => setChangeNote(e.target.value)}
                 placeholder="Change note (optional)"
-                className="text-sm flex-1"
+                className="text-sm flex-1 min-w-[150px]"
               />
               <Button
                 size="sm"
@@ -181,7 +181,7 @@ export function PromptEditor({
       )}
 
       {tab === "preview" && (
-        <pre className="whitespace-pre-wrap text-xs font-mono bg-muted/50 rounded-md p-4 max-h-[500px] overflow-y-auto leading-relaxed">
+        <pre className="whitespace-pre-wrap text-xs font-mono bg-muted/50 rounded-md p-4 h-[400px] overflow-y-auto leading-relaxed">
           {renderedPrompt}
         </pre>
       )}
