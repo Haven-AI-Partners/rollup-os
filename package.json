@@ -63,6 +63,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -72,7 +73,10 @@
     "drizzle-kit": "^0.31.9",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "eslint-plugin-security": "^4.0.0",
+    "jscpd": "^4.0.8",
     "jsdom": "^29.0.1",
+    "madge": "^8.0.0",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4",
     "trigger.dev": "^4.4.2",
