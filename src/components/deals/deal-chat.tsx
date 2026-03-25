@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import {
@@ -17,6 +18,9 @@ import { cn } from "@/lib/utils";
 export function DealChat({ dealId }: { dealId: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const transport = useMemo(
     () => new DefaultChatTransport({ api: "/api/chat/deal", body: { dealId } }),
@@ -38,7 +42,9 @@ export function DealChat({ dealId }: { dealId: string }) {
     setInput("");
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <Sheet>
       <SheetTrigger asChild>
         <Button
@@ -126,6 +132,7 @@ export function DealChat({ dealId }: { dealId: string }) {
           </Button>
         </form>
       </SheetContent>
-    </Sheet>
+    </Sheet>,
+    document.body,
   );
 }
