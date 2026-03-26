@@ -33,7 +33,7 @@ export interface ProcessedInfo {
   dealId: string | null;
 }
 
-interface PageData {
+export interface PageData {
   files: GDriveFile[];
   processedMap: Record<string, ProcessedInfo>;
   nextCursor: number | null;
@@ -44,7 +44,6 @@ interface VirtualFilesListProps {
   portcoId: string;
   portcoSlug: string;
   isAdmin: boolean;
-  initialData: PageData;
 }
 
 const ROW_HEIGHT = 64;
@@ -91,15 +90,13 @@ export function VirtualFilesList({
   portcoId,
   portcoSlug,
   isAdmin,
-  initialData,
 }: VirtualFilesListProps) {
-  const [files, setFiles] = useState<GDriveFile[]>(initialData.files);
-  const [processedMap, setProcessedMap] = useState<Record<string, ProcessedInfo>>(
-    initialData.processedMap,
-  );
-  const [nextCursor, setNextCursor] = useState<number | null>(initialData.nextCursor);
-  const [total, setTotal] = useState(initialData.total);
+  const [files, setFiles] = useState<GDriveFile[]>([]);
+  const [processedMap, setProcessedMap] = useState<Record<string, ProcessedInfo>>({});
+  const [nextCursor, setNextCursor] = useState<number | null>(0);
+  const [total, setTotal] = useState<number | null>(null);
   const [isFetching, setIsFetching] = useState(false);
+  const [hasInitialLoad, setHasInitialLoad] = useState(false);
 
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -110,43 +107,70 @@ export function VirtualFilesList({
     overscan: OVERSCAN,
   });
 
-  const fetchNextPage = useCallback(async () => {
-    if (isFetching || nextCursor === null) return;
+  const fetchPage = useCallback(async (cursor: number) => {
+    if (isFetching) return;
 
     setIsFetching(true);
     try {
       const res = await fetch(
-        `/api/gdrive/files/paginated?portcoId=${encodeURIComponent(portcoId)}&cursor=${nextCursor}`,
+        `/api/gdrive/files/paginated?portcoId=${encodeURIComponent(portcoId)}&cursor=${cursor}`,
       );
       if (!res.ok) return;
 
       const data: PageData = await res.json();
-      setFiles((prev) => [...prev, ...data.files]);
-      setProcessedMap((prev) => ({ ...prev, ...data.processedMap }));
+      setFiles((prev) => cursor === 0 ? data.files : [...prev, ...data.files]);
+      setProcessedMap((prev) => cursor === 0 ? data.processedMap : { ...prev, ...data.processedMap });
       setNextCursor(data.nextCursor);
       setTotal(data.total);
     } catch {
       // Silently fail, user can scroll again to retry
     } finally {
       setIsFetching(false);
+      setHasInitialLoad(true);
     }
-  }, [isFetching, nextCursor, portcoId]);
+  }, [isFetching, portcoId]);
 
-  // Trigger fetch when user scrolls near the bottom
+  // Fetch the first page on mount
+  useEffect(() => {
+    fetchPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portcoId]);
+
+  // Fetch next page when user scrolls near the bottom
   useEffect(() => {
     const items = virtualizer.getVirtualItems();
-    if (items.length === 0) return;
+    if (items.length === 0 || nextCursor === null || isFetching) return;
 
     const lastItem = items[items.length - 1];
-    if (lastItem.index >= files.length - 10 && nextCursor !== null && !isFetching) {
-      fetchNextPage();
+    if (lastItem.index >= files.length - 10) {
+      fetchPage(nextCursor);
     }
-  }, [virtualizer.getVirtualItems(), files.length, nextCursor, isFetching, fetchNextPage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [virtualizer.getVirtualItems(), files.length, nextCursor, isFetching]);
+
+  if (!hasInitialLoad) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (files.length === 0 && !isFetching) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center gap-3 py-12">
+          <FolderOpen className="size-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">No files found in this folder.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div>
       <p className="text-xs text-muted-foreground mb-2">
-        Showing {files.length} of {total} files
+        Showing {files.length} of {total ?? "..."} files
       </p>
       <div
         ref={parentRef}

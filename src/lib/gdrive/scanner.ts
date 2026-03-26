@@ -13,15 +13,33 @@ export interface GDriveFileWithPath {
 const MAX_DEPTH = 10;
 const MAX_FILES = 2000;
 const FOLDER_MIME = "application/vnd.google-apps.folder";
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+interface CacheEntry {
+  files: GDriveFileWithPath[];
+  timestamp: number;
+}
+
+const fileCache = new Map<string, CacheEntry>();
+
+/** Evict the cache for a portco (call after scan/reprocess) */
+export function invalidateFilesCache(portcoId: string) {
+  fileCache.delete(portcoId);
+}
 
 /**
  * Recursively list all files from a GDrive folder tree.
- * Works for both flat folders (single query) and nested structures (BFS).
- * Returns files with their folder breadcrumb path for classification context.
+ * Results are cached in-memory for CACHE_TTL_MS to avoid
+ * re-crawling GDrive on every paginated request.
  */
 export async function listFilesRecursive(
   portcoId: string,
 ): Promise<GDriveFileWithPath[]> {
+  const cached = fileCache.get(portcoId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.files;
+  }
+
   const result = await getDriveClient(portcoId);
   if (!result) return [];
 
@@ -78,6 +96,8 @@ export async function listFilesRecursive(
       pageToken = res.data.nextPageToken ?? undefined;
     } while (pageToken && allFiles.length < MAX_FILES);
   }
+
+  fileCache.set(portcoId, { files: allFiles, timestamp: Date.now() });
 
   return allFiles;
 }
