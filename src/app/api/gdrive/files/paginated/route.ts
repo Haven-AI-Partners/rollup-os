@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { requireAuth, getUserPortcoRole } from "@/lib/auth";
-import { listFilesRecursive } from "@/lib/gdrive/scanner";
+import { listFilesPage, listFilesRecursive, isFileCacheFresh } from "@/lib/gdrive/scanner";
 import { db } from "@/lib/db";
 import { files as filesTable, portcos } from "@/lib/db/schema";
 import { inArray, eq } from "drizzle-orm";
@@ -37,17 +38,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ files: [], nextCursor: null, total: 0 });
     }
 
-    const allFiles = await listFilesRecursive(portcoId);
-    const total = allFiles.length;
-    const pageFiles = allFiles.slice(cursor, cursor + limit).map((f) => ({
-      id: f.id,
-      name: f.name,
-      mimeType: f.mimeType,
-      size: f.size,
-      modifiedTime: f.modifiedTime,
-      webViewLink: f.webViewLink,
-      parentPath: f.parentPath,
-    }));
+    // Fetch only the files needed for this page (fast on cache miss)
+    const { files: pageFiles, total, hasMore } = await listFilesPage(portcoId, cursor, limit);
+
+    // Warm the full cache in the background if not already cached
+    if (!isFileCacheFresh(portcoId)) {
+      after(async () => {
+        await listFilesRecursive(portcoId);
+      });
+    }
 
     // Cross-reference with DB for processing status
     const gdriveIds = pageFiles.map((f) => f.id).filter(Boolean);
@@ -70,7 +69,7 @@ export async function GET(req: NextRequest) {
       ]),
     );
 
-    const nextCursor = cursor + limit < total ? cursor + limit : null;
+    const nextCursor = hasMore ? cursor + limit : null;
 
     return NextResponse.json({
       files: pageFiles,
