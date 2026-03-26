@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
-import { listFiles } from "@/lib/gdrive/client";
+import { listFilesRecursive } from "@/lib/gdrive/scanner";
 import { db } from "@/lib/db";
 import { files as filesTable } from "@/lib/db/schema";
 import { inArray } from "drizzle-orm";
@@ -76,14 +76,15 @@ export default async function FilesPage({
   const isAdmin = role ? hasMinRole(role as UserRole, "admin") : false;
 
   const isConnected = Boolean(portco.gdriveServiceAccountEnc);
-  const raw = isConnected ? await listFiles(portco.id, 50) : null;
-  const gdriveFiles = (raw?.files ?? []).map((f) => ({
-    id: f.id ?? "",
-    name: f.name ?? "Untitled",
-    mimeType: f.mimeType ?? "",
-    size: f.size ?? null,
-    modifiedTime: f.modifiedTime ?? null,
-    webViewLink: f.webViewLink ?? null,
+  const allFiles = isConnected ? await listFilesRecursive(portco.id) : [];
+  const gdriveFiles = allFiles.map((f) => ({
+    id: f.id,
+    name: f.name,
+    mimeType: f.mimeType,
+    size: f.size,
+    modifiedTime: f.modifiedTime,
+    webViewLink: f.webViewLink,
+    parentPath: f.parentPath,
   }));
 
   // Cross-reference with our DB to find already-processed files
@@ -147,7 +148,6 @@ export default async function FilesPage({
         <div className="space-y-2">
           {gdriveFiles.map((file) => {
             const Icon = mimeIcons[file.mimeType] ?? FileText;
-            const isFolder = file.mimeType === "application/vnd.google-apps.folder";
             const processed = processedMap.get(file.id);
             return (
               <Card key={file.id}>
@@ -161,7 +161,12 @@ export default async function FilesPage({
                       <Badge variant="outline" className="text-[10px]">
                         {getMimeLabel(file.mimeType)}
                       </Badge>
-                      {!isFolder && formatBytes(file.size) && (
+                      {file.parentPath && (
+                        <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={file.parentPath}>
+                          {file.parentPath}
+                        </span>
+                      )}
+                      {formatBytes(file.size) && (
                         <span className="text-xs text-muted-foreground">
                           {formatBytes(file.size)}
                         </span>
@@ -193,7 +198,7 @@ export default async function FilesPage({
                         />
                       )}
                     </div>
-                  ) : isAdmin && !isFolder && file.mimeType === "application/pdf" ? (
+                  ) : isAdmin && file.mimeType === "application/pdf" ? (
                     <ProcessGdriveFileButton
                       portcoSlug={portcoSlug}
                       gdriveFileId={file.id}
