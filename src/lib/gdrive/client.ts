@@ -106,6 +106,8 @@ export async function listFiles(portcoId: string, pageSize = 50, pageToken?: str
     pageToken,
     fields: "nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink)",
     orderBy: "modifiedTime desc",
+    includeItemsFromAllDrives: true,
+    supportsAllDrives: true,
   });
 
   return {

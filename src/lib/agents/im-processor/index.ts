@@ -3,7 +3,8 @@ import { google } from "@ai-sdk/google";
 import { db } from "@/lib/db";
 import { companyProfiles, dealRedFlags, files, deals, pipelineStages, orgChartVersions, orgChartNodes } from "@/lib/db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
-import { downloadFile, listFiles } from "@/lib/gdrive/client";
+import { downloadFile } from "@/lib/gdrive/client";
+import { listFilesRecursive } from "@/lib/gdrive/scanner";
 import { calculateWeightedScore } from "@/lib/scoring/rubric";
 import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
 import { buildExtractionPrompt, buildScoringPrompt } from "./prompt";
@@ -514,19 +515,19 @@ interface ScanFolderResult {
  * and process them with AI. Runs up to CONCURRENCY_LIMIT in parallel.
  */
 export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolderResult> {
-  // 1. List all files from GDrive
-  const gdriveResult = await listFiles(portcoId, 200);
-  if (!gdriveResult) {
+  // 1. Recursively list all files from GDrive
+  const allFiles = await listFilesRecursive(portcoId);
+  if (allFiles.length === 0) {
     return { totalFiles: 0, newFiles: 0, processed: 0, failed: 0, skipped: 0, results: [] };
   }
 
   // 2. Filter to PDFs only
-  const pdfs = gdriveResult.files.filter(
+  const pdfs = allFiles.filter(
     (f) => f.mimeType === "application/pdf" && f.id
   );
 
   // 3. Find which GDrive file IDs are already imported
-  const gdriveIds = pdfs.map((f) => f.id!);
+  const gdriveIds = pdfs.map((f) => f.id);
   const existingFiles = gdriveIds.length > 0
     ? await db
         .select({ gdriveFileId: files.gdriveFileId, processingStatus: files.processingStatus })
@@ -540,7 +541,7 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
 
   // 4. Filter to unprocessed files (not imported, or imported but failed/pending)
   const toProcess = pdfs.filter((f) => {
-    const status = existingMap.get(f.id!);
+    const status = existingMap.get(f.id);
     if (status === undefined) return true; // new file
     if (status === "completed") return false; // already done
     return true; // retry failed/pending
@@ -554,8 +555,8 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
       failed: 0,
       skipped: pdfs.length,
       results: pdfs.map((f) => ({
-        fileName: f.name ?? "Unknown",
-        gdriveFileId: f.id!,
+        fileName: f.name,
+        gdriveFileId: f.id,
         status: "skipped" as const,
       })),
     };
@@ -568,8 +569,8 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
   const results = await pMap(
     toProcess,
     async (gdriveFile) => {
-      const fileName = gdriveFile.name ?? "Unknown";
-      const gdriveFileId = gdriveFile.id!;
+      const fileName = gdriveFile.name;
+      const gdriveFileId = gdriveFile.id;
 
       try {
         // Download PDF

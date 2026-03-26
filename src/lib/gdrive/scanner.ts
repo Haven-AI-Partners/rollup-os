@@ -47,6 +47,8 @@ export async function listFilesRecursive(
         fields:
           "nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink)",
         orderBy: "modifiedTime desc",
+        includeItemsFromAllDrives: true,
+        supportsAllDrives: true,
       });
 
       for (const file of res.data.files ?? []) {
