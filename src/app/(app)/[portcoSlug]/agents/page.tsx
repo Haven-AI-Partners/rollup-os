@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { files, deals, companyProfiles, discoveryCampaigns, discoverySessions, discoveryWorkflows, dealThesisNodes } from "@/lib/db/schema";
-import { eq, count, avg, sql, desc } from "drizzle-orm";
-import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
+import { eq, count, avg, sql } from "drizzle-orm";
+import { getPortcoBySlug } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,10 +28,6 @@ export default async function AgentsPage({
   const portco = await getPortcoBySlug(portcoSlug);
   if (!portco) notFound();
 
-  const user = await getCurrentUser();
-  const role = user ? await getUserPortcoRole(user.id, portco.id) : null;
-  const isAdmin = role ? hasMinRole(role as UserRole, "admin") : false;
-
   // Fetch stats for both agents in parallel
   const [
     imStatusCounts,
@@ -39,7 +35,7 @@ export default async function AgentsPage({
     campaignCount,
     sessionCount,
     workflowCount,
-    avgAutomationScore,
+    _avgAutomationScore,
     thesisTreeCount,
     thesisNodeStats,
   ] = await Promise.all([
@@ -109,11 +105,9 @@ export default async function AgentsPage({
   const discCampaigns = Number(campaignCount[0]?.count ?? 0);
   const discSessions = Number(sessionCount[0]?.count ?? 0);
   const discWorkflows = Number(workflowCount[0]?.count ?? 0);
-  const discAvg = avgAutomationScore[0]?.avg ? Number(avgAutomationScore[0].avg) : null;
 
   // Thesis summary
   const thesisTrees = Number(thesisTreeCount[0]?.count ?? 0);
-  const thesisTotal = Number(thesisNodeStats[0]?.total ?? 0);
   const thesisComplete = Number(thesisNodeStats[0]?.complete ?? 0);
   const thesisRisk = Number(thesisNodeStats[0]?.risk ?? 0);
 

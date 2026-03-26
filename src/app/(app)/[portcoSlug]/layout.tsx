@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { users, portcoMemberships, portcos } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { isAllowedEmail } from "@/lib/allowed-domains";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";

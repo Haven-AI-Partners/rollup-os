@@ -2,7 +2,7 @@ import "dotenv/config";
 import { config } from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { portcos } from "../src/lib/db/schema";
 
 config({ path: ".env.local" });

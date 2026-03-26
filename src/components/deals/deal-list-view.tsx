@@ -99,7 +99,7 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
     }
   }
 
-  function SortHeader({ field, children }: { field: SortField; children: React.ReactNode }) {
+  const sortHeader = (field: SortField, children: React.ReactNode) => {
     const active = sortField === field;
     return (
       <button
@@ -112,7 +112,7 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
         <ArrowUpDown className={`size-3 ${active ? "opacity-100" : "opacity-40"}`} />
       </button>
     );
-  }
+  };
 
   return (
     <div className="space-y-3">
@@ -147,12 +147,12 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
       <div className="rounded-md border">
         {/* Header */}
         <div className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-2 border-b bg-muted/50">
-          <SortHeader field="companyName">Company</SortHeader>
+          {sortHeader("companyName", "Company")}
           <span className="text-xs font-medium text-muted-foreground">Stage</span>
-          <SortHeader field="aiScore">Score</SortHeader>
-          <SortHeader field="revenue">Revenue</SortHeader>
-          <SortHeader field="ebitda">EBITDA</SortHeader>
-          <SortHeader field="redFlagCount">Flags</SortHeader>
+          {sortHeader("aiScore", "Score")}
+          {sortHeader("revenue", "Revenue")}
+          {sortHeader("ebitda", "EBITDA")}
+          {sortHeader("redFlagCount", "Flags")}
         </div>
 
         {/* Rows */}
