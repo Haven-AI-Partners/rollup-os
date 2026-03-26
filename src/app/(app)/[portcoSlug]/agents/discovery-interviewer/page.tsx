@@ -8,7 +8,7 @@ import {
   deals,
 } from "@/lib/db/schema";
 import { promptVersions } from "@/lib/db/schema";
-import { eq, and, count, desc, sql, avg } from "drizzle-orm";
+import { eq, count, desc, sql, avg } from "drizzle-orm";
 import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +95,6 @@ export default async function DiscoveryInterviewerPage({
 
   let totalSessions = 0;
   let completedSessions = 0;
-  let inProgressSessions = 0;
   let totalWorkflows = 0;
   let avgAutomationScore: number | null = null;
   let avgFeedbackRating: number | null = null;
@@ -163,7 +162,6 @@ export default async function DiscoveryInterviewerPage({
     const statusMap = new Map(sessionStats.map((s) => [s.status, Number(s.count)]));
     totalSessions = [...statusMap.values()].reduce((a, b) => a + b, 0);
     completedSessions = statusMap.get("completed") ?? 0;
-    inProgressSessions = (statusMap.get("in_progress") ?? 0) + (statusMap.get("pending") ?? 0);
     totalWorkflows = Number(workflowStats[0]?.count ?? 0);
     avgAutomationScore = scoreStats[0]?.avg ? Number(scoreStats[0].avg) : null;
     avgFeedbackRating = feedbackStats[0]?.avg ? Number(feedbackStats[0].avg) : null;
