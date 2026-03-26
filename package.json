@@ -41,6 +41,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-virtual": "^3.13.23",
     "@trigger.dev/sdk": "^4.4.3",
     "@types/pdf-parse": "^1.1.5",
     "@vercel/analytics": "^2.0.1",
