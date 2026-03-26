@@ -37,7 +37,7 @@ export interface PageData {
   files: GDriveFile[];
   processedMap: Record<string, ProcessedInfo>;
   nextCursor: number | null;
-  total: number;
+  total: number | null;
 }
 
 interface VirtualFilesListProps {

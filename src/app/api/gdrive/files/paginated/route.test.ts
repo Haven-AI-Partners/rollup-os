@@ -3,7 +3,9 @@ import { NextRequest } from "next/server";
 
 const mockRequireAuth = vi.fn();
 const mockGetUserPortcoRole = vi.fn();
+const mockListFilesPage = vi.fn();
 const mockListFilesRecursive = vi.fn();
+const mockIsFileCacheFresh = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => mockRequireAuth(...args),
@@ -11,8 +13,19 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/gdrive/scanner", () => ({
+  listFilesPage: (...args: unknown[]) => mockListFilesPage(...args),
   listFilesRecursive: (...args: unknown[]) => mockListFilesRecursive(...args),
+  isFileCacheFresh: (...args: unknown[]) => mockIsFileCacheFresh(...args),
 }));
+
+// Mock next/server's after() — it runs callbacks after response
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  return {
+    ...actual,
+    after: (fn: () => Promise<void>) => { fn(); },
+  };
+});
 
 // Track which table is being queried so we can return different results
 let selectContext: "portcos" | "files" = "portcos";
@@ -34,8 +47,6 @@ vi.mock("@/lib/db", () => {
     }
     return [];
   };
-  // For files query (no .limit() call), the chain itself acts as the result
-  // We need the chain to be thenable for queries without .limit()
   chain.then = (resolve: (v: unknown[]) => void) => {
     if (selectContext === "files") {
       return Promise.resolve([]).then(resolve);
@@ -55,16 +66,20 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn(),
 }));
 
-function makeFiles(count: number) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `file-${i}`,
-    name: `File ${i}.pdf`,
-    mimeType: "application/pdf",
-    size: "1024",
-    modifiedTime: "2024-01-01T00:00:00Z",
-    webViewLink: `https://drive.google.com/file/${i}`,
-    parentPath: "IMs",
-  }));
+function makePageResult(count: number, hasMore: boolean, total: number | null = count) {
+  return {
+    files: Array.from({ length: count }, (_, i) => ({
+      id: `file-${i}`,
+      name: `File ${i}.pdf`,
+      mimeType: "application/pdf",
+      size: "1024",
+      modifiedTime: "2024-01-01T00:00:00Z",
+      webViewLink: `https://drive.google.com/file/${i}`,
+      parentPath: "IMs",
+    })),
+    total,
+    hasMore,
+  };
 }
 
 describe("GET /api/gdrive/files/paginated", () => {
@@ -72,7 +87,8 @@ describe("GET /api/gdrive/files/paginated", () => {
     vi.clearAllMocks();
     mockRequireAuth.mockResolvedValue({ id: "user-1" });
     mockGetUserPortcoRole.mockResolvedValue("admin");
-    mockListFilesRecursive.mockResolvedValue([]);
+    mockListFilesPage.mockResolvedValue(makePageResult(0, false, 0));
+    mockIsFileCacheFresh.mockReturnValue(true);
   });
 
   it("returns 400 when portcoId is missing", async () => {
@@ -110,8 +126,7 @@ describe("GET /api/gdrive/files/paginated", () => {
   });
 
   it("returns first page with nextCursor when more files exist", async () => {
-    const allFiles = makeFiles(75);
-    mockListFilesRecursive.mockResolvedValue(allFiles);
+    mockListFilesPage.mockResolvedValue(makePageResult(50, true, 75));
 
     const { GET } = await import("./route");
     const req = new NextRequest(
@@ -126,57 +141,8 @@ describe("GET /api/gdrive/files/paginated", () => {
     expect(body.total).toBe(75);
   });
 
-  it("returns files from cursor offset", async () => {
-    const allFiles = makeFiles(75);
-    mockListFilesRecursive.mockResolvedValue(allFiles);
-
-    const { GET } = await import("./route");
-    const req = new NextRequest(
-      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001&cursor=50",
-    );
-
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.files).toHaveLength(25);
-    expect(body.nextCursor).toBeNull();
-    expect(body.total).toBe(75);
-  });
-
-  it("respects custom limit parameter", async () => {
-    const allFiles = makeFiles(30);
-    mockListFilesRecursive.mockResolvedValue(allFiles);
-
-    const { GET } = await import("./route");
-    const req = new NextRequest(
-      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001&limit=10",
-    );
-
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.files).toHaveLength(10);
-    expect(body.nextCursor).toBe(10);
-  });
-
-  it("caps limit at 100", async () => {
-    const allFiles = makeFiles(200);
-    mockListFilesRecursive.mockResolvedValue(allFiles);
-
-    const { GET } = await import("./route");
-    const req = new NextRequest(
-      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001&limit=500",
-    );
-
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.files).toHaveLength(100);
-  });
-
-  it("returns null nextCursor when all files fit in one page", async () => {
-    const allFiles = makeFiles(10);
-    mockListFilesRecursive.mockResolvedValue(allFiles);
+  it("returns null nextCursor when no more files", async () => {
+    mockListFilesPage.mockResolvedValue(makePageResult(10, false, 10));
 
     const { GET } = await import("./route");
     const req = new NextRequest(
@@ -189,5 +155,70 @@ describe("GET /api/gdrive/files/paginated", () => {
     expect(body.files).toHaveLength(10);
     expect(body.nextCursor).toBeNull();
     expect(body.total).toBe(10);
+  });
+
+  it("passes cursor and limit to listFilesPage", async () => {
+    mockListFilesPage.mockResolvedValue(makePageResult(10, true, null));
+
+    const { GET } = await import("./route");
+    const req = new NextRequest(
+      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001&cursor=50&limit=10",
+    );
+
+    await GET(req);
+    expect(mockListFilesPage).toHaveBeenCalledWith("portco-001", 50, 10);
+  });
+
+  it("caps limit at 100", async () => {
+    mockListFilesPage.mockResolvedValue(makePageResult(100, true, null));
+
+    const { GET } = await import("./route");
+    const req = new NextRequest(
+      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001&limit=500",
+    );
+
+    await GET(req);
+    expect(mockListFilesPage).toHaveBeenCalledWith("portco-001", 0, 100);
+  });
+
+  it("returns null total when full crawl not complete", async () => {
+    mockListFilesPage.mockResolvedValue(makePageResult(50, true, null));
+
+    const { GET } = await import("./route");
+    const req = new NextRequest(
+      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001",
+    );
+
+    const res = await GET(req);
+    const body = await res.json();
+    expect(body.total).toBeNull();
+    expect(body.nextCursor).toBe(50);
+  });
+
+  it("triggers background cache warming when cache is not fresh", async () => {
+    mockIsFileCacheFresh.mockReturnValue(false);
+    mockListFilesPage.mockResolvedValue(makePageResult(10, false, 10));
+    mockListFilesRecursive.mockResolvedValue([]);
+
+    const { GET } = await import("./route");
+    const req = new NextRequest(
+      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001",
+    );
+
+    await GET(req);
+    expect(mockListFilesRecursive).toHaveBeenCalledWith("portco-001");
+  });
+
+  it("skips background warming when cache is fresh", async () => {
+    mockIsFileCacheFresh.mockReturnValue(true);
+    mockListFilesPage.mockResolvedValue(makePageResult(10, false, 10));
+
+    const { GET } = await import("./route");
+    const req = new NextRequest(
+      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001",
+    );
+
+    await GET(req);
+    expect(mockListFilesRecursive).not.toHaveBeenCalled();
   });
 });

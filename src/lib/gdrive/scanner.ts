@@ -17,6 +17,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface CacheEntry {
   files: GDriveFileWithPath[];
+  complete: boolean;
   timestamp: number;
 }
 
@@ -27,31 +28,30 @@ export function invalidateFilesCache(portcoId: string) {
   fileCache.delete(portcoId);
 }
 
-/**
- * Recursively list all files from a GDrive folder tree.
- * Results are cached in-memory for CACHE_TTL_MS to avoid
- * re-crawling GDrive on every paginated request.
- */
-export async function listFilesRecursive(
-  portcoId: string,
-): Promise<GDriveFileWithPath[]> {
+/** Check if a full crawl is already cached and fresh */
+export function isFileCacheFresh(portcoId: string): boolean {
   const cached = fileCache.get(portcoId);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached.files;
-  }
+  return Boolean(cached?.complete && Date.now() - cached.timestamp < CACHE_TTL_MS);
+}
 
+/**
+ * Core BFS crawl. Stops after collecting `maxFiles` files.
+ * Returns both the files found and whether the crawl completed fully.
+ */
+async function crawlFiles(
+  portcoId: string,
+  maxFiles: number,
+): Promise<{ files: GDriveFileWithPath[]; complete: boolean }> {
   const result = await getDriveClient(portcoId);
-  if (!result) return [];
+  if (!result) return { files: [], complete: true };
 
   const { drive, folderId } = result;
-  if (!folderId) return [];
+  if (!folderId) return { files: [], complete: true };
 
   const allFiles: GDriveFileWithPath[] = [];
-
-  // BFS queue: [folderId, path, depth]
   const queue: Array<[string, string, number]> = [[folderId, "", 0]];
 
-  while (queue.length > 0 && allFiles.length < MAX_FILES) {
+  while (queue.length > 0 && allFiles.length < maxFiles) {
     const [currentFolderId, currentPath, depth] = queue.shift()!;
 
     if (depth > MAX_DEPTH) continue;
@@ -73,7 +73,6 @@ export async function listFilesRecursive(
         if (!file.id || !file.name) continue;
 
         if (file.mimeType === FOLDER_MIME) {
-          // Queue subfolder for crawling
           const subPath = currentPath
             ? `${currentPath}/${file.name}`
             : file.name;
@@ -89,15 +88,68 @@ export async function listFilesRecursive(
             parentPath: currentPath,
           });
 
-          if (allFiles.length >= MAX_FILES) break;
+          if (allFiles.length >= maxFiles) break;
         }
       }
 
       pageToken = res.data.nextPageToken ?? undefined;
-    } while (pageToken && allFiles.length < MAX_FILES);
+    } while (pageToken && allFiles.length < maxFiles);
   }
 
-  fileCache.set(portcoId, { files: allFiles, timestamp: Date.now() });
+  const complete = queue.length === 0 && allFiles.length < maxFiles;
+  return { files: allFiles, complete };
+}
 
-  return allFiles;
+/**
+ * Get a page of files. Returns from cache if available,
+ * otherwise does a minimal BFS crawl (just enough for this page).
+ */
+export async function listFilesPage(
+  portcoId: string,
+  cursor: number,
+  limit: number,
+): Promise<{ files: GDriveFileWithPath[]; total: number | null; hasMore: boolean }> {
+  const cached = fileCache.get(portcoId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    const slice = cached.files.slice(cursor, cursor + limit);
+    return {
+      files: slice,
+      total: cached.complete ? cached.files.length : null,
+      hasMore: cursor + limit < cached.files.length,
+    };
+  }
+
+  // No cache — crawl just enough for this page
+  const needed = cursor + limit;
+  const { files, complete } = await crawlFiles(portcoId, needed);
+
+  // Cache partial results so immediate subsequent requests don't re-crawl
+  if (!fileCache.has(portcoId)) {
+    fileCache.set(portcoId, { files, complete, timestamp: Date.now() });
+  }
+
+  const slice = files.slice(cursor, cursor + limit);
+  return {
+    files: slice,
+    total: complete ? files.length : null,
+    hasMore: !complete || cursor + limit < files.length,
+  };
+}
+
+/**
+ * Full recursive crawl. Used for background cache warming and
+ * by other callers (scan folder, reprocess, etc.).
+ * Results are cached in-memory for CACHE_TTL_MS.
+ */
+export async function listFilesRecursive(
+  portcoId: string,
+): Promise<GDriveFileWithPath[]> {
+  const cached = fileCache.get(portcoId);
+  if (cached?.complete && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.files;
+  }
+
+  const { files, complete } = await crawlFiles(portcoId, MAX_FILES);
+  fileCache.set(portcoId, { files, complete, timestamp: Date.now() });
+  return files;
 }
