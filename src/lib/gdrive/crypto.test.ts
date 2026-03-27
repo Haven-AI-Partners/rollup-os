@@ -47,8 +47,12 @@ describe("encrypt / decrypt", () => {
   it("throws on tampered ciphertext", () => {
     const encrypted = encrypt("test");
     const parts = encrypted.split(":");
-    // Tamper with ciphertext
-    const tampered = parts[0] + ":" + parts[1] + ":00" + parts[2].slice(2);
+    // Flip every byte in the ciphertext to guarantee corruption
+    const flipped = parts[2]
+      .split("")
+      .map((c) => (c === "f" ? "0" : "f"))
+      .join("");
+    const tampered = parts[0] + ":" + parts[1] + ":" + flipped;
     expect(() => decrypt(tampered)).toThrow();
   });
 

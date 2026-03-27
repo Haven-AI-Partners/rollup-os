@@ -3,6 +3,15 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'scripts/**'
+      - '*.md'
+      - '.github/workflows/test.yml'
+      - '.github/workflows/weekly-*.yml'
+      - '.github/workflows/auto-merge-dependabot.yml'
+      - 'vitest.config.ts'
+      - 'renovate.json'
 
 concurrency:
   group: production-deploy

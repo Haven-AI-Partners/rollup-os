@@ -3,6 +3,7 @@
   "extends": ["config:recommended"],
   "minimumReleaseAge": "7 days",
   "labels": ["dependencies"],
+  "schedule": ["before 6am on monday"],
   "packageRules": [
     {
       "matchUpdateTypes": ["major"],
@@ -12,6 +13,11 @@
       "matchDepTypes": ["devDependencies"],
       "groupName": "dev dependencies",
       "groupSlug": "dev-deps"
+    },
+    {
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "non-major dependencies",
+      "groupSlug": "non-major-deps"
     }
   ]
 }

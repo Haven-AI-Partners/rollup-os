@@ -7,6 +7,25 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  serverExternalPackages: [
+    "pdf-parse",
+    "pdfjs-dist",
+    "bcryptjs",
+  ],
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "recharts",
+      "@ai-sdk/google",
+      "@ai-sdk/openai",
+      "@ai-sdk/moonshotai",
+      "@ai-sdk/react",
+      "ai",
+      "@dnd-kit/core",
+      "@dnd-kit/sortable",
+      "radix-ui",
+    ],
+  },
   headers: async () => [
     {
       source: "/(.*)",

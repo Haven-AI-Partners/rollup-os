@@ -1,0 +1,12 @@
+docs/
+scripts/
+*.md
+vitest.config.ts
+coverage/
+.github/
+renovate.json
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+src/test/
