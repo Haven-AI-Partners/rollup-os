@@ -14,7 +14,7 @@ export interface GDriveFileWithPath {
 }
 
 const MAX_DEPTH = 10;
-const MAX_FILES = 2000;
+const MAX_FILES = 10_000;
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 const UPSERT_BATCH_SIZE = 500;
 
