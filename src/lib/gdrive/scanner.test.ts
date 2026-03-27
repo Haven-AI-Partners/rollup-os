@@ -1,18 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GDriveFileWithPath } from "./scanner";
 
-function makeFile(index: number): GDriveFileWithPath {
-  return {
-    id: `file-${index}`,
-    name: `File ${index}.pdf`,
-    mimeType: "application/pdf",
-    size: "1024",
-    modifiedTime: "2024-01-01T00:00:00Z",
-    webViewLink: `https://drive.google.com/file/${index}`,
-    parentPath: "root",
-  };
-}
-
 // Simulate a drive with N files via a mock that returns pages from files.list
 function makeMockDrive(totalFiles: number) {
   const allFiles = Array.from({ length: totalFiles }, (_, i) => ({
@@ -100,6 +88,18 @@ describe("scanner", () => {
       expect(files[79].id).toBe("file-79");
     });
 
+    it("does not write to DB", async () => {
+      mockGetDriveClient.mockResolvedValue({
+        drive: makeMockDrive(10),
+        folderId: "root-folder",
+      });
+
+      const { listFilesRecursive } = await import("./scanner");
+      await listFilesRecursive("portco-1");
+
+      expect(mockInsert).not.toHaveBeenCalled();
+    });
+
     it("returns empty array when no drive configured", async () => {
       mockGetDriveClient.mockResolvedValue(null);
 
@@ -122,44 +122,71 @@ describe("scanner", () => {
     });
   });
 
-  describe("syncFilesToDb", () => {
-    it("inserts files into gdrive_file_cache table", async () => {
-      const { syncFilesToDb } = await import("./scanner");
-      const files = Array.from({ length: 5 }, (_, i) => makeFile(i));
+  describe("crawlAndSyncFiles", () => {
+    it("upserts files incrementally during crawl", async () => {
+      // 450 files with pageSize=200 means 3 pages (200 + 200 + 50)
+      mockGetDriveClient.mockResolvedValue({
+        drive: makeMockDrive(450),
+        folderId: "root-folder",
+      });
 
-      const result = await syncFilesToDb("portco-1", files);
+      const { crawlAndSyncFiles } = await import("./scanner");
+      const result = await crawlAndSyncFiles("portco-1");
 
-      expect(mockInsert).toHaveBeenCalled();
-      expect(result.upserted).toBe(5);
-    });
-
-    it("handles empty file list", async () => {
-      const { syncFilesToDb } = await import("./scanner");
-
-      const result = await syncFilesToDb("portco-1", []);
-
-      expect(mockInsert).not.toHaveBeenCalled();
-      expect(result.upserted).toBe(0);
-    });
-
-    it("batches large file lists", async () => {
-      const { syncFilesToDb } = await import("./scanner");
-      const files = Array.from({ length: 1200 }, (_, i) => makeFile(i));
-
-      const result = await syncFilesToDb("portco-1", files);
-
-      // 1200 files / 500 batch size = 3 batches
+      expect(result.files).toHaveLength(450);
+      expect(result.upserted).toBe(450);
+      // Should have called insert 3 times (once per page), not once at the end
       expect(mockInsert).toHaveBeenCalledTimes(3);
-      expect(result.upserted).toBe(1200);
     });
 
-    it("deletes stale files after sync", async () => {
-      const { syncFilesToDb } = await import("./scanner");
-      const files = [makeFile(0)];
+    it("returns all files even with multiple pages", async () => {
+      mockGetDriveClient.mockResolvedValue({
+        drive: makeMockDrive(500),
+        folderId: "root-folder",
+      });
 
-      await syncFilesToDb("portco-1", files);
+      const { crawlAndSyncFiles } = await import("./scanner");
+      const result = await crawlAndSyncFiles("portco-1");
+
+      expect(result.files).toHaveLength(500);
+      expect(result.files[0].id).toBe("file-0");
+      expect(result.files[499].id).toBe("file-499");
+    });
+
+    it("deletes stale files after crawl completes", async () => {
+      mockGetDriveClient.mockResolvedValue({
+        drive: makeMockDrive(10),
+        folderId: "root-folder",
+      });
+
+      const { crawlAndSyncFiles } = await import("./scanner");
+      await crawlAndSyncFiles("portco-1");
 
       expect(mockDelete).toHaveBeenCalled();
+    });
+
+    it("handles empty drive gracefully", async () => {
+      mockGetDriveClient.mockResolvedValue({
+        drive: makeMockDrive(0),
+        folderId: "root-folder",
+      });
+
+      const { crawlAndSyncFiles } = await import("./scanner");
+      const result = await crawlAndSyncFiles("portco-1");
+
+      expect(result.files).toHaveLength(0);
+      expect(result.upserted).toBe(0);
+      expect(mockInsert).not.toHaveBeenCalled();
+    });
+
+    it("handles no drive configured", async () => {
+      mockGetDriveClient.mockResolvedValue(null);
+
+      const { crawlAndSyncFiles } = await import("./scanner");
+      const result = await crawlAndSyncFiles("portco-1");
+
+      expect(result.files).toHaveLength(0);
+      expect(result.upserted).toBe(0);
     });
   });
 });
