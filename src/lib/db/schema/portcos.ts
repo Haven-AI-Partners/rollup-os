@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, numeric, jsonb, unique } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, numeric, jsonb, unique, integer } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const portcos = pgTable("portcos", {
@@ -21,6 +21,8 @@ export const portcos = pgTable("portcos", {
   scoringRubric: jsonb("scoring_rubric"),
   gdriveFolderId: text("gdrive_folder_id"),
   gdriveServiceAccountEnc: text("gdrive_service_account_enc"),
+  gdriveScanGeneration: integer("gdrive_scan_generation").notNull().default(0),
+  gdriveLastCompleteScanAt: timestamp("gdrive_last_complete_scan_at", { withTimezone: true }),
   slackWebhookUrl: text("slack_webhook_url"),
   slackChannelId: text("slack_channel_id"),
   allowedDomains: jsonb("allowed_domains").$type<{ domain: string; defaultRole: "owner" | "admin" | "analyst" | "viewer" }[]>(),
