@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { GdriveSettings } from "@/components/settings/gdrive-settings";
 import { SettingsNav } from "@/components/settings/settings-nav";
 import { getConnectedAccount, getFolderName } from "@/lib/gdrive/client";
+import { getRecentGdriveErrors } from "@/lib/actions/settings";
 import { MessageSquare, Mail, Notebook } from "lucide-react";
 
 export default async function IntegrationsPage({
@@ -18,14 +19,15 @@ export default async function IntegrationsPage({
 
   const isGdriveConnected = Boolean(portco.gdriveServiceAccountEnc);
 
-  const [accountInfo, folderName] = isGdriveConnected
+  const [accountInfo, folderName, recentErrors] = isGdriveConnected
     ? await Promise.all([
         getConnectedAccount(portco.id).catch(() => null),
         portco.gdriveFolderId
           ? getFolderName(portco.id, portco.gdriveFolderId).catch(() => null)
           : Promise.resolve(null),
+        getRecentGdriveErrors(portco.id).catch(() => []),
       ])
-    : [null, null];
+    : [null, null, []];
 
   return (
     <div className="space-y-6">
@@ -46,6 +48,7 @@ export default async function IntegrationsPage({
           folderName={folderName}
           accountEmail={accountInfo?.email ?? null}
           accountName={accountInfo?.displayName ?? null}
+          recentErrors={recentErrors}
         />
 
         <Card>

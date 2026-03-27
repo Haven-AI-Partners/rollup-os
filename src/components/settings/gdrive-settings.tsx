@@ -6,8 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { HardDrive, Check, X, ExternalLink, User, FolderOpen } from "lucide-react";
+import { HardDrive, Check, X, ExternalLink, User, FolderOpen, AlertTriangle } from "lucide-react";
 import { updateGdriveFolderId, disconnectGdrive } from "@/lib/actions/settings";
+import { formatRelativeTime } from "@/lib/format";
+
+interface GdriveApiError {
+  id: string;
+  httpStatus: number;
+  context: string;
+  attempt: number;
+  exhausted: boolean;
+  createdAt: Date;
+}
 
 interface GdriveSettingsProps {
   portcoSlug: string;
@@ -16,9 +26,10 @@ interface GdriveSettingsProps {
   folderName: string | null;
   accountEmail: string | null;
   accountName: string | null;
+  recentErrors?: GdriveApiError[];
 }
 
-export function GdriveSettings({ portcoSlug, isConnected, folderId, folderName, accountEmail, accountName }: GdriveSettingsProps) {
+export function GdriveSettings({ portcoSlug, isConnected, folderId, folderName, accountEmail, accountName, recentErrors = [] }: GdriveSettingsProps) {
   const [folderIdInput, setFolderIdInput] = useState(folderId ?? "");
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -77,6 +88,37 @@ export function GdriveSettings({ portcoSlug, isConnected, folderId, folderName, 
                   {accountName && (
                     <p className="text-xs text-muted-foreground">{accountEmail}</p>
                   )}
+                </div>
+              </div>
+            )}
+
+            {recentErrors.length > 0 && (
+              <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 size-4 text-destructive shrink-0" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-destructive">
+                      Google Drive API errors detected
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {recentErrors.filter((e) => e.exhausted).length > 0
+                        ? "Rate limit errors are causing API calls to fail. Files may not be syncing correctly."
+                        : "Rate limit retries are occurring. Sync may be slower than usual."}
+                    </p>
+                    <details className="text-xs">
+                      <summary className="cursor-pointer font-medium text-muted-foreground">
+                        {recentErrors.length} error{recentErrors.length !== 1 ? "s" : ""} in the last 24 hours
+                      </summary>
+                      <ul className="mt-1 space-y-1 pl-2">
+                        {recentErrors.slice(0, 10).map((err) => (
+                          <li key={err.id} className="text-muted-foreground">
+                            HTTP {err.httpStatus} on {err.context}
+                            {err.exhausted && " (failed)"} — {formatRelativeTime(err.createdAt)}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  </div>
                 </div>
               </div>
             )}

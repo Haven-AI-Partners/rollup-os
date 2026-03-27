@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { withRateLimit } from "./rate-limit";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { withRateLimit, setOnRateLimitError } from "./rate-limit";
 
 function make429Error(message = "Rate limited") {
   const error = new Error(message) as Error & { response: { status: number } };
@@ -15,7 +15,14 @@ function makeError(status: number, message = "Error") {
 
 describe("withRateLimit", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    setOnRateLimitError(null);
+  });
+
+  afterEach(() => {
+    setOnRateLimitError(null);
   });
 
   it("returns the result of a successful call", async () => {
@@ -33,6 +40,20 @@ describe("withRateLimit", () => {
 
     const result = await withRateLimit(fn, "test-429");
     expect(result).toBe("success");
+    expect(calls).toBe(2);
+    expect(console.warn).toHaveBeenCalledTimes(1);
+  }, 10_000);
+
+  it("retries on 403 (user rate limit exceeded)", async () => {
+    let calls = 0;
+    const fn = () => {
+      calls++;
+      if (calls < 2) return Promise.reject(makeError(403, "User rate limit exceeded"));
+      return Promise.resolve("ok");
+    };
+
+    const result = await withRateLimit(fn, "test-403");
+    expect(result).toBe("ok");
     expect(calls).toBe(2);
     expect(console.warn).toHaveBeenCalledTimes(1);
   }, 10_000);
@@ -85,4 +106,31 @@ describe("withRateLimit", () => {
       expect.stringContaining("[files.list folder=abc123]"),
     );
   }, 10_000);
+
+  it("invokes onRateLimitError callback on retry", async () => {
+    const callback = vi.fn();
+    setOnRateLimitError(callback);
+
+    let calls = 0;
+    const fn = () => {
+      calls++;
+      if (calls < 2) return Promise.reject(make429Error());
+      return Promise.resolve("ok");
+    };
+
+    await withRateLimit(fn, "test-callback");
+    expect(callback).toHaveBeenCalledWith("test-callback", 429, 1, false);
+  }, 10_000);
+
+  it("invokes onRateLimitError with exhausted=true when retries are spent", async () => {
+    const callback = vi.fn();
+    setOnRateLimitError(callback);
+
+    const fn = () => Promise.reject(make429Error());
+
+    await expect(withRateLimit(fn, "exhaust-test")).rejects.toThrow("Rate limited");
+
+    const lastCall = callback.mock.calls[callback.mock.calls.length - 1];
+    expect(lastCall).toEqual(["exhaust-test", 429, expect.any(Number), true]);
+  }, 60_000);
 });

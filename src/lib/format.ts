@@ -18,6 +18,21 @@ export function formatDateShort(date: Date | string): string {
   });
 }
 
+/** Format a date as a relative time string (e.g., "2 hours ago", "5 minutes ago") */
+export function formatRelativeTime(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const diffMs = Date.now() - d.getTime();
+  const diffSec = Math.round(diffMs / 1000);
+
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  return `${diffDays}d ago`;
+}
+
 /** Format a duration in milliseconds to human-readable (e.g., "5m 30s") */
 export function formatDuration(ms: number): string {
   const secs = Math.round(ms / 1000);
