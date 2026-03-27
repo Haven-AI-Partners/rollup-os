@@ -16,15 +16,53 @@ export interface GDriveFileWithPath {
 const MAX_DEPTH = 10;
 const MAX_FILES = 2000;
 const FOLDER_MIME = "application/vnd.google-apps.folder";
-const UPSERT_BATCH_SIZE = 500;
+
+/** Upsert a batch of files into the gdrive_file_cache table. */
+async function upsertBatch(
+  portcoId: string,
+  files: GDriveFileWithPath[],
+  scanStart: Date,
+): Promise<void> {
+  if (files.length === 0) return;
+
+  const values = files.map((f) => ({
+    portcoId,
+    gdriveFileId: f.id,
+    fileName: f.name,
+    mimeType: f.mimeType,
+    sizeBytes: f.size ? Number(f.size) : null,
+    modifiedTime: f.modifiedTime ? new Date(f.modifiedTime) : null,
+    webViewLink: f.webViewLink,
+    parentPath: f.parentPath,
+    lastSeenAt: scanStart,
+  }));
+
+  await db
+    .insert(gdriveFileCache)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [gdriveFileCache.portcoId, gdriveFileCache.gdriveFileId],
+      set: {
+        fileName: sql`EXCLUDED.file_name`,
+        mimeType: sql`EXCLUDED.mime_type`,
+        sizeBytes: sql`EXCLUDED.size_bytes`,
+        modifiedTime: sql`EXCLUDED.modified_time`,
+        webViewLink: sql`EXCLUDED.web_view_link`,
+        parentPath: sql`EXCLUDED.parent_path`,
+        lastSeenAt: sql`EXCLUDED.last_seen_at`,
+      },
+    });
+}
 
 /**
  * Core BFS crawl. Stops after collecting `maxFiles` files.
- * Returns both the files found and whether the crawl completed fully.
+ * If `onBatch` is provided, calls it with each page of discovered files
+ * as they are found (for incremental DB writes).
  */
 async function crawlFiles(
   portcoId: string,
   maxFiles: number,
+  onBatch?: (files: GDriveFileWithPath[]) => Promise<void>,
 ): Promise<{ files: GDriveFileWithPath[]; complete: boolean }> {
   const result = await getDriveClient(portcoId);
   if (!result) return { files: [], complete: true };
@@ -53,6 +91,8 @@ async function crawlFiles(
         supportsAllDrives: true,
       });
 
+      const pageFiles: GDriveFileWithPath[] = [];
+
       for (const file of res.data.files ?? []) {
         if (!file.id || !file.name) continue;
 
@@ -62,7 +102,7 @@ async function crawlFiles(
             : file.name;
           queue.push([file.id, subPath, depth + 1]);
         } else {
-          allFiles.push({
+          const gdriveFile: GDriveFileWithPath = {
             id: file.id,
             name: file.name,
             mimeType: file.mimeType ?? "",
@@ -70,10 +110,18 @@ async function crawlFiles(
             modifiedTime: file.modifiedTime ?? null,
             webViewLink: file.webViewLink ?? null,
             parentPath: currentPath,
-          });
+          };
+
+          allFiles.push(gdriveFile);
+          pageFiles.push(gdriveFile);
 
           if (allFiles.length >= maxFiles) break;
         }
+      }
+
+      // Flush this page to DB immediately if callback provided
+      if (onBatch && pageFiles.length > 0) {
+        await onBatch(pageFiles);
       }
 
       pageToken = res.data.nextPageToken ?? undefined;
@@ -85,7 +133,8 @@ async function crawlFiles(
 }
 
 /**
- * Full recursive crawl of GDrive. Used by scan tasks.
+ * Full recursive crawl of GDrive. Used by callers that need the file list
+ * without writing to the DB (e.g., im-processor's scanAndProcessFolder).
  */
 export async function listFilesRecursive(
   portcoId: string,
@@ -95,49 +144,21 @@ export async function listFilesRecursive(
 }
 
 /**
- * Crawl GDrive and upsert all discovered files into the gdrive_file_cache table.
- * Removes rows for files no longer present in GDrive (lastSeenAt < scan start).
+ * Crawl GDrive and incrementally upsert discovered files into gdrive_file_cache.
+ * Each page of results (~200 files) is written to the DB as soon as it's received,
+ * so partial results survive even if the crawl fails partway through.
+ * After the crawl completes, stale rows (not seen in this scan) are removed.
  */
-export async function syncFilesToDb(
+export async function crawlAndSyncFiles(
   portcoId: string,
-  files: GDriveFileWithPath[],
-): Promise<{ upserted: number; removed: number }> {
+): Promise<{ files: GDriveFileWithPath[]; upserted: number; removed: number }> {
   const scanStart = new Date();
   let upserted = 0;
 
-  // Batch upsert
-  for (let i = 0; i < files.length; i += UPSERT_BATCH_SIZE) {
-    const batch = files.slice(i, i + UPSERT_BATCH_SIZE);
-    const values = batch.map((f) => ({
-      portcoId,
-      gdriveFileId: f.id,
-      fileName: f.name,
-      mimeType: f.mimeType,
-      sizeBytes: f.size ? Number(f.size) : null,
-      modifiedTime: f.modifiedTime ? new Date(f.modifiedTime) : null,
-      webViewLink: f.webViewLink,
-      parentPath: f.parentPath,
-      lastSeenAt: scanStart,
-    }));
-
-    await db
-      .insert(gdriveFileCache)
-      .values(values)
-      .onConflictDoUpdate({
-        target: [gdriveFileCache.portcoId, gdriveFileCache.gdriveFileId],
-        set: {
-          fileName: sql`EXCLUDED.file_name`,
-          mimeType: sql`EXCLUDED.mime_type`,
-          sizeBytes: sql`EXCLUDED.size_bytes`,
-          modifiedTime: sql`EXCLUDED.modified_time`,
-          webViewLink: sql`EXCLUDED.web_view_link`,
-          parentPath: sql`EXCLUDED.parent_path`,
-          lastSeenAt: sql`EXCLUDED.last_seen_at`,
-        },
-      });
-
+  const { files } = await crawlFiles(portcoId, MAX_FILES, async (batch) => {
+    await upsertBatch(portcoId, batch, scanStart);
     upserted += batch.length;
-  }
+  });
 
   // Remove files no longer in GDrive (not seen in this scan)
   const removeResult = await db
@@ -151,5 +172,5 @@ export async function syncFilesToDb(
 
   const removed = removeResult.rowCount ?? 0;
 
-  return { upserted, removed };
+  return { files, upserted, removed };
 }

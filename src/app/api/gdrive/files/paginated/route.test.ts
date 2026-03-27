@@ -3,8 +3,7 @@ import { NextRequest } from "next/server";
 
 const mockRequireAuth = vi.fn();
 const mockGetUserPortcoRole = vi.fn();
-const mockListFilesRecursive = vi.fn();
-const mockSyncFilesToDb = vi.fn();
+const mockCrawlAndSyncFiles = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: (...args: unknown[]) => mockRequireAuth(...args),
@@ -12,8 +11,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/gdrive/scanner", () => ({
-  listFilesRecursive: (...args: unknown[]) => mockListFilesRecursive(...args),
-  syncFilesToDb: (...args: unknown[]) => mockSyncFilesToDb(...args),
+  crawlAndSyncFiles: (...args: unknown[]) => mockCrawlAndSyncFiles(...args),
 }));
 
 // Mock next/server's after() — it runs callbacks after response
@@ -170,8 +168,7 @@ describe("GET /api/gdrive/files/paginated", () => {
   it("returns syncing=true when cache is empty and triggers background sync", async () => {
     mockTotalCount = 0;
     mockCacheRows = [];
-    mockListFilesRecursive.mockResolvedValue([]);
-    mockSyncFilesToDb.mockResolvedValue({ upserted: 0, removed: 0 });
+    mockCrawlAndSyncFiles.mockResolvedValue({ files: [], upserted: 0, removed: 0 });
 
     const { GET } = await import("./route");
     const req = new NextRequest(
@@ -183,7 +180,7 @@ describe("GET /api/gdrive/files/paginated", () => {
     const body = await res.json();
     expect(body.syncing).toBe(true);
     expect(body.files).toHaveLength(0);
-    expect(mockListFilesRecursive).toHaveBeenCalledWith("portco-001");
+    expect(mockCrawlAndSyncFiles).toHaveBeenCalledWith("portco-001");
   });
 
   it("returns files from DB cache with correct pagination", async () => {

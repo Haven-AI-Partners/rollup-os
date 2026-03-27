@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth, getUserPortcoRole } from "@/lib/auth";
-import { listFilesRecursive, syncFilesToDb } from "@/lib/gdrive/scanner";
+import { crawlAndSyncFiles } from "@/lib/gdrive/scanner";
 import { db } from "@/lib/db";
 import {
   files as filesTable,
@@ -62,8 +62,7 @@ export async function GET(req: NextRequest) {
     // Bootstrap: if cache is empty, trigger background sync
     if (total === 0) {
       after(async () => {
-        const allFiles = await listFilesRecursive(portcoId);
-        await syncFilesToDb(portcoId, allFiles);
+        await crawlAndSyncFiles(portcoId);
       });
       return NextResponse.json({
         files: [],
