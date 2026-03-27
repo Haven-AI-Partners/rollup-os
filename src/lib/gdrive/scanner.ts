@@ -1,4 +1,5 @@
 import { getDriveClient } from "./client";
+import { withRateLimit } from "./rate-limit";
 import { db } from "@/lib/db";
 import { gdriveFileCache, gdriveScanFolders, portcos } from "@/lib/db/schema";
 import { eq, sql, and, lt, asc, count } from "drizzle-orm";
@@ -80,16 +81,19 @@ async function crawlFiles(
 
     let pageToken: string | undefined;
     do {
-      const res = await drive.files.list({
-        q: `'${currentFolderId}' in parents and trashed = false`,
-        pageSize: 200,
-        pageToken,
-        fields:
-          "nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink)",
-        orderBy: "modifiedTime desc",
-        includeItemsFromAllDrives: true,
-        supportsAllDrives: true,
-      });
+      const res = await withRateLimit(
+        () => drive.files.list({
+          q: `'${currentFolderId}' in parents and trashed = false`,
+          pageSize: 200,
+          pageToken,
+          fields:
+            "nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink)",
+          orderBy: "modifiedTime desc",
+          includeItemsFromAllDrives: true,
+          supportsAllDrives: true,
+        }),
+        `crawlFiles folder=${currentFolderId}`,
+      );
 
       const pageFiles: GDriveFileWithPath[] = [];
 
@@ -177,6 +181,7 @@ export async function crawlAndSyncFiles(
 
 export interface IncrementalScanResult {
   foldersScanned: number;
+  foldersErrored: number;
   filesUpserted: number;
   scanComplete: boolean;
 }
@@ -221,10 +226,10 @@ export async function crawlFoldersIncremental(
   const scanTimestamp = new Date();
 
   const clientResult = await getDriveClient(portcoId);
-  if (!clientResult) return { foldersScanned: 0, filesUpserted: 0, scanComplete: true };
+  if (!clientResult) return { foldersScanned: 0, foldersErrored: 0, filesUpserted: 0, scanComplete: true };
 
   const { drive, folderId } = clientResult;
-  if (!folderId) return { foldersScanned: 0, filesUpserted: 0, scanComplete: true };
+  if (!folderId) return { foldersScanned: 0, foldersErrored: 0, filesUpserted: 0, scanComplete: true };
 
   // 1. Determine the current scan generation
   const [portcoRow] = await db
@@ -277,6 +282,7 @@ export async function crawlFoldersIncremental(
     .orderBy(asc(gdriveScanFolders.lastScannedAt));
 
   let foldersScanned = 0;
+  let foldersErrored = 0;
   let filesUpserted = 0;
 
   // 4. Process folders until time budget is exhausted
@@ -291,61 +297,72 @@ export async function crawlFoldersIncremental(
       continue;
     }
 
-    // List all children of this folder (with pagination)
-    let pageToken: string | undefined;
-    do {
-      const res = await drive.files.list({
-        q: `'${folder.gdriveFolderId}' in parents and trashed = false`,
-        pageSize: 200,
-        pageToken,
-        fields:
-          "nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink)",
-        orderBy: "modifiedTime desc",
-        includeItemsFromAllDrives: true,
-        supportsAllDrives: true,
-      });
+    try {
+      // List all children of this folder (with pagination)
+      let pageToken: string | undefined;
+      do {
+        const res = await withRateLimit(
+          () => drive.files.list({
+            q: `'${folder.gdriveFolderId}' in parents and trashed = false`,
+            pageSize: 200,
+            pageToken,
+            fields:
+              "nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink)",
+            orderBy: "modifiedTime desc",
+            includeItemsFromAllDrives: true,
+            supportsAllDrives: true,
+          }),
+          `crawlFolders folder=${folder.gdriveFolderId}`,
+        );
 
-      const pageFiles: GDriveFileWithPath[] = [];
+        const pageFiles: GDriveFileWithPath[] = [];
 
-      for (const file of res.data.files ?? []) {
-        if (!file.id || !file.name) continue;
+        for (const file of res.data.files ?? []) {
+          if (!file.id || !file.name) continue;
 
-        if (file.mimeType === FOLDER_MIME) {
-          const subPath = folder.parentPath
-            ? `${folder.parentPath}/${file.name}`
-            : file.name;
-          // Upsert discovered subfolder (new folders get scanGeneration=0, so
-          // they'll be picked up in this or a future run)
-          await upsertFolder(portcoId, file.id, subPath, folder.depth + 1);
-        } else {
-          pageFiles.push({
-            id: file.id,
-            name: file.name,
-            mimeType: file.mimeType ?? "",
-            size: file.size ?? null,
-            modifiedTime: file.modifiedTime ?? null,
-            webViewLink: file.webViewLink ?? null,
-            parentPath: folder.parentPath,
-          });
+          if (file.mimeType === FOLDER_MIME) {
+            const subPath = folder.parentPath
+              ? `${folder.parentPath}/${file.name}`
+              : file.name;
+            // Upsert discovered subfolder (new folders get scanGeneration=0, so
+            // they'll be picked up in this or a future run)
+            await upsertFolder(portcoId, file.id, subPath, folder.depth + 1);
+          } else {
+            pageFiles.push({
+              id: file.id,
+              name: file.name,
+              mimeType: file.mimeType ?? "",
+              size: file.size ?? null,
+              modifiedTime: file.modifiedTime ?? null,
+              webViewLink: file.webViewLink ?? null,
+              parentPath: folder.parentPath,
+            });
+          }
         }
-      }
 
-      // Flush files to cache
-      if (pageFiles.length > 0) {
-        await upsertBatch(portcoId, pageFiles, scanTimestamp);
-        filesUpserted += pageFiles.length;
-      }
+        // Flush files to cache
+        if (pageFiles.length > 0) {
+          await upsertBatch(portcoId, pageFiles, scanTimestamp);
+          filesUpserted += pageFiles.length;
+        }
 
-      pageToken = res.data.nextPageToken ?? undefined;
-    } while (pageToken);
+        pageToken = res.data.nextPageToken ?? undefined;
+      } while (pageToken);
 
-    // Mark this folder as scanned for the current generation
-    await db
-      .update(gdriveScanFolders)
-      .set({ lastScannedAt: scanTimestamp, scanGeneration: currentGen })
-      .where(eq(gdriveScanFolders.id, folder.id));
+      // Mark this folder as scanned for the current generation
+      await db
+        .update(gdriveScanFolders)
+        .set({ lastScannedAt: scanTimestamp, scanGeneration: currentGen })
+        .where(eq(gdriveScanFolders.id, folder.id));
 
-    foldersScanned++;
+      foldersScanned++;
+    } catch (error) {
+      foldersErrored++;
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      console.warn(
+        `GDrive folder scan failed for ${folder.gdriveFolderId} (path: ${folder.parentPath}): ${msg} — skipping, will retry next run`,
+      );
+    }
   }
 
   // 5. Check if the full pass is now complete
@@ -392,5 +409,5 @@ export async function crawlFoldersIncremental(
     }
   }
 
-  return { foldersScanned, filesUpserted, scanComplete };
+  return { foldersScanned, foldersErrored, filesUpserted, scanComplete };
 }
