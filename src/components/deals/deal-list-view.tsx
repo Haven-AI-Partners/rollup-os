@@ -146,12 +146,12 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
 
       <div className="rounded-md border">
         {/* Header */}
-        <div className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-2 border-b bg-muted/50">
+        <div className="grid grid-cols-[1fr_100px_80px] sm:grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-2 border-b bg-muted/50">
           {sortHeader("companyName", "Company")}
           <span className="text-xs font-medium text-muted-foreground">Stage</span>
-          {sortHeader("aiScore", "Score")}
-          {sortHeader("revenue", "Revenue")}
-          {sortHeader("ebitda", "EBITDA")}
+          <div className="hidden sm:block">{sortHeader("aiScore", "Score")}</div>
+          <div className="hidden sm:block">{sortHeader("revenue", "Revenue")}</div>
+          <div className="hidden sm:block">{sortHeader("ebitda", "EBITDA")}</div>
           {sortHeader("redFlagCount", "Flags")}
         </div>
 
@@ -167,7 +167,7 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
               <Link
                 key={deal.id}
                 href={`/${portcoSlug}/pipeline/${deal.id}/overview`}
-                className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors items-center"
+                className="grid grid-cols-[1fr_100px_80px] sm:grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors items-center"
               >
                 <div className="min-w-0 overflow-hidden">
                   <div className="text-sm font-medium truncate">{deal.companyName}</div>
@@ -195,7 +195,7 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
                     </Badge>
                   )}
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   {deal.aiScore ? (
                     <span className="flex items-center gap-1 text-sm">
                       <Star className="size-3.5 text-amber-500 fill-amber-500" />
@@ -205,10 +205,10 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
                     <span className="text-xs text-muted-foreground">--</span>
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="hidden sm:block text-sm text-muted-foreground">
                   {deal.revenue ? formatCurrency(deal.revenue, deal.currency) : "--"}
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="hidden sm:block text-sm text-muted-foreground">
                   {deal.ebitda ? formatCurrency(deal.ebitda, deal.currency) : "--"}
                 </div>
                 <div>
