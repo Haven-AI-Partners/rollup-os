@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { files, deals } from "@/lib/db/schema";
 import { eq, inArray, and, sql } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk";
-import { listFilesRecursive } from "@/lib/gdrive/scanner";
+import { listFilesRecursive, syncFilesToDb } from "@/lib/gdrive/scanner";
 import { classifyFile } from "./file-classifier";
 import { processDDDocument } from "./dd-processor";
 import type { FileType } from "@/lib/db/schema/files";
@@ -81,8 +81,9 @@ async function matchDeal(
 export async function scanClassifyAndProcess(
   portcoId: string,
 ): Promise<ScanClassifyResult> {
-  // 1. Recursively list all files
+  // 1. Recursively list all files and sync to DB cache
   const allGdriveFiles = await listFilesRecursive(portcoId);
+  await syncFilesToDb(portcoId, allGdriveFiles);
 
   if (allGdriveFiles.length === 0) {
     return {

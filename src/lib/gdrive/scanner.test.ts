@@ -42,129 +42,124 @@ function makeMockDrive(totalFiles: number) {
 }
 
 const mockGetDriveClient = vi.fn();
+const mockInsert = vi.fn();
+const mockDelete = vi.fn();
 
 vi.mock("./client", () => ({
   getDriveClient: (...args: unknown[]) => mockGetDriveClient(...args),
 }));
 
+vi.mock("@/lib/db", () => {
+  const insertChain: Record<string, unknown> = {};
+  insertChain.values = () => insertChain;
+  insertChain.onConflictDoUpdate = () => Promise.resolve();
+
+  const deleteChain: Record<string, unknown> = {};
+  deleteChain.where = () => Promise.resolve({ rowCount: 0 });
+
+  return {
+    db: {
+      insert: (...args: unknown[]) => { mockInsert(...args); return insertChain; },
+      delete: (...args: unknown[]) => { mockDelete(...args); return deleteChain; },
+    },
+  };
+});
+
+vi.mock("@/lib/db/schema", () => ({
+  gdriveFileCache: {
+    _name: "gdrive_file_cache",
+    portcoId: "portco_id",
+    gdriveFileId: "gdrive_file_id",
+  },
+}));
+
+vi.mock("drizzle-orm", () => ({
+  eq: vi.fn(),
+  sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }),
+  and: vi.fn(),
+  lt: vi.fn(),
+}));
+
 describe("scanner", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-    // Invalidate cache between tests by re-importing
-    const { invalidateFilesCache } = await import("./scanner");
-    invalidateFilesCache("portco-1");
   });
 
-  describe("listFilesPage", () => {
-    it("returns first page of files with hasMore=true when more exist", async () => {
-      mockGetDriveClient.mockResolvedValue({
-        drive: makeMockDrive(120),
-        folderId: "root-folder",
-      });
-
-      const { listFilesPage, invalidateFilesCache } = await import("./scanner");
-      invalidateFilesCache("portco-1");
-
-      const result = await listFilesPage("portco-1", 0, 50);
-      expect(result.files).toHaveLength(50);
-      expect(result.hasMore).toBe(true);
-    });
-
-    it("returns second page after first page (incomplete cache re-crawls)", async () => {
-      mockGetDriveClient.mockResolvedValue({
-        drive: makeMockDrive(120),
-        folderId: "root-folder",
-      });
-
-      const { listFilesPage, invalidateFilesCache } = await import("./scanner");
-      invalidateFilesCache("portco-1");
-
-      // Page 1
-      const page1 = await listFilesPage("portco-1", 0, 50);
-      expect(page1.files).toHaveLength(50);
-      expect(page1.hasMore).toBe(true);
-
-      // Page 2 — the key scenario that was broken
-      const page2 = await listFilesPage("portco-1", 50, 50);
-      expect(page2.files).toHaveLength(50);
-      expect(page2.hasMore).toBe(true);
-      // Files should be different from page 1
-      expect(page2.files[0].id).toBe("file-50");
-    });
-
-    it("returns third page with remaining files and hasMore=false when complete", async () => {
-      mockGetDriveClient.mockResolvedValue({
-        drive: makeMockDrive(120),
-        folderId: "root-folder",
-      });
-
-      const { listFilesPage, invalidateFilesCache } = await import("./scanner");
-      invalidateFilesCache("portco-1");
-
-      await listFilesPage("portco-1", 0, 50);
-      await listFilesPage("portco-1", 50, 50);
-      const page3 = await listFilesPage("portco-1", 100, 50);
-
-      expect(page3.files).toHaveLength(20);
-      expect(page3.hasMore).toBe(false);
-      expect(page3.total).toBe(120);
-    });
-
-    it("uses complete cache without re-crawling", async () => {
+  describe("listFilesRecursive", () => {
+    it("returns all files from GDrive", async () => {
       mockGetDriveClient.mockResolvedValue({
         drive: makeMockDrive(80),
         folderId: "root-folder",
       });
 
-      const { listFilesPage, listFilesRecursive, invalidateFilesCache } = await import("./scanner");
-      invalidateFilesCache("portco-1");
+      const { listFilesRecursive } = await import("./scanner");
+      const files = await listFilesRecursive("portco-1");
 
-      // Warm the full cache
-      await listFilesRecursive("portco-1");
-      const callsAfterWarm = mockGetDriveClient.mock.calls.length;
-
-      // Subsequent page requests should use cache
-      const page1 = await listFilesPage("portco-1", 0, 50);
-      const page2 = await listFilesPage("portco-1", 50, 50);
-
-      expect(page1.files).toHaveLength(50);
-      expect(page1.total).toBe(80);
-      expect(page2.files).toHaveLength(30);
-      expect(page2.hasMore).toBe(false);
-      // No additional getDriveClient calls
-      expect(mockGetDriveClient.mock.calls.length).toBe(callsAfterWarm);
+      expect(files).toHaveLength(80);
+      expect(files[0].id).toBe("file-0");
+      expect(files[79].id).toBe("file-79");
     });
 
-    it("returns empty files and hasMore=false when no drive configured", async () => {
+    it("returns empty array when no drive configured", async () => {
       mockGetDriveClient.mockResolvedValue(null);
 
-      const { listFilesPage, invalidateFilesCache } = await import("./scanner");
-      invalidateFilesCache("portco-1");
+      const { listFilesRecursive } = await import("./scanner");
+      const files = await listFilesRecursive("portco-1");
 
-      const result = await listFilesPage("portco-1", 0, 50);
-      expect(result.files).toHaveLength(0);
-      expect(result.hasMore).toBe(false);
+      expect(files).toHaveLength(0);
+    });
+
+    it("returns empty array when no folder configured", async () => {
+      mockGetDriveClient.mockResolvedValue({
+        drive: makeMockDrive(10),
+        folderId: null,
+      });
+
+      const { listFilesRecursive } = await import("./scanner");
+      const files = await listFilesRecursive("portco-1");
+
+      expect(files).toHaveLength(0);
     });
   });
 
-  describe("invalidateFilesCache", () => {
-    it("forces re-crawl after invalidation", async () => {
-      mockGetDriveClient.mockResolvedValue({
-        drive: makeMockDrive(10),
-        folderId: "root-folder",
-      });
+  describe("syncFilesToDb", () => {
+    it("inserts files into gdrive_file_cache table", async () => {
+      const { syncFilesToDb } = await import("./scanner");
+      const files = Array.from({ length: 5 }, (_, i) => makeFile(i));
 
-      const { listFilesPage, invalidateFilesCache } = await import("./scanner");
-      invalidateFilesCache("portco-1");
+      const result = await syncFilesToDb("portco-1", files);
 
-      await listFilesPage("portco-1", 0, 50);
-      const callsBefore = mockGetDriveClient.mock.calls.length;
+      expect(mockInsert).toHaveBeenCalled();
+      expect(result.upserted).toBe(5);
+    });
 
-      invalidateFilesCache("portco-1");
-      await listFilesPage("portco-1", 0, 50);
+    it("handles empty file list", async () => {
+      const { syncFilesToDb } = await import("./scanner");
 
-      // Should have called getDriveClient again after invalidation
-      expect(mockGetDriveClient.mock.calls.length).toBeGreaterThan(callsBefore);
+      const result = await syncFilesToDb("portco-1", []);
+
+      expect(mockInsert).not.toHaveBeenCalled();
+      expect(result.upserted).toBe(0);
+    });
+
+    it("batches large file lists", async () => {
+      const { syncFilesToDb } = await import("./scanner");
+      const files = Array.from({ length: 1200 }, (_, i) => makeFile(i));
+
+      const result = await syncFilesToDb("portco-1", files);
+
+      // 1200 files / 500 batch size = 3 batches
+      expect(mockInsert).toHaveBeenCalledTimes(3);
+      expect(result.upserted).toBe(1200);
+    });
+
+    it("deletes stale files after sync", async () => {
+      const { syncFilesToDb } = await import("./scanner");
+      const files = [makeFile(0)];
+
+      await syncFilesToDb("portco-1", files);
+
+      expect(mockDelete).toHaveBeenCalled();
     });
   });
 });

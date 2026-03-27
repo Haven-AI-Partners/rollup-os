@@ -1,4 +1,7 @@
 import { getDriveClient } from "./client";
+import { db } from "@/lib/db";
+import { gdriveFileCache } from "@/lib/db/schema";
+import { eq, sql, and, lt } from "drizzle-orm";
 
 export interface GDriveFileWithPath {
   id: string;
@@ -13,26 +16,7 @@ export interface GDriveFileWithPath {
 const MAX_DEPTH = 10;
 const MAX_FILES = 2000;
 const FOLDER_MIME = "application/vnd.google-apps.folder";
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-interface CacheEntry {
-  files: GDriveFileWithPath[];
-  complete: boolean;
-  timestamp: number;
-}
-
-const fileCache = new Map<string, CacheEntry>();
-
-/** Evict the cache for a portco (call after scan/reprocess) */
-export function invalidateFilesCache(portcoId: string) {
-  fileCache.delete(portcoId);
-}
-
-/** Check if a full crawl is already cached and fresh */
-export function isFileCacheFresh(portcoId: string): boolean {
-  const cached = fileCache.get(portcoId);
-  return Boolean(cached?.complete && Date.now() - cached.timestamp < CACHE_TTL_MS);
-}
+const UPSERT_BATCH_SIZE = 500;
 
 /**
  * Core BFS crawl. Stops after collecting `maxFiles` files.
@@ -101,62 +85,71 @@ async function crawlFiles(
 }
 
 /**
- * Get a page of files. Returns from cache if available,
- * otherwise does a minimal BFS crawl (just enough for this page).
- */
-export async function listFilesPage(
-  portcoId: string,
-  cursor: number,
-  limit: number,
-): Promise<{ files: GDriveFileWithPath[]; total: number | null; hasMore: boolean }> {
-  const cached = fileCache.get(portcoId);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    // Only use cache if it has enough files for this page, or crawl is complete
-    if (cached.complete || cursor + limit <= cached.files.length) {
-      const slice = cached.files.slice(cursor, cursor + limit);
-      return {
-        files: slice,
-        total: cached.complete ? cached.files.length : null,
-        hasMore: cached.complete
-          ? cursor + limit < cached.files.length
-          : true,
-      };
-    }
-    // Cache is incomplete and doesn't have enough files — fall through to crawl more
-  }
-
-  // No usable cache — crawl just enough for this page
-  const needed = cursor + limit;
-  const { files, complete } = await crawlFiles(portcoId, needed);
-
-  // Update cache — but don't overwrite a more complete cache from the background crawl
-  const existing = fileCache.get(portcoId);
-  if (!existing || files.length >= existing.files.length) {
-    fileCache.set(portcoId, { files, complete, timestamp: Date.now() });
-  }
-
-  const slice = files.slice(cursor, cursor + limit);
-  return {
-    files: slice,
-    total: complete ? files.length : null,
-    hasMore: !complete || cursor + limit < files.length,
-  };
-}
-
-/**
- * Full recursive crawl. Used for background cache warming and
- * by other callers (scan folder, reprocess, etc.).
- * Results are cached in-memory for CACHE_TTL_MS.
+ * Full recursive crawl of GDrive. Used by scan tasks.
  */
 export async function listFilesRecursive(
   portcoId: string,
 ): Promise<GDriveFileWithPath[]> {
-  const cached = fileCache.get(portcoId);
-  if (cached?.complete && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached.files;
+  const { files } = await crawlFiles(portcoId, MAX_FILES);
+  return files;
+}
+
+/**
+ * Crawl GDrive and upsert all discovered files into the gdrive_file_cache table.
+ * Removes rows for files no longer present in GDrive (lastSeenAt < scan start).
+ */
+export async function syncFilesToDb(
+  portcoId: string,
+  files: GDriveFileWithPath[],
+): Promise<{ upserted: number; removed: number }> {
+  const scanStart = new Date();
+  let upserted = 0;
+
+  // Batch upsert
+  for (let i = 0; i < files.length; i += UPSERT_BATCH_SIZE) {
+    const batch = files.slice(i, i + UPSERT_BATCH_SIZE);
+    const values = batch.map((f) => ({
+      portcoId,
+      gdriveFileId: f.id,
+      fileName: f.name,
+      mimeType: f.mimeType,
+      sizeBytes: f.size ? Number(f.size) : null,
+      modifiedTime: f.modifiedTime ? new Date(f.modifiedTime) : null,
+      webViewLink: f.webViewLink,
+      parentPath: f.parentPath,
+      lastSeenAt: scanStart,
+    }));
+
+    await db
+      .insert(gdriveFileCache)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [gdriveFileCache.portcoId, gdriveFileCache.gdriveFileId],
+        set: {
+          fileName: sql`EXCLUDED.file_name`,
+          mimeType: sql`EXCLUDED.mime_type`,
+          sizeBytes: sql`EXCLUDED.size_bytes`,
+          modifiedTime: sql`EXCLUDED.modified_time`,
+          webViewLink: sql`EXCLUDED.web_view_link`,
+          parentPath: sql`EXCLUDED.parent_path`,
+          lastSeenAt: sql`EXCLUDED.last_seen_at`,
+        },
+      });
+
+    upserted += batch.length;
   }
 
-  const { files, complete } = await crawlFiles(portcoId, MAX_FILES);
-  fileCache.set(portcoId, { files, complete, timestamp: Date.now() });
-  return files;
+  // Remove files no longer in GDrive (not seen in this scan)
+  const removeResult = await db
+    .delete(gdriveFileCache)
+    .where(
+      and(
+        eq(gdriveFileCache.portcoId, portcoId),
+        lt(gdriveFileCache.lastSeenAt, scanStart),
+      ),
+    ) as unknown as { rowCount?: number };
+
+  const removed = removeResult.rowCount ?? 0;
+
+  return { upserted, removed };
 }

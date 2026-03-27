@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth, getUserPortcoRole } from "@/lib/auth";
-import { listFilesPage, listFilesRecursive, isFileCacheFresh } from "@/lib/gdrive/scanner";
+import { listFilesRecursive, syncFilesToDb } from "@/lib/gdrive/scanner";
 import { db } from "@/lib/db";
-import { files as filesTable, portcos } from "@/lib/db/schema";
-import { inArray, eq } from "drizzle-orm";
+import {
+  files as filesTable,
+  portcos,
+  gdriveFileCache,
+} from "@/lib/db/schema";
+import { inArray, eq, desc, count, sql } from "drizzle-orm";
 
 const PAGE_SIZE = 50;
 
@@ -38,15 +42,48 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ files: [], nextCursor: null, total: 0 });
     }
 
-    // Fetch only the files needed for this page (fast on cache miss)
-    const { files: pageFiles, total, hasMore } = await listFilesPage(portcoId, cursor, limit);
+    // Query cached files from DB (fast ~50ms instead of BFS crawl)
+    const [cachedFiles, [totalResult]] = await Promise.all([
+      db
+        .select()
+        .from(gdriveFileCache)
+        .where(eq(gdriveFileCache.portcoId, portcoId))
+        .orderBy(desc(gdriveFileCache.modifiedTime))
+        .offset(cursor)
+        .limit(limit),
+      db
+        .select({ count: count() })
+        .from(gdriveFileCache)
+        .where(eq(gdriveFileCache.portcoId, portcoId)),
+    ]);
 
-    // Warm the full cache in the background if not already cached
-    if (!isFileCacheFresh(portcoId)) {
+    const total = totalResult?.count ?? 0;
+
+    // Bootstrap: if cache is empty, trigger background sync
+    if (total === 0) {
       after(async () => {
-        await listFilesRecursive(portcoId);
+        const allFiles = await listFilesRecursive(portcoId);
+        await syncFilesToDb(portcoId, allFiles);
+      });
+      return NextResponse.json({
+        files: [],
+        processedMap: {},
+        nextCursor: null,
+        total: 0,
+        syncing: true,
       });
     }
+
+    // Map cached rows to the GDriveFile shape the frontend expects
+    const pageFiles = cachedFiles.map((row) => ({
+      id: row.gdriveFileId,
+      name: row.fileName,
+      mimeType: row.mimeType,
+      size: row.sizeBytes != null ? String(row.sizeBytes) : null,
+      modifiedTime: row.modifiedTime?.toISOString() ?? null,
+      webViewLink: row.webViewLink,
+      parentPath: row.parentPath,
+    }));
 
     // Cross-reference with DB for processing status
     const gdriveIds = pageFiles.map((f) => f.id).filter(Boolean);
@@ -75,6 +112,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const hasMore = cursor + limit < total;
     const nextCursor = hasMore ? cursor + limit : null;
 
     return NextResponse.json({

@@ -39,6 +39,7 @@ export interface PageData {
   processedMap: Record<string, ProcessedInfo>;
   nextCursor: number | null;
   total: number | null;
+  syncing?: boolean;
 }
 
 interface VirtualFilesListProps {
@@ -123,6 +124,7 @@ export function VirtualFilesList({
   const [total, setTotal] = useState<number | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [hasInitialLoad, setHasInitialLoad] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [activeTypeFilters, setActiveTypeFilters] = useState<Set<string>>(new Set(["im_pdf"]));
 
   const parentRef = useRef<HTMLDivElement>(null);
@@ -151,6 +153,8 @@ export function VirtualFilesList({
     overscan: OVERSCAN,
   });
 
+  const syncRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fetchPage = useCallback(async (cursor: number) => {
     if (isFetching) return;
 
@@ -162,6 +166,15 @@ export function VirtualFilesList({
       if (!res.ok) return;
 
       const data: PageData = await res.json();
+
+      if (data.syncing) {
+        // Background sync in progress — retry after a short delay
+        setIsSyncing(true);
+        syncRetryRef.current = setTimeout(() => fetchPage(0), 3000);
+        return;
+      }
+
+      setIsSyncing(false);
       setFiles((prev) => cursor === 0 ? data.files : [...prev, ...data.files]);
       setProcessedMap((prev) => cursor === 0 ? data.processedMap : { ...prev, ...data.processedMap });
       setNextCursor(data.nextCursor);
@@ -173,6 +186,13 @@ export function VirtualFilesList({
       setHasInitialLoad(true);
     }
   }, [isFetching, portcoId]);
+
+  // Clean up sync retry timer on unmount
+  useEffect(() => {
+    return () => {
+      if (syncRetryRef.current) clearTimeout(syncRetryRef.current);
+    };
+  }, []);
 
   // Fetch the first page on mount
   useEffect(() => {
@@ -192,10 +212,15 @@ export function VirtualFilesList({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [virtualizer.getVirtualItems(), filteredFiles.length, nextCursor, isFetching]);
 
-  if (!hasInitialLoad) {
+  if (!hasInitialLoad || isSyncing) {
     return (
-      <div className="flex justify-center py-12">
+      <div className="flex flex-col items-center gap-2 py-12">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        {isSyncing && (
+          <p className="text-sm text-muted-foreground">
+            Syncing files from Google Drive...
+          </p>
+        )}
       </div>
     );
   }

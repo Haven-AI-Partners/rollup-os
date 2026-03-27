@@ -15,3 +15,4 @@ export * from "./evals";
 export * from "./company-employees";
 export * from "./discovery";
 export * from "./deal-thesis";
+export * from "./gdrive-cache";
