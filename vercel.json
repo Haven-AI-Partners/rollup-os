@@ -3,9 +3,7 @@
   "framework": "nextjs",
   "regions": ["hnd1"],
   "git": {
-    "deploymentEnabled": {
-      "main": true
-    }
+    "deploymentEnabled": false
   },
   "headers": [
     {
