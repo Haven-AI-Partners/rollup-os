@@ -116,8 +116,9 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      {/* Toolbar — stacks on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search deals..."
@@ -126,25 +127,28 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
             className="pl-9"
           />
         </div>
-        <Select value={stageFilter} onValueChange={setStageFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All stages" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All stages</SelectItem>
-            {stages.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} deal{filtered.length !== 1 ? "s" : ""}
-        </span>
+        <div className="flex items-center gap-2">
+          <Select value={stageFilter} onValueChange={setStageFilter}>
+            <SelectTrigger className="w-[140px] sm:w-[180px]">
+              <SelectValue placeholder="All stages" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All stages</SelectItem>
+              {stages.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {filtered.length} deal{filtered.length !== 1 ? "s" : ""}
+          </span>
+        </div>
       </div>
 
-      <div className="rounded-md border">
+      {/* Desktop: table layout */}
+      <div className="hidden sm:block rounded-md border">
         {/* Header */}
         <div className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-2 border-b bg-muted/50">
           {sortHeader("companyName", "Company")}
@@ -219,6 +223,73 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
                     </span>
                   ) : (
                     <span className="text-xs text-muted-foreground">--</span>
+                  )}
+                </div>
+              </Link>
+            );
+          })
+        )}
+      </div>
+
+      {/* Mobile: card layout */}
+      <div className="sm:hidden space-y-2">
+        {filtered.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground rounded-md border">
+            {query || stageFilter !== "all" ? "No deals match your filters." : "No deals yet."}
+          </div>
+        ) : (
+          filtered.map((deal) => {
+            const stage = stageMap.get(deal.stageId);
+            return (
+              <Link
+                key={deal.id}
+                href={`/${portcoSlug}/pipeline/${deal.id}/overview`}
+                className="block rounded-md border p-3 hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{deal.companyName}</div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      {deal.industry && (
+                        <span className="text-xs text-muted-foreground truncate">
+                          {deal.industry}
+                        </span>
+                      )}
+                      {deal.location && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                          {deal.location}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  {stage && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] shrink-0"
+                      style={stage.color ? { borderColor: stage.color, color: stage.color } : undefined}
+                    >
+                      {stage.name}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                  {deal.aiScore && (
+                    <span className="flex items-center gap-1">
+                      <Star className="size-3 text-amber-500 fill-amber-500" />
+                      {Number(deal.aiScore).toFixed(1)}
+                    </span>
+                  )}
+                  {deal.revenue && (
+                    <span>Rev {formatCurrency(deal.revenue, deal.currency)}</span>
+                  )}
+                  {deal.ebitda && (
+                    <span>EBITDA {formatCurrency(deal.ebitda, deal.currency)}</span>
+                  )}
+                  {deal.redFlagCount > 0 && (
+                    <span className="flex items-center gap-1 text-red-600">
+                      <AlertTriangle className="size-3" />
+                      {deal.redFlagCount}
+                    </span>
                   )}
                 </div>
               </Link>
