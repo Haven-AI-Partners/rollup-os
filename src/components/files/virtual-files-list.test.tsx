@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { VirtualFilesList, type GDriveFile, type ProcessedInfo, type PageData } from "./virtual-files-list";
 
 // Mock ProcessGdriveFileButton since it has server action dependencies
@@ -238,6 +238,151 @@ describe("VirtualFilesList", () => {
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining("portcoId=my-portco-123"),
       );
+    });
+  });
+
+  describe("file type filter pills", () => {
+    it("renders filter pills for classified file types", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "IM.pdf" }),
+          makeFile({ id: "f2", name: "NDA.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda" },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      });
+
+      // Filter pills should be rendered
+      expect(screen.getByRole("button", { name: /^IM/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^NDA/ })).toBeInTheDocument();
+    });
+
+    it("filters files when a pill is clicked", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "IM.pdf" }),
+          makeFile({ id: "f2", name: "NDA.pdf" }),
+          makeFile({ id: "f3", name: "Other.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda" },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      });
+
+      // Click the IM pill to filter
+      fireEvent.click(screen.getByRole("button", { name: /^IM/ }));
+
+      // Only IM file should remain
+      expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      expect(screen.queryByText("NDA.pdf")).not.toBeInTheDocument();
+      expect(screen.queryByText("Other.pdf")).not.toBeInTheDocument();
+
+      // "Clear" button should appear
+      expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
+    });
+
+    it("shows Unclassified pill for files without a type", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "IM.pdf" }),
+          makeFile({ id: "f2", name: "Unknown.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole("button", { name: /^Unclassified/ })).toBeInTheDocument();
+    });
+
+    it("clears filters when Clear button is clicked", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "IM.pdf" }),
+          makeFile({ id: "f2", name: "NDA.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda" },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      });
+
+      // Activate a filter
+      fireEvent.click(screen.getByRole("button", { name: /^IM/ }));
+      expect(screen.queryByText("NDA.pdf")).not.toBeInTheDocument();
+
+      // Clear the filter
+      fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+      // All files should be visible again
+      expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      expect(screen.getByText("NDA.pdf")).toBeInTheDocument();
+    });
+
+    it("allows multiple pills to be toggled", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "IM.pdf" }),
+          makeFile({ id: "f2", name: "NDA.pdf" }),
+          makeFile({ id: "f3", name: "Report.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda" },
+          "f3": { status: "completed", dealId: "d3", fileType: "report" },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      });
+
+      // Toggle IM and NDA
+      fireEvent.click(screen.getByRole("button", { name: /^IM/ }));
+      fireEvent.click(screen.getByRole("button", { name: /^NDA/ }));
+
+      expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      expect(screen.getByText("NDA.pdf")).toBeInTheDocument();
+      expect(screen.queryByText("Report.pdf")).not.toBeInTheDocument();
     });
   });
 });

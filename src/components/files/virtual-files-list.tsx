@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,13 @@ interface VirtualFilesListProps {
 
 const ROW_HEIGHT = 64;
 const OVERSCAN = 5;
+const UNCLASSIFIED_KEY = "unclassified";
+
+const FILE_TYPE_PILL_ORDER = [
+  "im_pdf", "nda", "loi", "purchase_agreement",
+  "dd_financial", "dd_legal", "dd_operational", "dd_tax", "dd_hr", "dd_it",
+  "report", "attachment", "pmi_plan", "pmi_report", "other",
+];
 
 const mimeIcons: Record<string, typeof FileText> = {
   "application/pdf": FileText,
@@ -116,11 +123,29 @@ export function VirtualFilesList({
   const [total, setTotal] = useState<number | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [hasInitialLoad, setHasInitialLoad] = useState(false);
+  const [activeTypeFilters, setActiveTypeFilters] = useState<Set<string>>(new Set());
 
   const parentRef = useRef<HTMLDivElement>(null);
 
+  const typeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const file of files) {
+      const fileType = processedMap[file.id]?.fileType ?? UNCLASSIFIED_KEY;
+      counts.set(fileType, (counts.get(fileType) ?? 0) + 1);
+    }
+    return counts;
+  }, [files, processedMap]);
+
+  const filteredFiles = useMemo(() => {
+    if (activeTypeFilters.size === 0) return files;
+    return files.filter((file) => {
+      const fileType = processedMap[file.id]?.fileType ?? UNCLASSIFIED_KEY;
+      return activeTypeFilters.has(fileType);
+    });
+  }, [files, processedMap, activeTypeFilters]);
+
   const virtualizer = useVirtualizer({
-    count: files.length,
+    count: filteredFiles.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: OVERSCAN,
@@ -161,11 +186,11 @@ export function VirtualFilesList({
     if (items.length === 0 || nextCursor === null || isFetching) return;
 
     const lastItem = items[items.length - 1];
-    if (lastItem.index >= files.length - 10) {
+    if (lastItem.index >= filteredFiles.length - 10) {
       fetchPage(nextCursor);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [virtualizer.getVirtualItems(), files.length, nextCursor, isFetching]);
+  }, [virtualizer.getVirtualItems(), filteredFiles.length, nextCursor, isFetching]);
 
   if (!hasInitialLoad) {
     return (
@@ -189,8 +214,77 @@ export function VirtualFilesList({
   return (
     <div>
       <p className="text-xs text-muted-foreground mb-2">
-        Showing {files.length} of {total ?? "..."} files
+        Showing {filteredFiles.length}{activeTypeFilters.size > 0 ? " (filtered)" : ""} of {total ?? "..."} files
       </p>
+      {typeCounts.size > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          {FILE_TYPE_PILL_ORDER
+            .filter((type) => typeCounts.has(type))
+            .concat(
+              [...typeCounts.keys()].filter(
+                (k) => k !== UNCLASSIFIED_KEY && !FILE_TYPE_PILL_ORDER.includes(k),
+              ),
+            )
+            .map((type) => {
+              const isActive = activeTypeFilters.has(type);
+              return (
+                <Button
+                  key={type}
+                  variant={isActive ? "default" : "outline"}
+                  size="xs"
+                  onClick={() => {
+                    setActiveTypeFilters((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(type)) {
+                        next.delete(type);
+                      } else {
+                        next.add(type);
+                      }
+                      return next;
+                    });
+                  }}
+                  className="rounded-full"
+                >
+                  {FILE_TYPE_LABELS[type] ?? type}
+                  <span className="ml-1 text-[10px] opacity-70">{typeCounts.get(type)}</span>
+                </Button>
+              );
+            })}
+          {typeCounts.has(UNCLASSIFIED_KEY) && (
+            <Button
+              variant={activeTypeFilters.has(UNCLASSIFIED_KEY) ? "default" : "outline"}
+              size="xs"
+              onClick={() => {
+                setActiveTypeFilters((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(UNCLASSIFIED_KEY)) {
+                    next.delete(UNCLASSIFIED_KEY);
+                  } else {
+                    next.add(UNCLASSIFIED_KEY);
+                  }
+                  return next;
+                });
+              }}
+              className="rounded-full"
+            >
+              Unclassified
+              <span className="ml-1 text-[10px] opacity-70">
+                {typeCounts.get(UNCLASSIFIED_KEY)}
+              </span>
+            </Button>
+          )}
+          {activeTypeFilters.size > 0 && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => setActiveTypeFilters(new Set())}
+              className="text-muted-foreground"
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+      )}
       <div
         ref={parentRef}
         className="h-[calc(100vh-220px)] overflow-auto"
@@ -203,7 +297,7 @@ export function VirtualFilesList({
           }}
         >
           {virtualizer.getVirtualItems().map((virtualRow) => {
-            const file = files[virtualRow.index];
+            const file = filteredFiles[virtualRow.index];
             if (!file) return null;
 
             const Icon = mimeIcons[file.mimeType] ?? FileText;
