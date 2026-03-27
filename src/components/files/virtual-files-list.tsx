@@ -123,7 +123,7 @@ export function VirtualFilesList({
   const [total, setTotal] = useState<number | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [hasInitialLoad, setHasInitialLoad] = useState(false);
-  const [activeTypeFilters, setActiveTypeFilters] = useState<Set<string>>(new Set());
+  const [activeTypeFilters, setActiveTypeFilters] = useState<Set<string>>(new Set(["im_pdf"]));
 
   const parentRef = useRef<HTMLDivElement>(null);
 

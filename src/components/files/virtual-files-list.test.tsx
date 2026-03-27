@@ -41,7 +41,7 @@ function makeFile(overrides: Partial<GDriveFile> = {}): GDriveFile {
 
 function mockFetchResponse(
   files: GDriveFile[] = [makeFile()],
-  processedMap: Record<string, ProcessedInfo> = {},
+  processedMap: Record<string, ProcessedInfo> = { "file-1": { status: "completed", dealId: "d1", fileType: "im_pdf" } },
   nextCursor: number | null = null,
 ) {
   const data: PageData = {
@@ -96,7 +96,7 @@ describe("VirtualFilesList", () => {
   });
 
   it("shows file count summary", async () => {
-    mockFetchResponse([makeFile()], {}, null);
+    mockFetchResponse([makeFile()], undefined, null);
 
     render(
       <VirtualFilesList
@@ -107,7 +107,7 @@ describe("VirtualFilesList", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Showing 1 of 1 files")).toBeInTheDocument();
+      expect(screen.getByText("Showing 1 (filtered) of 1 files")).toBeInTheDocument();
     });
   });
 
@@ -147,7 +147,10 @@ describe("VirtualFilesList", () => {
   });
 
   it("shows process button for admins on PDF files", async () => {
-    mockFetchResponse([makeFile({ mimeType: "application/pdf" })]);
+    mockFetchResponse(
+      [makeFile({ mimeType: "application/pdf" })],
+      { "file-1": { status: "pending", dealId: null, fileType: "im_pdf" } },
+    );
 
     render(
       <VirtualFilesList
@@ -163,7 +166,10 @@ describe("VirtualFilesList", () => {
   });
 
   it("hides process button for non-admins", async () => {
-    mockFetchResponse([makeFile({ mimeType: "application/pdf" })]);
+    mockFetchResponse(
+      [makeFile({ mimeType: "application/pdf" })],
+      { "file-1": { status: "pending", dealId: null, fileType: "im_pdf" } },
+    );
 
     render(
       <VirtualFilesList
@@ -206,7 +212,11 @@ describe("VirtualFilesList", () => {
       makeFile({ id: "f3", name: "File C.pdf" }),
     ];
 
-    mockFetchResponse(files);
+    mockFetchResponse(files, {
+      "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
+      "f2": { status: "completed", dealId: "d2", fileType: "im_pdf" },
+      "f3": { status: "completed", dealId: "d3", fileType: "im_pdf" },
+    });
 
     render(
       <VirtualFilesList
@@ -267,7 +277,34 @@ describe("VirtualFilesList", () => {
       expect(screen.getByRole("button", { name: /^NDA/ })).toBeInTheDocument();
     });
 
-    it("filters files when a pill is clicked", async () => {
+    it("defaults to IM filter active", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "IM.pdf" }),
+          makeFile({ id: "f2", name: "NDA.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda" },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      });
+
+      // IM is active by default, so NDA should be hidden
+      expect(screen.queryByText("NDA.pdf")).not.toBeInTheDocument();
+
+      // Clear button should be visible since IM filter is active
+      expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
+    });
+
+    it("filters files when a pill is toggled", async () => {
       mockFetchResponse(
         [
           makeFile({ id: "f1", name: "IM.pdf" }),
@@ -288,16 +325,13 @@ describe("VirtualFilesList", () => {
         expect(screen.getByText("IM.pdf")).toBeInTheDocument();
       });
 
-      // Click the IM pill to filter
+      // Toggle IM off, toggle NDA on — should show only NDA
       fireEvent.click(screen.getByRole("button", { name: /^IM/ }));
+      fireEvent.click(screen.getByRole("button", { name: /^NDA/ }));
 
-      // Only IM file should remain
-      expect(screen.getByText("IM.pdf")).toBeInTheDocument();
-      expect(screen.queryByText("NDA.pdf")).not.toBeInTheDocument();
+      expect(screen.queryByText("IM.pdf")).not.toBeInTheDocument();
+      expect(screen.getByText("NDA.pdf")).toBeInTheDocument();
       expect(screen.queryByText("Other.pdf")).not.toBeInTheDocument();
-
-      // "Clear" button should appear
-      expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
     });
 
     it("shows Unclassified pill for files without a type", async () => {
@@ -339,22 +373,20 @@ describe("VirtualFilesList", () => {
       );
 
       await waitFor(() => {
+        // IM is active by default, so only IM.pdf visible
         expect(screen.getByText("IM.pdf")).toBeInTheDocument();
       });
-
-      // Activate a filter
-      fireEvent.click(screen.getByRole("button", { name: /^IM/ }));
       expect(screen.queryByText("NDA.pdf")).not.toBeInTheDocument();
 
-      // Clear the filter
+      // Clear the default filter
       fireEvent.click(screen.getByRole("button", { name: "Clear" }));
 
-      // All files should be visible again
+      // All files should be visible
       expect(screen.getByText("IM.pdf")).toBeInTheDocument();
       expect(screen.getByText("NDA.pdf")).toBeInTheDocument();
     });
 
-    it("allows multiple pills to be toggled", async () => {
+    it("allows multiple pills to be toggled simultaneously", async () => {
       mockFetchResponse(
         [
           makeFile({ id: "f1", name: "IM.pdf" }),
@@ -373,11 +405,11 @@ describe("VirtualFilesList", () => {
       );
 
       await waitFor(() => {
+        // IM active by default
         expect(screen.getByText("IM.pdf")).toBeInTheDocument();
       });
 
-      // Toggle IM and NDA
-      fireEvent.click(screen.getByRole("button", { name: /^IM/ }));
+      // Add NDA to active filters (IM + NDA both active)
       fireEvent.click(screen.getByRole("button", { name: /^NDA/ }));
 
       expect(screen.getByText("IM.pdf")).toBeInTheDocument();
