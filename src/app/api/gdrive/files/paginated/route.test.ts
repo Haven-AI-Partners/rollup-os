@@ -57,7 +57,7 @@ vi.mock("@/lib/db", () => {
 });
 
 vi.mock("@/lib/db/schema", () => ({
-  files: { _name: "files", gdriveFileId: "gdriveFileId", processingStatus: "processingStatus", dealId: "dealId" },
+  files: { _name: "files", gdriveFileId: "gdriveFileId", processingStatus: "processingStatus", dealId: "dealId", fileType: "fileType" },
   portcos: { _name: "portcos", gdriveServiceAccountEnc: "gdriveServiceAccountEnc", id: "id" },
 }));
 

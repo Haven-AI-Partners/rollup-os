@@ -109,9 +109,7 @@ export async function scanClassifyAndProcess(
     : [];
 
   const existingSet = new Set(
-    existingFiles
-      .filter((f) => f.processingStatus === "completed")
-      .map((f) => f.gdriveFileId),
+    existingFiles.map((f) => f.gdriveFileId),
   );
 
   const newPdfs = pdfs.filter((f) => !existingSet.has(f.id));

@@ -31,6 +31,7 @@ export interface GDriveFile {
 export interface ProcessedInfo {
   status: string;
   dealId: string | null;
+  fileType: string | null;
 }
 
 export interface PageData {
@@ -68,6 +69,24 @@ function getMimeLabel(mimeType: string) {
   if (mimeType.startsWith("image/")) return "Image";
   return mimeType.split("/").pop() ?? "File";
 }
+
+const FILE_TYPE_LABELS: Record<string, string> = {
+  im_pdf: "IM",
+  report: "Report",
+  attachment: "Attachment",
+  nda: "NDA",
+  dd_financial: "DD Financial",
+  dd_legal: "DD Legal",
+  dd_operational: "DD Operational",
+  dd_tax: "DD Tax",
+  dd_hr: "DD HR",
+  dd_it: "DD IT",
+  loi: "LOI",
+  purchase_agreement: "Purchase Agreement",
+  pmi_plan: "PMI Plan",
+  pmi_report: "PMI Report",
+  other: "Other",
+};
 
 function formatBytes(bytes: string | null) {
   if (!bytes) return null;
@@ -234,6 +253,11 @@ export function VirtualFilesList({
                         )}
                       </div>
                     </div>
+                    {processed?.fileType && (
+                      <Badge variant="secondary" className="text-[10px] shrink-0">
+                        {FILE_TYPE_LABELS[processed.fileType] ?? processed.fileType}
+                      </Badge>
+                    )}
                     {processed?.status === "completed" ? (
                       <div className="flex items-center gap-2 shrink-0">
                         <Link href={`/${portcoSlug}/pipeline/${processed.dealId}`}>
