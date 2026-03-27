@@ -130,7 +130,7 @@ describe("VirtualFilesList", () => {
   it("shows processed badge for completed files", async () => {
     mockFetchResponse(
       [makeFile()],
-      { "file-1": { status: "completed", dealId: "deal-1" } },
+      { "file-1": { status: "completed", dealId: "deal-1", fileType: "im_pdf" } },
     );
 
     render(
