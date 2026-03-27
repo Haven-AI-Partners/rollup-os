@@ -16,3 +16,4 @@ export * from "./company-employees";
 export * from "./discovery";
 export * from "./deal-thesis";
 export * from "./gdrive-cache";
+export * from "./gdrive-scan-folders";

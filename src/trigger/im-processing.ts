@@ -1,7 +1,7 @@
 import { task, logger, metadata, schedules, tasks } from "@trigger.dev/sdk";
-import { processIM, scanAndProcessFolder, reprocessAllFiles, processSingleGdriveFile, MODEL_ID } from "@/lib/agents/im-processor";
+import { processIM, reprocessAllFiles, processSingleGdriveFile, MODEL_ID } from "@/lib/agents/im-processor";
 import { runEval } from "@/lib/agents/im-processor/eval";
-import { scanClassifyAndProcess } from "@/lib/agents/scan-orchestrator";
+import { scanClassifyAndProcessIncremental } from "@/lib/agents/scan-orchestrator";
 import { processDDDocument } from "@/lib/agents/dd-processor";
 import { autoGenerateThesisTree } from "@/lib/actions/thesis";
 import { db } from "@/lib/db";
@@ -58,7 +58,10 @@ export const processIMTask = task({
   },
 });
 
-/** Scan GDrive folder and process all new IMs */
+/** Time budget for incremental scan (8 minutes, leaving 2 min buffer) */
+const INCREMENTAL_SCAN_BUDGET_MS = 480_000;
+
+/** Scan GDrive folder incrementally and process new IMs */
 export const scanFolderTask = task({
   id: "scan-gdrive-folder",
   maxDuration: 600, // 10 minutes for batch
@@ -66,30 +69,21 @@ export const scanFolderTask = task({
     maxAttempts: 1,
   },
   run: async (payload: { portcoId: string }) => {
-    logger.info("Scanning GDrive folder", { portcoId: payload.portcoId });
+    logger.info("Scanning GDrive folder (incremental)", { portcoId: payload.portcoId });
 
-    const result = await scanAndProcessFolder(payload.portcoId);
+    const result = await scanClassifyAndProcessIncremental(
+      payload.portcoId,
+      INCREMENTAL_SCAN_BUDGET_MS,
+    );
 
-    logger.info("Folder scan complete", {
-      totalFiles: result.totalFiles,
+    logger.info("Incremental scan complete", {
       newFiles: result.newFiles,
-      processed: result.processed,
+      classified: result.classified,
+      imsRouted: result.imsRouted,
+      ddRouted: result.ddRouted,
       failed: result.failed,
-      skipped: result.skipped,
+      scanComplete: result.scanComplete,
     });
-
-    // Trigger thesis tree generation for each new deal
-    const newDeals = result.results
-      .filter((r) => r.status === "processed" && r.dealId && r.isNewDeal);
-    for (const r of newDeals) {
-      await tasks.trigger<typeof generateThesisTreeTask>("generate-thesis-tree", {
-        dealId: r.dealId!,
-        portcoId: payload.portcoId,
-      });
-    }
-    if (newDeals.length > 0) {
-      logger.info(`Triggered thesis tree generation for ${newDeals.length} new deal(s)`);
-    }
 
     return result;
   },
@@ -167,19 +161,22 @@ export const reprocessAllTask = task({
   },
 });
 
-/** Scheduled: scan all GDrive-connected portcos for new IMs every 15 minutes */
+/**
+ * Scheduled: fan out incremental GDrive scans for each connected portco.
+ * Each portco gets its own `scan-gdrive-folder` child task with a full 10-min window,
+ * instead of sharing a single 10-min window across all portcos.
+ */
 export const scheduledGdriveScanTask = schedules.task({
   id: "scheduled-gdrive-scan",
   cron: {
     pattern: "*/15 * * * *",
     timezone: "Asia/Tokyo",
   },
-  maxDuration: 600,
+  maxDuration: 120, // Only needs to trigger child tasks, not do the scanning
   retry: {
     maxAttempts: 1,
   },
   run: async () => {
-    // Find all portcos with GDrive connected
     const connectedPortcos = await db
       .select({ id: portcos.id, name: portcos.name })
       .from(portcos)
@@ -192,35 +189,27 @@ export const scheduledGdriveScanTask = schedules.task({
 
     if (connectedPortcos.length === 0) {
       logger.info("No portcos with GDrive connected, skipping");
-      return { scanned: 0, results: [] };
+      return { scanned: 0, triggered: [] };
     }
 
-    logger.info(`Scanning ${connectedPortcos.length} portco(s) for new IMs`);
+    logger.info(`Triggering incremental scans for ${connectedPortcos.length} portco(s)`);
 
-    const settled = await Promise.allSettled(
-      connectedPortcos.map(async (portco) => {
-        const result = await scanClassifyAndProcess(portco.id);
-        logger.info(`Scan complete for ${portco.name}`, {
-          newFiles: result.newFiles,
-          classified: result.classified,
-          imsRouted: result.imsRouted,
-          ddRouted: result.ddRouted,
-          failed: result.failed,
+    const triggered: Array<{ portcoId: string; name: string }> = [];
+    for (const portco of connectedPortcos) {
+      try {
+        await tasks.trigger<typeof scanFolderTask>("scan-gdrive-folder", {
+          portcoId: portco.id,
         });
-        return { portcoId: portco.id, name: portco.name, ...result };
-      })
-    );
+        triggered.push({ portcoId: portco.id, name: portco.name });
+        logger.info(`Triggered scan for ${portco.name}`);
+      } catch (e) {
+        logger.error(`Failed to trigger scan for ${portco.name}`, {
+          error: e instanceof Error ? e.message : "Unknown error",
+        });
+      }
+    }
 
-    const results = settled.map((s, i) => {
-      if (s.status === "fulfilled") return s.value;
-      const portco = connectedPortcos[i];
-      logger.error(`Scan failed for ${portco.name}`, {
-        error: s.reason instanceof Error ? s.reason.message : "Unknown error",
-      });
-      return { portcoId: portco.id, name: portco.name, error: true };
-    });
-
-    return { scanned: connectedPortcos.length, results };
+    return { scanned: connectedPortcos.length, triggered };
   },
 });
 

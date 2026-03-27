@@ -2,7 +2,8 @@ import { db } from "@/lib/db";
 import { files, deals } from "@/lib/db/schema";
 import { eq, inArray, and, sql } from "drizzle-orm";
 import { tasks } from "@trigger.dev/sdk";
-import { crawlAndSyncFiles } from "@/lib/gdrive/scanner";
+import { crawlAndSyncFiles, crawlFoldersIncremental } from "@/lib/gdrive/scanner";
+import { gdriveFileCache } from "@/lib/db/schema";
 import { classifyFile } from "./file-classifier";
 import { processDDDocument } from "./dd-processor";
 import type { FileType } from "@/lib/db/schema/files";
@@ -280,5 +281,230 @@ export async function scanClassifyAndProcess(
     skipped: pdfs.length - newPdfs.length,
     failed,
     results,
+  };
+}
+
+/** Time budget split: 60% crawl, 40% classify */
+const CRAWL_BUDGET_RATIO = 0.6;
+
+/**
+ * Incremental version of scanClassifyAndProcess that works within a time budget.
+ *
+ * Instead of crawling the entire GDrive tree in one pass, this uses
+ * `crawlFoldersIncremental()` to scan folders one at a time with DB-backed
+ * checkpointing. New PDFs discovered in the cache are then classified and routed.
+ *
+ * Safe to call repeatedly — each invocation picks up where the last one left off.
+ */
+export async function scanClassifyAndProcessIncremental(
+  portcoId: string,
+  timeBudgetMs: number,
+): Promise<ScanClassifyResult & { scanComplete: boolean }> {
+  const startTime = Date.now();
+
+  // 1. Crawl folders incrementally (with ~60% of the time budget)
+  const crawlBudget = Math.floor(timeBudgetMs * CRAWL_BUDGET_RATIO);
+  const scanResult = await crawlFoldersIncremental(portcoId, crawlBudget);
+
+  // 2. Query new PDFs from the cache that aren't yet in the files table.
+  //    This is DB-driven rather than in-memory, so it works across multiple runs.
+  const cachedPdfs = await db
+    .select({
+      gdriveFileId: gdriveFileCache.gdriveFileId,
+      fileName: gdriveFileCache.fileName,
+      mimeType: gdriveFileCache.mimeType,
+      sizeBytes: gdriveFileCache.sizeBytes,
+      webViewLink: gdriveFileCache.webViewLink,
+      parentPath: gdriveFileCache.parentPath,
+    })
+    .from(gdriveFileCache)
+    .where(
+      and(
+        eq(gdriveFileCache.portcoId, portcoId),
+        eq(gdriveFileCache.mimeType, "application/pdf"),
+      ),
+    );
+
+  if (cachedPdfs.length === 0) {
+    return {
+      totalFiles: scanResult.filesUpserted,
+      newFiles: 0,
+      classified: 0,
+      imsRouted: 0,
+      ddRouted: 0,
+      skipped: 0,
+      failed: 0,
+      results: [],
+      scanComplete: scanResult.scanComplete,
+    };
+  }
+
+  // 3. Dedup against already-imported files
+  const cacheGdriveIds = cachedPdfs.map((f) => f.gdriveFileId);
+  const existingFiles = await db
+    .select({ gdriveFileId: files.gdriveFileId })
+    .from(files)
+    .where(inArray(files.gdriveFileId, cacheGdriveIds));
+
+  const existingSet = new Set(existingFiles.map((f) => f.gdriveFileId));
+  const newPdfs = cachedPdfs.filter((f) => !existingSet.has(f.gdriveFileId));
+
+  if (newPdfs.length === 0) {
+    return {
+      totalFiles: cachedPdfs.length,
+      newFiles: 0,
+      classified: 0,
+      imsRouted: 0,
+      ddRouted: 0,
+      skipped: cachedPdfs.length,
+      failed: 0,
+      results: [],
+      scanComplete: scanResult.scanComplete,
+    };
+  }
+
+  // 4. Classify and route new files (with time budget check)
+  const results: ScanClassifyResult["results"] = [];
+  let classified = 0;
+  let imsRouted = 0;
+  let ddRouted = 0;
+  let failed = 0;
+
+  for (const pdf of newPdfs) {
+    // Check if we're running low on time
+    if (Date.now() - startTime >= timeBudgetMs) break;
+
+    try {
+      const classification = await classifyFile({
+        fileName: pdf.fileName,
+        mimeType: pdf.mimeType,
+        parentPath: pdf.parentPath,
+      });
+      classified++;
+
+      const fileType = classification.fileType;
+      const confidence = classification.confidence;
+
+      const dealId = await matchDeal(
+        portcoId,
+        classification.suggestedCompanyName,
+        pdf.parentPath,
+      );
+
+      const [fileRecord] = await db
+        .insert(files)
+        .values({
+          dealId,
+          portcoId,
+          fileName: pdf.fileName,
+          fileType,
+          mimeType: pdf.mimeType,
+          gdriveFileId: pdf.gdriveFileId,
+          gdriveParentPath: pdf.parentPath || null,
+          gdriveUrl: pdf.webViewLink,
+          sizeBytes: pdf.sizeBytes ? Number(pdf.sizeBytes) : null,
+          classifiedBy: "auto",
+          classificationConfidence: confidence.toFixed(2),
+          processingStatus: "pending",
+        })
+        .returning({ id: files.id });
+
+      if (fileType === "im_pdf" && confidence >= IM_CONFIDENCE_THRESHOLD) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trigger.dev SDK typing requires task type references
+          await (tasks as any).trigger("process-im", {
+            fileId: fileRecord.id,
+            dealId,
+            portcoId,
+          });
+          imsRouted++;
+          results.push({
+            fileName: pdf.fileName,
+            gdriveFileId: pdf.gdriveFileId,
+            parentPath: pdf.parentPath,
+            fileType,
+            confidence,
+            status: "im_routed",
+            dealId,
+          });
+        } catch (e) {
+          failed++;
+          results.push({
+            fileName: pdf.fileName,
+            gdriveFileId: pdf.gdriveFileId,
+            parentPath: pdf.parentPath,
+            fileType,
+            confidence,
+            status: "failed",
+            dealId,
+            error: e instanceof Error ? e.message : "IM trigger failed",
+          });
+        }
+      } else if (DD_TYPES.has(fileType) && dealId) {
+        try {
+          await processDDDocument({
+            fileId: fileRecord.id,
+            dealId,
+            portcoId,
+            fileType,
+          });
+          ddRouted++;
+          results.push({
+            fileName: pdf.fileName,
+            gdriveFileId: pdf.gdriveFileId,
+            parentPath: pdf.parentPath,
+            fileType,
+            confidence,
+            status: "dd_routed",
+            dealId,
+          });
+        } catch (e) {
+          failed++;
+          results.push({
+            fileName: pdf.fileName,
+            gdriveFileId: pdf.gdriveFileId,
+            parentPath: pdf.parentPath,
+            fileType,
+            confidence,
+            status: "failed",
+            dealId,
+            error: e instanceof Error ? e.message : "DD processing failed",
+          });
+        }
+      } else {
+        results.push({
+          fileName: pdf.fileName,
+          gdriveFileId: pdf.gdriveFileId,
+          parentPath: pdf.parentPath,
+          fileType,
+          confidence,
+          status: "classified",
+          dealId,
+        });
+      }
+    } catch (error) {
+      failed++;
+      results.push({
+        fileName: pdf.fileName,
+        gdriveFileId: pdf.gdriveFileId,
+        parentPath: pdf.parentPath,
+        fileType: null,
+        confidence: null,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Classification failed",
+      });
+    }
+  }
+
+  return {
+    totalFiles: cachedPdfs.length,
+    newFiles: newPdfs.length,
+    classified,
+    imsRouted,
+    ddRouted,
+    skipped: cachedPdfs.length - newPdfs.length,
+    failed,
+    results,
+    scanComplete: scanResult.scanComplete,
   };
 }
