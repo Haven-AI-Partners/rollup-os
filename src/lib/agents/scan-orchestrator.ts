@@ -299,7 +299,7 @@ const CRAWL_BUDGET_RATIO = 0.6;
 export async function scanClassifyAndProcessIncremental(
   portcoId: string,
   timeBudgetMs: number,
-): Promise<ScanClassifyResult & { scanComplete: boolean }> {
+): Promise<ScanClassifyResult & { scanComplete: boolean; foldersErrored: number }> {
   const startTime = Date.now();
 
   // 1. Crawl folders incrementally (with ~60% of the time budget)
@@ -336,6 +336,7 @@ export async function scanClassifyAndProcessIncremental(
       failed: 0,
       results: [],
       scanComplete: scanResult.scanComplete,
+      foldersErrored: scanResult.foldersErrored,
     };
   }
 
@@ -360,6 +361,7 @@ export async function scanClassifyAndProcessIncremental(
       failed: 0,
       results: [],
       scanComplete: scanResult.scanComplete,
+      foldersErrored: scanResult.foldersErrored,
     };
   }
 
@@ -506,5 +508,6 @@ export async function scanClassifyAndProcessIncremental(
     failed,
     results,
     scanComplete: scanResult.scanComplete,
+    foldersErrored: scanResult.foldersErrored,
   };
 }

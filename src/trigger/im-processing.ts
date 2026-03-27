@@ -83,6 +83,7 @@ export const scanFolderTask = task({
       ddRouted: result.ddRouted,
       failed: result.failed,
       scanComplete: result.scanComplete,
+      foldersErrored: result.foldersErrored,
     });
 
     return result;
