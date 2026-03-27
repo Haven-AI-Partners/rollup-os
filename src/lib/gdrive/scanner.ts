@@ -111,20 +111,27 @@ export async function listFilesPage(
 ): Promise<{ files: GDriveFileWithPath[]; total: number | null; hasMore: boolean }> {
   const cached = fileCache.get(portcoId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    const slice = cached.files.slice(cursor, cursor + limit);
-    return {
-      files: slice,
-      total: cached.complete ? cached.files.length : null,
-      hasMore: cursor + limit < cached.files.length,
-    };
+    // Only use cache if it has enough files for this page, or crawl is complete
+    if (cached.complete || cursor + limit <= cached.files.length) {
+      const slice = cached.files.slice(cursor, cursor + limit);
+      return {
+        files: slice,
+        total: cached.complete ? cached.files.length : null,
+        hasMore: cached.complete
+          ? cursor + limit < cached.files.length
+          : true,
+      };
+    }
+    // Cache is incomplete and doesn't have enough files — fall through to crawl more
   }
 
-  // No cache — crawl just enough for this page
+  // No usable cache — crawl just enough for this page
   const needed = cursor + limit;
   const { files, complete } = await crawlFiles(portcoId, needed);
 
-  // Cache partial results so immediate subsequent requests don't re-crawl
-  if (!fileCache.has(portcoId)) {
+  // Update cache — but don't overwrite a more complete cache from the background crawl
+  const existing = fileCache.get(portcoId);
+  if (!existing || files.length >= existing.files.length) {
     fileCache.set(portcoId, { files, complete, timestamp: Date.now() });
   }
 
