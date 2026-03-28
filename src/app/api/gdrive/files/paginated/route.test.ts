@@ -39,6 +39,8 @@ let mockProcessedFiles: Array<{
   processingStatus: string;
   dealId: string | null;
   fileType: string | null;
+  classificationConfidence: string | null;
+  classifiedBy: string | null;
 }> = [];
 
 vi.mock("@/lib/db", () => {
@@ -96,7 +98,7 @@ vi.mock("@/lib/db", () => {
 });
 
 vi.mock("@/lib/db/schema", () => ({
-  files: { _name: "files", gdriveFileId: "gdriveFileId", processingStatus: "processingStatus", dealId: "dealId", fileType: "fileType" },
+  files: { _name: "files", gdriveFileId: "gdriveFileId", processingStatus: "processingStatus", dealId: "dealId", fileType: "fileType", classificationConfidence: "classificationConfidence", classifiedBy: "classifiedBy" },
   portcos: { _name: "portcos", gdriveServiceAccountEnc: "gdriveServiceAccountEnc", id: "id" },
   gdriveFileCache: { _name: "gdrive_file_cache", portcoId: "portco_id", gdriveFileId: "gdrive_file_id", modifiedTime: "modified_time" },
 }));
@@ -221,7 +223,7 @@ describe("GET /api/gdrive/files/paginated", () => {
     mockCacheRows = makeCacheRows(2);
     mockTotalCount = 2;
     mockProcessedFiles = [
-      { gdriveFileId: "file-0", processingStatus: "completed", dealId: "deal-1", fileType: "im_pdf" },
+      { gdriveFileId: "file-0", processingStatus: "completed", dealId: "deal-1", fileType: "im_pdf", classificationConfidence: "0.95", classifiedBy: "auto" },
     ];
 
     const { GET } = await import("./route");
@@ -235,6 +237,8 @@ describe("GET /api/gdrive/files/paginated", () => {
       status: "completed",
       dealId: "deal-1",
       fileType: "im_pdf",
+      classificationConfidence: "0.95",
+      classifiedBy: "auto",
     });
     expect(body.processedMap["file-1"]).toBeUndefined();
   });

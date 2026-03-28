@@ -5,6 +5,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
   FileText,
   FolderOpen,
@@ -32,6 +33,8 @@ export interface ProcessedInfo {
   status: string;
   dealId: string | null;
   fileType: string | null;
+  classificationConfidence: string | null;
+  classifiedBy: string | null;
 }
 
 export interface PageData {
@@ -373,9 +376,22 @@ export function VirtualFilesList({
                       </div>
                     </div>
                     {processed?.fileType && (
-                      <Badge variant="secondary" className="text-[10px] shrink-0">
-                        {FILE_TYPE_LABELS[processed.fileType] ?? processed.fileType}
-                      </Badge>
+                      processed.classifiedBy === "auto" && processed.classificationConfidence ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="secondary" className="text-[10px] shrink-0 cursor-default">
+                              {FILE_TYPE_LABELS[processed.fileType] ?? processed.fileType}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Confidence score: {Math.round(Number(processed.classificationConfidence) * 100)}%
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] shrink-0">
+                          {FILE_TYPE_LABELS[processed.fileType] ?? processed.fileType}
+                        </Badge>
+                      )
                     )}
                     {processed?.status === "completed" ? (
                       <div className="flex items-center gap-2 shrink-0">

@@ -41,7 +41,7 @@ function makeFile(overrides: Partial<GDriveFile> = {}): GDriveFile {
 
 function mockFetchResponse(
   files: GDriveFile[] = [makeFile()],
-  processedMap: Record<string, ProcessedInfo> = { "file-1": { status: "completed", dealId: "d1", fileType: "im_pdf" } },
+  processedMap: Record<string, ProcessedInfo> = { "file-1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null } },
   nextCursor: number | null = null,
 ) {
   const data: PageData = {
@@ -130,7 +130,7 @@ describe("VirtualFilesList", () => {
   it("shows processed badge for completed files", async () => {
     mockFetchResponse(
       [makeFile()],
-      { "file-1": { status: "completed", dealId: "deal-1", fileType: "im_pdf" } },
+      { "file-1": { status: "completed", dealId: "deal-1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null } },
     );
 
     render(
@@ -149,7 +149,7 @@ describe("VirtualFilesList", () => {
   it("shows process button for admins on PDF files", async () => {
     mockFetchResponse(
       [makeFile({ mimeType: "application/pdf" })],
-      { "file-1": { status: "pending", dealId: null, fileType: "im_pdf" } },
+      { "file-1": { status: "pending", dealId: null, fileType: "im_pdf", classificationConfidence: null, classifiedBy: null } },
     );
 
     render(
@@ -168,7 +168,7 @@ describe("VirtualFilesList", () => {
   it("hides process button for non-admins", async () => {
     mockFetchResponse(
       [makeFile({ mimeType: "application/pdf" })],
-      { "file-1": { status: "pending", dealId: null, fileType: "im_pdf" } },
+      { "file-1": { status: "pending", dealId: null, fileType: "im_pdf", classificationConfidence: null, classifiedBy: null } },
     );
 
     render(
@@ -213,9 +213,9 @@ describe("VirtualFilesList", () => {
     ];
 
     mockFetchResponse(files, {
-      "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
-      "f2": { status: "completed", dealId: "d2", fileType: "im_pdf" },
-      "f3": { status: "completed", dealId: "d3", fileType: "im_pdf" },
+      "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+      "f2": { status: "completed", dealId: "d2", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+      "f3": { status: "completed", dealId: "d3", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
     });
 
     render(
@@ -259,8 +259,8 @@ describe("VirtualFilesList", () => {
           makeFile({ id: "f2", name: "NDA.pdf" }),
         ],
         {
-          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
-          "f2": { status: "completed", dealId: "d2", fileType: "nda" },
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda", classificationConfidence: null, classifiedBy: null },
         },
       );
 
@@ -284,8 +284,8 @@ describe("VirtualFilesList", () => {
           makeFile({ id: "f2", name: "NDA.pdf" }),
         ],
         {
-          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
-          "f2": { status: "completed", dealId: "d2", fileType: "nda" },
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda", classificationConfidence: null, classifiedBy: null },
         },
       );
 
@@ -312,8 +312,8 @@ describe("VirtualFilesList", () => {
           makeFile({ id: "f3", name: "Other.pdf" }),
         ],
         {
-          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
-          "f2": { status: "completed", dealId: "d2", fileType: "nda" },
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda", classificationConfidence: null, classifiedBy: null },
         },
       );
 
@@ -341,7 +341,7 @@ describe("VirtualFilesList", () => {
           makeFile({ id: "f2", name: "Unknown.pdf" }),
         ],
         {
-          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
         },
       );
 
@@ -363,8 +363,8 @@ describe("VirtualFilesList", () => {
           makeFile({ id: "f2", name: "NDA.pdf" }),
         ],
         {
-          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
-          "f2": { status: "completed", dealId: "d2", fileType: "nda" },
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda", classificationConfidence: null, classifiedBy: null },
         },
       );
 
@@ -394,9 +394,9 @@ describe("VirtualFilesList", () => {
           makeFile({ id: "f3", name: "Report.pdf" }),
         ],
         {
-          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf" },
-          "f2": { status: "completed", dealId: "d2", fileType: "nda" },
-          "f3": { status: "completed", dealId: "d3", fileType: "report" },
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda", classificationConfidence: null, classifiedBy: null },
+          "f3": { status: "completed", dealId: "d3", fileType: "report", classificationConfidence: null, classifiedBy: null },
         },
       );
 

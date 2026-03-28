@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, ExternalLink, FolderOpen } from "lucide-react";
 import { ProcessIMButton } from "@/components/deals/process-im-button";
 import { ImportGdriveDialog } from "@/components/deals/import-gdrive-dialog";
+import { FileTypeBadge } from "@/components/files/file-type-badge";
 import { getDeal } from "@/lib/db/cached-queries";
 import type { FileType } from "@/lib/db/schema/files";
 
@@ -61,17 +62,6 @@ function formatBytes(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function ConfidenceDot({ confidence }: { confidence: string | null }) {
-  if (!confidence) return null;
-  const pct = Math.round(Number(confidence) * 100);
-  const color =
-    pct >= 80 ? "text-green-500" : pct >= 50 ? "text-amber-500" : "text-red-400";
-  return (
-    <span className={`text-[10px] ${color} shrink-0`} title={`Classification confidence: ${pct}%`}>
-      {pct}%
-    </span>
-  );
-}
 
 export default async function FilesPage({
   params,
@@ -172,12 +162,12 @@ export default async function FilesPage({
                         </div>
                       </div>
                       {file.fileType && (
-                        <Badge className={`text-[10px] shrink-0 ${badgeColor}`}>
-                          {fileTypeLabels[file.fileType] ?? file.fileType}
-                        </Badge>
-                      )}
-                      {file.classifiedBy === "auto" && (
-                        <ConfidenceDot confidence={file.classificationConfidence} />
+                        <FileTypeBadge
+                          label={fileTypeLabels[file.fileType] ?? file.fileType}
+                          className={badgeColor}
+                          classificationConfidence={file.classificationConfidence}
+                          classifiedBy={file.classifiedBy}
+                        />
                       )}
                       <Badge
                         variant={

@@ -94,20 +94,22 @@ export async function GET(req: NextRequest) {
               processingStatus: filesTable.processingStatus,
               dealId: filesTable.dealId,
               fileType: filesTable.fileType,
+              classificationConfidence: filesTable.classificationConfidence,
+              classifiedBy: filesTable.classifiedBy,
             })
             .from(filesTable)
             .where(inArray(filesTable.gdriveFileId, gdriveIds))
         : [];
 
     // Build map preferring "completed" status when duplicates exist
-    const processedMap: Record<string, { status: string; dealId: string | null; fileType: string | null }> = {};
+    const processedMap: Record<string, { status: string; dealId: string | null; fileType: string | null; classificationConfidence: string | null; classifiedBy: string | null }> = {};
     for (const f of processedFiles) {
       const key = f.gdriveFileId;
       if (!key) continue;
       const existing = processedMap[key];
       // Keep the completed record if one exists, otherwise take the latest
       if (!existing || f.processingStatus === "completed") {
-        processedMap[key] = { status: f.processingStatus, dealId: f.dealId, fileType: f.fileType };
+        processedMap[key] = { status: f.processingStatus, dealId: f.dealId, fileType: f.fileType, classificationConfidence: f.classificationConfidence, classifiedBy: f.classifiedBy };
       }
     }
 
