@@ -323,6 +323,16 @@ export function VirtualFilesList({
               </span>
             </Button>
           )}
+          {activeTypeFilters.size < typeCounts.size && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => setActiveTypeFilters(new Set(typeCounts.keys()))}
+              className="text-muted-foreground"
+            >
+              Select All
+            </Button>
+          )}
           {activeTypeFilters.size > 0 && (
             <Button
               variant="ghost"

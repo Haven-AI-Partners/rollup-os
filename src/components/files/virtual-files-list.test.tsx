@@ -496,6 +496,107 @@ describe("VirtualFilesList", () => {
       expect(screen.getByText("NDA.pdf")).toBeInTheDocument();
     });
 
+    it("selects all pills when Select All is clicked", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "IM.pdf" }),
+          makeFile({ id: "f2", name: "NDA.pdf" }),
+          makeFile({ id: "f3", name: "Report.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda", classificationConfidence: null, classifiedBy: null },
+          "f3": { status: "completed", dealId: "d3", fileType: "report", classificationConfidence: null, classifiedBy: null },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      });
+
+      // Only IM visible by default
+      expect(screen.queryByText("NDA.pdf")).not.toBeInTheDocument();
+      expect(screen.queryByText("Report.pdf")).not.toBeInTheDocument();
+
+      // Click Select All
+      fireEvent.click(screen.getByRole("button", { name: "Select All" }));
+
+      // All files should be visible
+      expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      expect(screen.getByText("NDA.pdf")).toBeInTheDocument();
+      expect(screen.getByText("Report.pdf")).toBeInTheDocument();
+    });
+
+    it("hides Select All when all pills are already selected", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "IM.pdf" }),
+          makeFile({ id: "f2", name: "NDA.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda", classificationConfidence: null, classifiedBy: null },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      });
+
+      // Select All should be visible (only IM is selected)
+      expect(screen.getByRole("button", { name: "Select All" })).toBeInTheDocument();
+
+      // Click Select All
+      fireEvent.click(screen.getByRole("button", { name: "Select All" }));
+
+      // Select All should now be hidden
+      expect(screen.queryByRole("button", { name: "Select All" })).not.toBeInTheDocument();
+
+      // Clear should still be visible
+      expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
+    });
+
+    it("Clear works after Select All", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "IM.pdf" }),
+          makeFile({ id: "f2", name: "NDA.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "nda", classificationConfidence: null, classifiedBy: null },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      });
+
+      // Select All, then Clear
+      fireEvent.click(screen.getByRole("button", { name: "Select All" }));
+      fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+      // All files visible (no filter = show all)
+      expect(screen.getByText("IM.pdf")).toBeInTheDocument();
+      expect(screen.getByText("NDA.pdf")).toBeInTheDocument();
+
+      // Clear should be hidden, Select All should be visible
+      expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select All" })).toBeInTheDocument();
+    });
+
     it("allows multiple pills to be toggled simultaneously", async () => {
       mockFetchResponse(
         [
