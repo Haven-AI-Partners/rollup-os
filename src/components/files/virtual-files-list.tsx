@@ -9,7 +9,9 @@ import {
   FolderTree,
   List,
   Loader2,
+  Search,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { FileRowContent, FILE_TYPE_LABELS } from "./file-row";
 import { FolderFilesList } from "./folder-files-list";
 
@@ -69,6 +71,7 @@ export function VirtualFilesList({
   const [hasInitialLoad, setHasInitialLoad] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeTypeFilters, setActiveTypeFilters] = useState<Set<string>>(new Set(["im_pdf"]));
+  const [searchQuery, setSearchQuery] = useState("");
 
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -82,12 +85,20 @@ export function VirtualFilesList({
   }, [files, processedMap]);
 
   const filteredFiles = useMemo(() => {
-    if (activeTypeFilters.size === 0) return files;
+    const query = searchQuery.toLowerCase().trim();
     return files.filter((file) => {
-      const fileType = processedMap[file.id]?.fileType ?? UNCLASSIFIED_KEY;
-      return activeTypeFilters.has(fileType);
+      if (activeTypeFilters.size > 0) {
+        const fileType = processedMap[file.id]?.fileType ?? UNCLASSIFIED_KEY;
+        if (!activeTypeFilters.has(fileType)) return false;
+      }
+      if (query) {
+        const nameMatch = file.name.toLowerCase().includes(query);
+        const pathMatch = file.parentPath?.toLowerCase().includes(query);
+        if (!nameMatch && !pathMatch) return false;
+      }
+      return true;
     });
-  }, [files, processedMap, activeTypeFilters]);
+  }, [files, processedMap, activeTypeFilters, searchQuery]);
 
   const virtualizer = useVirtualizer({
     count: filteredFiles.length,
@@ -215,12 +226,20 @@ export function VirtualFilesList({
     );
   }
 
+  const isFiltered = activeTypeFilters.size > 0 || searchQuery.trim().length > 0;
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs text-muted-foreground">
-          Showing {filteredFiles.length}{activeTypeFilters.size > 0 ? " (filtered)" : ""} of {total ?? "..."} files
-        </p>
+      <div className="flex items-center gap-3 mb-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search files..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
         <div className="flex items-center rounded-md border p-0.5">
           <button
             type="button"
@@ -240,6 +259,9 @@ export function VirtualFilesList({
           </button>
         </div>
       </div>
+      <p className="text-xs text-muted-foreground mb-2">
+        Showing {filteredFiles.length}{isFiltered ? " (filtered)" : ""} of {total ?? "..."} files
+      </p>
       {typeCounts.size > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 mb-3">
           {FILE_TYPE_PILL_ORDER
@@ -295,6 +317,16 @@ export function VirtualFilesList({
               <span className="ml-1 text-[10px] opacity-70">
                 {typeCounts.get(UNCLASSIFIED_KEY)}
               </span>
+            </Button>
+          )}
+          {activeTypeFilters.size < typeCounts.size && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => setActiveTypeFilters(new Set(typeCounts.keys()))}
+              className="text-muted-foreground"
+            >
+              Select All
             </Button>
           )}
           {activeTypeFilters.size > 0 && (
