@@ -2,6 +2,7 @@
   "name": "rollup-os",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.29.3",
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
