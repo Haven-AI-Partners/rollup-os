@@ -44,9 +44,9 @@ async function backfillJournalIfNeeded(sql: postgres.Sql) {
     "Detected db:push database without migration journal entries. Back-filling..."
   );
 
-  // Back-fill all migrations except the last one (which is the new one to apply).
-  // We skip the final entry so that `migrate()` picks it up normally.
-  const entriesToBackfill = journal.entries.slice(0, -1);
+  // Back-fill ALL existing migrations so `migrate()` treats them as already applied.
+  // All tables were created via db:push, so every migration is already reflected in the DB.
+  const entriesToBackfill = journal.entries;
 
   for (const entry of entriesToBackfill) {
     const filePath = `${MIGRATIONS_FOLDER}/${entry.tag}.sql`;
