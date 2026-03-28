@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Star, AlertTriangle, ArrowUpDown } from "lucide-react";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateShort } from "@/lib/format";
 
 interface Deal {
   id: string;
@@ -29,6 +29,7 @@ interface Deal {
   stageId: string;
   aiScore: string | null;
   redFlagCount: number;
+  createdAt: Date;
 }
 
 interface Stage {
@@ -38,7 +39,7 @@ interface Stage {
   color: string | null;
 }
 
-type SortField = "companyName" | "aiScore" | "revenue" | "ebitda" | "redFlagCount";
+type SortField = "companyName" | "aiScore" | "revenue" | "ebitda" | "redFlagCount" | "createdAt";
 type SortDir = "asc" | "desc";
 
 interface DealListViewProps {
@@ -84,6 +85,8 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
             return dir * ((Number(a.ebitda) || 0) - (Number(b.ebitda) || 0));
           case "redFlagCount":
             return dir * (a.redFlagCount - b.redFlagCount);
+          case "createdAt":
+            return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           default:
             return 0;
         }
@@ -150,13 +153,14 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
       {/* Desktop: table layout */}
       <div className="hidden sm:block rounded-md border">
         {/* Header */}
-        <div className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-2 border-b bg-muted/50">
+        <div className="grid grid-cols-[1fr_140px_100px_100px_100px_80px_100px] gap-4 px-4 py-2 border-b bg-muted/50">
           {sortHeader("companyName", "Company")}
           <span className="text-xs font-medium text-muted-foreground">Stage</span>
           {sortHeader("aiScore", "Score")}
           {sortHeader("revenue", "Revenue")}
           {sortHeader("ebitda", "EBITDA")}
           {sortHeader("redFlagCount", "Flags")}
+          {sortHeader("createdAt", "Created")}
         </div>
 
         {/* Rows */}
@@ -171,7 +175,7 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
               <Link
                 key={deal.id}
                 href={`/${portcoSlug}/pipeline/${deal.id}/overview`}
-                className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors items-center"
+                className="grid grid-cols-[1fr_140px_100px_100px_100px_80px_100px] gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors items-center"
               >
                 <div className="min-w-0 overflow-hidden">
                   <div className="text-sm font-medium truncate">{deal.companyName}</div>
@@ -224,6 +228,9 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
                   ) : (
                     <span className="text-xs text-muted-foreground">--</span>
                   )}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {formatDateShort(deal.createdAt)}
                 </div>
               </Link>
             );
@@ -291,6 +298,7 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
                       {deal.redFlagCount}
                     </span>
                   )}
+                  <span>{formatDateShort(deal.createdAt)}</span>
                 </div>
               </Link>
             );
