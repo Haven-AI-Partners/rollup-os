@@ -212,7 +212,7 @@ export function VirtualFilesList({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [virtualizer.getVirtualItems(), filteredFiles.length, nextCursor, isFetching]);
 
-  if (!hasInitialLoad || isSyncing) {
+  if (!hasInitialLoad && isSyncing) {
     return (
       <div className="flex flex-col items-center gap-2 py-12">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />

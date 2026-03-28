@@ -11,6 +11,7 @@ import Link from "next/link";
 import { ScanFolderButton } from "@/components/deals/scan-folder-button";
 import { ReprocessAllButton } from "@/components/deals/reprocess-all-button";
 import { VirtualFilesList } from "@/components/files/virtual-files-list";
+import { ScanProgressBar } from "@/components/files/scan-progress-bar";
 
 export default async function FilesPage({
   params,
@@ -52,6 +53,8 @@ export default async function FilesPage({
           <ReprocessAllButton portcoSlug={portcoSlug} />
         </div>
       )}
+
+      {isConnected && <ScanProgressBar portcoId={portco.id} />}
 
       {!isConnected ? (
         <Card>
