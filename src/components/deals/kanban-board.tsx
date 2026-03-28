@@ -41,6 +41,7 @@ interface Deal {
   kanbanPosition: number | null;
   aiScore: string | null;
   redFlagCount: number;
+  createdAt: Date;
 }
 
 interface KanbanBoardProps {

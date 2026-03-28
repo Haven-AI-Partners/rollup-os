@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Star, AlertTriangle, ArrowUpDown } from "lucide-react";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateShort } from "@/lib/format";
 import { DeleteDealButton } from "./delete-deal-button";
 
 interface Deal {
@@ -30,6 +30,7 @@ interface Deal {
   stageId: string;
   aiScore: string | null;
   redFlagCount: number;
+  createdAt: Date;
 }
 
 interface Stage {
@@ -39,7 +40,7 @@ interface Stage {
   color: string | null;
 }
 
-type SortField = "companyName" | "aiScore" | "revenue" | "ebitda" | "redFlagCount";
+type SortField = "companyName" | "aiScore" | "revenue" | "ebitda" | "redFlagCount" | "createdAt";
 type SortDir = "asc" | "desc";
 
 interface DealListViewProps {
@@ -58,8 +59,8 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
   const canDelete = userRole === "admin" || userRole === "owner";
 
   const gridCols = canDelete
-    ? "grid-cols-[1fr_140px_100px_100px_100px_80px_48px]"
-    : "grid-cols-[1fr_140px_100px_100px_100px_80px]";
+    ? "grid-cols-[1fr_140px_100px_100px_100px_80px_100px_48px]"
+    : "grid-cols-[1fr_140px_100px_100px_100px_80px_100px]";
 
   const stageMap = useMemo(
     () => new Map(stages.map((s) => [s.id, s])),
@@ -92,6 +93,8 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
             return dir * ((Number(a.ebitda) || 0) - (Number(b.ebitda) || 0));
           case "redFlagCount":
             return dir * (a.redFlagCount - b.redFlagCount);
+          case "createdAt":
+            return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           default:
             return 0;
         }
@@ -165,6 +168,7 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
           {sortHeader("revenue", "Revenue")}
           {sortHeader("ebitda", "EBITDA")}
           {sortHeader("redFlagCount", "Flags")}
+          {sortHeader("createdAt", "Created")}
           {canDelete && <span />}
         </div>
 
@@ -233,6 +237,9 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
                   ) : (
                     <span className="text-xs text-muted-foreground">--</span>
                   )}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {formatDateShort(deal.createdAt)}
                 </div>
                 {canDelete && (
                   <div>
@@ -318,6 +325,7 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
                       {deal.redFlagCount}
                     </span>
                   )}
+                  <span>{formatDateShort(deal.createdAt)}</span>
                 </div>
               </Link>
             );

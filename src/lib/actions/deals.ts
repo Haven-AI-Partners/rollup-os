@@ -33,6 +33,7 @@ export async function getDealsForPortco(portcoId: string) {
       status: deals.status,
       source: deals.source,
       kanbanPosition: deals.kanbanPosition,
+      createdAt: deals.createdAt,
     })
     .from(deals)
     .where(eq(deals.portcoId, portcoId))
