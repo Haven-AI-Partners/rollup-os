@@ -5,7 +5,7 @@ import { users } from "./users";
 export const orgChartVersions = pgTable("org_chart_versions", {
   id: uuid("id").primaryKey().defaultRandom(),
   dealId: uuid("deal_id")
-    .references(() => deals.id)
+    .references(() => deals.id, { onDelete: "cascade" })
     .notNull(),
   version: integer("version").notNull(),
   label: text("label"),

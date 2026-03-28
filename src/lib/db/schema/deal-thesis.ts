@@ -5,7 +5,7 @@ import { portcos } from "./portcos";
 export const dealThesisNodes = pgTable("deal_thesis_nodes", {
   id: uuid("id").primaryKey().defaultRandom(),
   dealId: uuid("deal_id")
-    .references(() => deals.id)
+    .references(() => deals.id, { onDelete: "cascade" })
     .notNull(),
   portcoId: uuid("portco_id")
     .references(() => portcos.id)

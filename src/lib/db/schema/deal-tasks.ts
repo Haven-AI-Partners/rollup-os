@@ -6,7 +6,7 @@ import { deals } from "./deals";
 export const dealTasks = pgTable("deal_tasks", {
   id: uuid("id").primaryKey().defaultRandom(),
   dealId: uuid("deal_id")
-    .references(() => deals.id)
+    .references(() => deals.id, { onDelete: "cascade" })
     .notNull(),
   portcoId: uuid("portco_id")
     .references(() => portcos.id)
@@ -51,7 +51,7 @@ export const dealTasks = pgTable("deal_tasks", {
 export const dealActivityLog = pgTable("deal_activity_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   dealId: uuid("deal_id")
-    .references(() => deals.id)
+    .references(() => deals.id, { onDelete: "cascade" })
     .notNull(),
   portcoId: uuid("portco_id")
     .references(() => portcos.id)

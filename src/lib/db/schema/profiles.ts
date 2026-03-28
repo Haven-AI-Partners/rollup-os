@@ -4,7 +4,7 @@ import { deals } from "./deals";
 export const companyProfiles = pgTable("company_profiles", {
   id: uuid("id").primaryKey().defaultRandom(),
   dealId: uuid("deal_id")
-    .references(() => deals.id)
+    .references(() => deals.id, { onDelete: "cascade" })
     .unique()
     .notNull(),
   summary: text("summary"),

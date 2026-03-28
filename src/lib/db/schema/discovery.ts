@@ -7,7 +7,7 @@ import { companyEmployees } from "./company-employees";
 export const discoveryCampaigns = pgTable("discovery_campaigns", {
   id: uuid("id").primaryKey().defaultRandom(),
   dealId: uuid("deal_id")
-    .references(() => deals.id)
+    .references(() => deals.id, { onDelete: "cascade" })
     .notNull(),
   portcoId: uuid("portco_id")
     .references(() => portcos.id)
@@ -33,7 +33,7 @@ export const discoveryCampaigns = pgTable("discovery_campaigns", {
 export const discoverySessions = pgTable("discovery_sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
   campaignId: uuid("campaign_id")
-    .references(() => discoveryCampaigns.id)
+    .references(() => discoveryCampaigns.id, { onDelete: "cascade" })
     .notNull(),
   employeeId: uuid("employee_id")
     .references(() => companyEmployees.id)
@@ -82,7 +82,7 @@ export const discoveryWorkflows = pgTable("discovery_workflows", {
     .references(() => discoverySessions.id, { onDelete: "cascade" })
     .notNull(),
   campaignId: uuid("campaign_id")
-    .references(() => discoveryCampaigns.id)
+    .references(() => discoveryCampaigns.id, { onDelete: "cascade" })
     .notNull(),
   employeeId: uuid("employee_id")
     .references(() => companyEmployees.id)

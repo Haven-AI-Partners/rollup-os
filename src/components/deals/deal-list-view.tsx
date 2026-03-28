@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Search, Star, AlertTriangle, ArrowUpDown } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { DeleteDealButton } from "./delete-deal-button";
 
 interface Deal {
   id: string;
@@ -45,13 +46,20 @@ interface DealListViewProps {
   deals: Deal[];
   stages: Stage[];
   portcoSlug: string;
+  userRole?: string | null;
 }
 
-export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
+export function DealListView({ deals, stages, portcoSlug, userRole }: DealListViewProps) {
   const [query, setQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<SortField>("aiScore");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const canDelete = userRole === "admin" || userRole === "owner";
+
+  const gridCols = canDelete
+    ? "grid-cols-[1fr_140px_100px_100px_100px_80px_48px]"
+    : "grid-cols-[1fr_140px_100px_100px_100px_80px]";
 
   const stageMap = useMemo(
     () => new Map(stages.map((s) => [s.id, s])),
@@ -150,13 +158,14 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
       {/* Desktop: table layout */}
       <div className="hidden sm:block rounded-md border">
         {/* Header */}
-        <div className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-2 border-b bg-muted/50">
+        <div className={`grid ${gridCols} gap-4 px-4 py-2 border-b bg-muted/50`}>
           {sortHeader("companyName", "Company")}
           <span className="text-xs font-medium text-muted-foreground">Stage</span>
           {sortHeader("aiScore", "Score")}
           {sortHeader("revenue", "Revenue")}
           {sortHeader("ebitda", "EBITDA")}
           {sortHeader("redFlagCount", "Flags")}
+          {canDelete && <span />}
         </div>
 
         {/* Rows */}
@@ -171,7 +180,7 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
               <Link
                 key={deal.id}
                 href={`/${portcoSlug}/pipeline/${deal.id}/overview`}
-                className="grid grid-cols-[1fr_140px_100px_100px_100px_80px] gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors items-center"
+                className={`grid ${gridCols} gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors items-center`}
               >
                 <div className="min-w-0 overflow-hidden">
                   <div className="text-sm font-medium truncate">{deal.companyName}</div>
@@ -225,6 +234,15 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
                     <span className="text-xs text-muted-foreground">--</span>
                   )}
                 </div>
+                {canDelete && (
+                  <div>
+                    <DeleteDealButton
+                      dealId={deal.id}
+                      portcoSlug={portcoSlug}
+                      companyName={deal.companyName}
+                    />
+                  </div>
+                )}
               </Link>
             );
           })
@@ -262,15 +280,24 @@ export function DealListView({ deals, stages, portcoSlug }: DealListViewProps) {
                       )}
                     </div>
                   </div>
-                  {stage && (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] shrink-0"
-                      style={stage.color ? { borderColor: stage.color, color: stage.color } : undefined}
-                    >
-                      {stage.name}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {stage && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] shrink-0"
+                        style={stage.color ? { borderColor: stage.color, color: stage.color } : undefined}
+                      >
+                        {stage.name}
+                      </Badge>
+                    )}
+                    {canDelete && (
+                      <DeleteDealButton
+                        dealId={deal.id}
+                        portcoSlug={portcoSlug}
+                        companyName={deal.companyName}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                   {deal.aiScore && (

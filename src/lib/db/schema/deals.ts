@@ -59,7 +59,7 @@ export const deals = pgTable("deals", {
 export const dealTransfers = pgTable("deal_transfers", {
   id: uuid("id").primaryKey().defaultRandom(),
   dealId: uuid("deal_id")
-    .references(() => deals.id)
+    .references(() => deals.id, { onDelete: "cascade" })
     .notNull(),
   fromPortcoId: uuid("from_portco_id")
     .references(() => portcos.id)
@@ -77,7 +77,7 @@ export const dealTransfers = pgTable("deal_transfers", {
 export const dealComments = pgTable("deal_comments", {
   id: uuid("id").primaryKey().defaultRandom(),
   dealId: uuid("deal_id")
-    .references(() => deals.id)
+    .references(() => deals.id, { onDelete: "cascade" })
     .notNull(),
   userId: uuid("user_id")
     .references(() => users.id)
@@ -90,7 +90,7 @@ export const dealComments = pgTable("deal_comments", {
 export const dealFinancials = pgTable("deal_financials", {
   id: uuid("id").primaryKey().defaultRandom(),
   dealId: uuid("deal_id")
-    .references(() => deals.id)
+    .references(() => deals.id, { onDelete: "cascade" })
     .notNull(),
   portcoId: uuid("portco_id")
     .references(() => portcos.id)

@@ -249,6 +249,22 @@ export async function addComment(
   return comment;
 }
 
+export async function deleteDeal(dealId: string, portcoSlug: string) {
+  const [deal] = await db
+    .select({ id: deals.id, portcoId: deals.portcoId })
+    .from(deals)
+    .where(eq(deals.id, dealId))
+    .limit(1);
+  if (!deal) throw new Error("Deal not found");
+
+  await requirePortcoRole(deal.portcoId, "admin");
+
+  await db.delete(deals).where(eq(deals.id, dealId));
+
+  revalidatePath(`/${portcoSlug}/pipeline`);
+  revalidatePath(`/${portcoSlug}/portfolio`);
+}
+
 export async function getComments(dealId: string) {
   await requireAuth();
   return db
