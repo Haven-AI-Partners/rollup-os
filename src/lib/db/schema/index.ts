@@ -17,3 +17,4 @@ export * from "./discovery";
 export * from "./deal-thesis";
 export * from "./gdrive-cache";
 export * from "./gdrive-scan-folders";
+export * from "./gdrive-api-errors";

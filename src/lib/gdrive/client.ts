@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { portcos } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { decrypt } from "./crypto";
+import { withRateLimit } from "./rate-limit";
 
 function getOAuthClient() {
   return new auth.OAuth2(
@@ -75,7 +76,10 @@ export async function getConnectedAccount(portcoId: string) {
   if (!result) return null;
 
   const { drive } = result;
-  const res = await drive.about.get({ fields: "user(emailAddress, displayName)" });
+  const res = await withRateLimit(
+    () => drive.about.get({ fields: "user(emailAddress, displayName)" }),
+    "about.get",
+  );
   return {
     email: res.data.user?.emailAddress ?? null,
     displayName: res.data.user?.displayName ?? null,
@@ -88,7 +92,10 @@ export async function getFolderName(portcoId: string, folderId: string) {
   if (!result) return null;
 
   const { drive } = result;
-  const res = await drive.files.get({ fileId: folderId, fields: "name" });
+  const res = await withRateLimit(
+    () => drive.files.get({ fileId: folderId, fields: "name" }),
+    `files.get folder=${folderId}`,
+  );
   return res.data.name ?? null;
 }
 
@@ -100,15 +107,18 @@ export async function listFiles(portcoId: string, pageSize = 50, pageToken?: str
   const { drive, folderId } = result;
   const query = folderId ? `'${folderId}' in parents and trashed = false` : "trashed = false";
 
-  const res = await drive.files.list({
-    q: query,
-    pageSize,
-    pageToken,
-    fields: "nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink)",
-    orderBy: "modifiedTime desc",
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
-  });
+  const res = await withRateLimit(
+    () => drive.files.list({
+      q: query,
+      pageSize,
+      pageToken,
+      fields: "nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink)",
+      orderBy: "modifiedTime desc",
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true,
+    }),
+    `files.list folder=${folderId ?? "root"}`,
+  );
 
   return {
     files: res.data.files ?? [],
@@ -122,9 +132,12 @@ export async function downloadFile(portcoId: string, fileId: string) {
   if (!result) return null;
 
   const { drive } = result;
-  const res = await drive.files.get(
-    { fileId, alt: "media" },
-    { responseType: "arraybuffer" }
+  const res = await withRateLimit(
+    () => drive.files.get(
+      { fileId, alt: "media" },
+      { responseType: "arraybuffer" },
+    ),
+    `files.get media=${fileId}`,
   );
 
   return Buffer.from(res.data as ArrayBuffer);

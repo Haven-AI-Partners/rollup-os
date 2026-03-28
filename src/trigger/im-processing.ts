@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { portcos } from "@/lib/db/schema";
 import { and, isNotNull } from "drizzle-orm";
 import type { FileType } from "@/lib/db/schema/files";
+import { registerGdriveErrorLogger, unregisterGdriveErrorLogger } from "@/lib/gdrive/error-logger";
 
 /** Generate DD thesis tree for a deal (runs after IM processing) */
 export const generateThesisTreeTask = task({
@@ -70,23 +71,28 @@ export const scanFolderTask = task({
   },
   run: async (payload: { portcoId: string }) => {
     logger.info("Scanning GDrive folder (incremental)", { portcoId: payload.portcoId });
+    registerGdriveErrorLogger(payload.portcoId);
 
-    const result = await scanClassifyAndProcessIncremental(
-      payload.portcoId,
-      INCREMENTAL_SCAN_BUDGET_MS,
-    );
+    try {
+      const result = await scanClassifyAndProcessIncremental(
+        payload.portcoId,
+        INCREMENTAL_SCAN_BUDGET_MS,
+      );
 
-    logger.info("Incremental scan complete", {
-      newFiles: result.newFiles,
-      classified: result.classified,
-      imsRouted: result.imsRouted,
-      ddRouted: result.ddRouted,
-      failed: result.failed,
-      scanComplete: result.scanComplete,
-      foldersErrored: result.foldersErrored,
-    });
+      logger.info("Incremental scan complete", {
+        newFiles: result.newFiles,
+        classified: result.classified,
+        imsRouted: result.imsRouted,
+        ddRouted: result.ddRouted,
+        failed: result.failed,
+        scanComplete: result.scanComplete,
+        foldersErrored: result.foldersErrored,
+      });
 
-    return result;
+      return result;
+    } finally {
+      unregisterGdriveErrorLogger();
+    }
   },
 });
 
@@ -111,32 +117,37 @@ export const processGdriveFileTask = task({
     force?: boolean;
   }) => {
     logger.info("Processing single GDrive file", { fileName: payload.fileName, gdriveFileId: payload.gdriveFileId, model: MODEL_ID });
+    registerGdriveErrorLogger(payload.portcoId);
 
-    const result = await processSingleGdriveFile(payload, (step) => {
-      metadata.set("step", step);
-      logger.info(step);
-    });
-
-    if (result.success) {
-      logger.info("GDrive file processed", {
-        companyName: result.companyName,
-        overallScore: result.overallScore,
-        dealId: result.dealId,
+    try {
+      const result = await processSingleGdriveFile(payload, (step) => {
+        metadata.set("step", step);
+        logger.info(step);
       });
 
-      // Trigger thesis tree generation as a separate task for new deals
-      if (result.isNewDeal && result.dealId) {
-        await tasks.trigger<typeof generateThesisTreeTask>("generate-thesis-tree", {
+      if (result.success) {
+        logger.info("GDrive file processed", {
+          companyName: result.companyName,
+          overallScore: result.overallScore,
           dealId: result.dealId,
-          portcoId: payload.portcoId,
         });
-        logger.info("Triggered thesis tree generation", { dealId: result.dealId });
-      }
-    } else {
-      logger.error("GDrive file processing failed", { error: result.error });
-    }
 
-    return result;
+        // Trigger thesis tree generation as a separate task for new deals
+        if (result.isNewDeal && result.dealId) {
+          await tasks.trigger<typeof generateThesisTreeTask>("generate-thesis-tree", {
+            dealId: result.dealId,
+            portcoId: payload.portcoId,
+          });
+          logger.info("Triggered thesis tree generation", { dealId: result.dealId });
+        }
+      } else {
+        logger.error("GDrive file processing failed", { error: result.error });
+      }
+
+      return result;
+    } finally {
+      unregisterGdriveErrorLogger();
+    }
   },
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatCurrency, formatDateTime, formatDateShort, formatDuration } from "./format";
+import { formatCurrency, formatDateTime, formatDateShort, formatDuration, formatRelativeTime } from "./format";
 
 describe("formatCurrency", () => {
   it("formats JPY by default", () => {
@@ -99,5 +99,31 @@ describe("formatDuration", () => {
 
   it("handles exact minute boundary", () => {
     expect(formatDuration(60000)).toBe("1m 0s");
+  });
+});
+
+describe("formatRelativeTime", () => {
+  it("returns 'just now' for recent timestamps", () => {
+    expect(formatRelativeTime(new Date())).toBe("just now");
+  });
+
+  it("formats minutes ago", () => {
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+    expect(formatRelativeTime(fiveMinAgo)).toBe("5m ago");
+  });
+
+  it("formats hours ago", () => {
+    const twoHrsAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    expect(formatRelativeTime(twoHrsAgo)).toBe("2h ago");
+  });
+
+  it("formats days ago", () => {
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    expect(formatRelativeTime(threeDaysAgo)).toBe("3d ago");
+  });
+
+  it("accepts string dates", () => {
+    const twoHrsAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    expect(formatRelativeTime(twoHrsAgo)).toBe("2h ago");
   });
 });
