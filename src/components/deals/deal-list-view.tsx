@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -56,6 +56,7 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
   const [sortField, setSortField] = useState<SortField>("aiScore");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
+  const router = useRouter();
   const canDelete = userRole === "admin" || userRole === "owner";
 
   const gridCols = canDelete
@@ -181,10 +182,10 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
           filtered.map((deal) => {
             const stage = stageMap.get(deal.stageId);
             return (
-              <Link
+              <div
                 key={deal.id}
-                href={`/${portcoSlug}/pipeline/${deal.id}/overview`}
-                className={`grid ${gridCols} gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors items-center`}
+                onClick={() => router.push(`/${portcoSlug}/pipeline/${deal.id}/overview`)}
+                className={`grid ${gridCols} gap-4 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors items-center cursor-pointer`}
               >
                 <div className="min-w-0 overflow-hidden">
                   <div className="text-sm font-medium truncate">{deal.companyName}</div>
@@ -250,7 +251,7 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
                     />
                   </div>
                 )}
-              </Link>
+              </div>
             );
           })
         )}
@@ -266,10 +267,10 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
           filtered.map((deal) => {
             const stage = stageMap.get(deal.stageId);
             return (
-              <Link
+              <div
                 key={deal.id}
-                href={`/${portcoSlug}/pipeline/${deal.id}/overview`}
-                className="block rounded-md border p-3 hover:bg-muted/30 transition-colors"
+                onClick={() => router.push(`/${portcoSlug}/pipeline/${deal.id}/overview`)}
+                className="block rounded-md border p-3 hover:bg-muted/30 transition-colors cursor-pointer"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -327,7 +328,7 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
                   )}
                   <span>{formatDateShort(deal.createdAt)}</span>
                 </div>
-              </Link>
+              </div>
             );
           })
         )}
