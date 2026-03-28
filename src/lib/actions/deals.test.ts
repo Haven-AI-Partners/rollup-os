@@ -183,6 +183,43 @@ describe("deals actions", () => {
     });
   });
 
+  describe("deleteDeal", () => {
+    it("throws when user is not authenticated", async () => {
+      mockLimit.mockResolvedValueOnce([{ id: "deal-001", portcoId: "portco-001" }]);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
+
+      const { deleteDeal } = await import("./deals");
+      await expect(deleteDeal("deal-001", "test-portco")).rejects.toThrow("Unauthorized");
+    });
+
+    it("throws when deal not found", async () => {
+      mockLimit.mockResolvedValueOnce([]);
+
+      const { deleteDeal } = await import("./deals");
+      await expect(deleteDeal("deal-999", "test-portco")).rejects.toThrow("Deal not found");
+    });
+
+    it("enforces admin role", async () => {
+      mockLimit.mockResolvedValueOnce([{ id: "deal-001", portcoId: "portco-001" }]);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Insufficient permissions"));
+
+      const { deleteDeal } = await import("./deals");
+      await expect(deleteDeal("deal-001", "test-portco")).rejects.toThrow("Insufficient permissions");
+    });
+
+    it("deletes the deal when authorized", async () => {
+      // First .limit() call: select query returns the deal
+      mockLimit.mockResolvedValueOnce([{ id: "deal-001", portcoId: "portco-001" }]);
+      (requirePortcoRole as any).mockResolvedValue({ user: mockUser, role: "admin" });
+
+      const { deleteDeal } = await import("./deals");
+      await deleteDeal("deal-001", "test-portco");
+
+      expect(requirePortcoRole).toHaveBeenCalledWith("portco-001", "admin");
+      expect(mockDelete).toHaveBeenCalled();
+    });
+  });
+
   describe("getStagesForPortco", () => {
     it("requires authentication", async () => {
       (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));

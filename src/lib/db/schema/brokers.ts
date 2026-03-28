@@ -34,7 +34,7 @@ export const brokerInteractions = pgTable("broker_interactions", {
   brokerContactId: uuid("broker_contact_id")
     .references(() => brokerContacts.id)
     .notNull(),
-  dealId: uuid("deal_id").references(() => deals.id),
+  dealId: uuid("deal_id").references(() => deals.id, { onDelete: "cascade" }),
   portcoId: uuid("portco_id")
     .references(() => portcos.id)
     .notNull(),

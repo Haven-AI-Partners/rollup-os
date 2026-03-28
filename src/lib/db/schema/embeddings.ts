@@ -10,10 +10,10 @@ export const documentEmbeddings = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     fileId: uuid("file_id")
-      .references(() => files.id)
+      .references(() => files.id, { onDelete: "cascade" })
       .notNull(),
     dealId: uuid("deal_id")
-      .references(() => deals.id)
+      .references(() => deals.id, { onDelete: "cascade" })
       .notNull(),
     portcoId: uuid("portco_id")
       .references(() => portcos.id)

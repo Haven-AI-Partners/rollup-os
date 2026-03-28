@@ -22,7 +22,7 @@ export type FileType =
 
 export const files = pgTable("files", {
   id: uuid("id").primaryKey().defaultRandom(),
-  dealId: uuid("deal_id").references(() => deals.id),
+  dealId: uuid("deal_id").references(() => deals.id, { onDelete: "cascade" }),
   portcoId: uuid("portco_id")
     .references(() => portcos.id)
     .notNull(),

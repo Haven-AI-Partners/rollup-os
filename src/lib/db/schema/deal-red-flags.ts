@@ -6,7 +6,7 @@ import { portcos } from "./portcos";
 export const dealRedFlags = pgTable("deal_red_flags", {
   id: uuid("id").primaryKey().defaultRandom(),
   dealId: uuid("deal_id")
-    .references(() => deals.id)
+    .references(() => deals.id, { onDelete: "cascade" })
     .notNull(),
   portcoId: uuid("portco_id")
     .references(() => portcos.id)

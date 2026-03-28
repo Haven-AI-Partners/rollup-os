@@ -56,7 +56,7 @@ export const agentRuns = pgTable("agent_runs", {
   portcoId: uuid("portco_id")
     .references(() => portcos.id)
     .notNull(),
-  dealId: uuid("deal_id").references(() => deals.id),
+  dealId: uuid("deal_id").references(() => deals.id, { onDelete: "cascade" }),
   triggerJobId: text("trigger_job_id"),
   langfuseTraceId: text("langfuse_trace_id"),
   status: text("status").notNull().default("queued").$type<

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getPortcoBySlug } from "@/lib/auth";
+import { getPortcoBySlug, getCurrentUser, getUserPortcoRole } from "@/lib/auth";
 import { getDealsForPortco, getStagesForPortco } from "@/lib/actions/deals";
 import { PipelineView } from "@/components/deals/pipeline-view";
 import { CreateDealDialog } from "@/components/deals/create-deal-dialog";
@@ -13,10 +13,15 @@ export default async function PipelinePage({
   const portco = await getPortcoBySlug(portcoSlug);
   if (!portco) notFound();
 
-  const [allStages, deals] = await Promise.all([
+  const [allStages, deals, currentUser] = await Promise.all([
     getStagesForPortco(portco.id),
     getDealsForPortco(portco.id),
+    getCurrentUser(),
   ]);
+
+  const userRole = currentUser
+    ? await getUserPortcoRole(currentUser.id, portco.id)
+    : null;
 
   // Filter out PMI stages from the kanban — those belong in Portfolio
   const stages = allStages.filter((s) => s.phase !== "pmi");
@@ -36,6 +41,7 @@ export default async function PipelinePage({
         stages={stages}
         deals={activeDeals}
         portcoSlug={portcoSlug}
+        userRole={userRole}
       />
     </div>
   );

@@ -38,9 +38,10 @@ interface PipelineViewProps {
   stages: Stage[];
   deals: Deal[];
   portcoSlug: string;
+  userRole?: string | null;
 }
 
-export function PipelineView({ stages, deals, portcoSlug }: PipelineViewProps) {
+export function PipelineView({ stages, deals, portcoSlug, userRole }: PipelineViewProps) {
   const [view, setView] = useState<"kanban" | "list">("list");
 
   return (
@@ -81,6 +82,7 @@ export function PipelineView({ stages, deals, portcoSlug }: PipelineViewProps) {
           deals={deals}
           stages={stages}
           portcoSlug={portcoSlug}
+          userRole={userRole}
         />
       )}
     </div>

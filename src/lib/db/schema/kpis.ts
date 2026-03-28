@@ -32,7 +32,7 @@ export const kpiValues = pgTable(
     portcoId: uuid("portco_id")
       .references(() => portcos.id)
       .notNull(),
-    dealId: uuid("deal_id").references(() => deals.id),
+    dealId: uuid("deal_id").references(() => deals.id, { onDelete: "cascade" }),
     agentRunId: uuid("agent_run_id").references(() => agentRuns.id),
     value: numeric("value").notNull(),
     targetValue: numeric("target_value"),
