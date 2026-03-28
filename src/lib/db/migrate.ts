@@ -7,26 +7,17 @@ import postgres from "postgres";
 const MIGRATIONS_FOLDER = "./src/lib/db/migrations";
 
 /**
- * Migrations 0000–0004 were originally applied via `db:push`, which doesn't
- * record entries in the drizzle journal table. This causes `migrate()` to
- * re-run them, failing with "relation already exists".
+ * Tables were originally created via `db:push`, which doesn't record entries
+ * in drizzle's migration journal. This causes `migrate()` to re-run those
+ * migrations, failing with "relation already exists".
  *
- * This function detects that situation (tables exist but journal is empty)
- * and back-fills the journal so only new migrations run.
+ * This function checks each migration individually and backfills any that
+ * are missing from the journal but whose timestamp indicates they should
+ * already be applied.
  */
 async function backfillJournalIfNeeded(sql: postgres.Sql) {
   const journalPath = `${MIGRATIONS_FOLDER}/meta/_journal.json`;
   const journal = JSON.parse(fs.readFileSync(journalPath, "utf-8"));
-
-  // Check if the drizzle journal table has any entries
-  const rows = await sql`
-    SELECT id FROM drizzle."__drizzle_migrations" LIMIT 1
-  `.catch(() => []);
-
-  if (rows.length > 0) {
-    // Journal already has entries — nothing to backfill
-    return;
-  }
 
   // Check if the database was previously set up via db:push
   const tableCheck = await sql`
@@ -40,15 +31,22 @@ async function backfillJournalIfNeeded(sql: postgres.Sql) {
     return;
   }
 
-  console.log(
-    "Detected db:push database without migration journal entries. Back-filling..."
+  // Get all recorded migration timestamps from the journal table
+  const recorded = await sql`
+    SELECT created_at FROM drizzle."__drizzle_migrations"
+  `.catch(() => []);
+
+  const recordedTimestamps = new Set(
+    recorded.map((r) => String((r as Record<string, unknown>).created_at))
   );
 
-  // Back-fill ALL existing migrations so `migrate()` treats them as already applied.
-  // All tables were created via db:push, so every migration is already reflected in the DB.
-  const entriesToBackfill = journal.entries;
+  let backfilled = 0;
 
-  for (const entry of entriesToBackfill) {
+  for (const entry of journal.entries) {
+    if (recordedTimestamps.has(String(entry.when))) {
+      continue;
+    }
+
     const filePath = `${MIGRATIONS_FOLDER}/${entry.tag}.sql`;
     const query = fs.readFileSync(filePath, "utf-8");
     const hash = crypto.createHash("sha256").update(query).digest("hex");
@@ -57,10 +55,13 @@ async function backfillJournalIfNeeded(sql: postgres.Sql) {
       INSERT INTO drizzle."__drizzle_migrations" (hash, created_at)
       VALUES (${hash}, ${entry.when})
     `;
-    console.log(`  Recorded migration: ${entry.tag}`);
+    console.log(`Backfilled migration: ${entry.tag}`);
+    backfilled++;
   }
 
-  console.log("Back-fill complete.");
+  if (backfilled > 0) {
+    console.log(`Backfilled ${backfilled} migration(s).`);
+  }
 }
 
 async function main() {
