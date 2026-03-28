@@ -15,7 +15,9 @@ import {
   ExternalLink,
   CheckCircle,
   Loader2,
+  Search,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { ProcessGdriveFileButton } from "@/components/deals/process-gdrive-file-button";
 
@@ -129,6 +131,7 @@ export function VirtualFilesList({
   const [hasInitialLoad, setHasInitialLoad] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeTypeFilters, setActiveTypeFilters] = useState<Set<string>>(new Set(["im_pdf"]));
+  const [searchQuery, setSearchQuery] = useState("");
 
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -142,12 +145,20 @@ export function VirtualFilesList({
   }, [files, processedMap]);
 
   const filteredFiles = useMemo(() => {
-    if (activeTypeFilters.size === 0) return files;
+    const query = searchQuery.toLowerCase().trim();
     return files.filter((file) => {
-      const fileType = processedMap[file.id]?.fileType ?? UNCLASSIFIED_KEY;
-      return activeTypeFilters.has(fileType);
+      if (activeTypeFilters.size > 0) {
+        const fileType = processedMap[file.id]?.fileType ?? UNCLASSIFIED_KEY;
+        if (!activeTypeFilters.has(fileType)) return false;
+      }
+      if (query) {
+        const nameMatch = file.name.toLowerCase().includes(query);
+        const pathMatch = file.parentPath?.toLowerCase().includes(query);
+        if (!nameMatch && !pathMatch) return false;
+      }
+      return true;
     });
-  }, [files, processedMap, activeTypeFilters]);
+  }, [files, processedMap, activeTypeFilters, searchQuery]);
 
   const virtualizer = useVirtualizer({
     count: filteredFiles.length,
@@ -239,10 +250,21 @@ export function VirtualFilesList({
     );
   }
 
+  const isFiltered = activeTypeFilters.size > 0 || searchQuery.trim().length > 0;
+
   return (
     <div>
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <Input
+          placeholder="Search files..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
       <p className="text-xs text-muted-foreground mb-2">
-        Showing {filteredFiles.length}{activeTypeFilters.size > 0 ? " (filtered)" : ""} of {total ?? "..."} files
+        Showing {filteredFiles.length}{isFiltered ? " (filtered)" : ""} of {total ?? "..."} files
       </p>
       {typeCounts.size > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 mb-3">
