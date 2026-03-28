@@ -42,7 +42,6 @@ export function DeleteDealButton({ dealId, portcoSlug, companyName }: DeleteDeal
           size="icon"
           className="size-7 text-muted-foreground hover:text-destructive"
           onClick={(e) => {
-            e.preventDefault();
             e.stopPropagation();
           }}
         >
