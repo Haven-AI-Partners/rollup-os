@@ -251,6 +251,116 @@ describe("VirtualFilesList", () => {
     });
   });
 
+  describe("search", () => {
+    it("filters files by name when typing in the search input", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "Alpha Report.pdf" }),
+          makeFile({ id: "f2", name: "Beta Summary.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Alpha Report.pdf")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByPlaceholderText("Search files...");
+      fireEvent.change(searchInput, { target: { value: "Alpha" } });
+
+      expect(screen.getByText("Alpha Report.pdf")).toBeInTheDocument();
+      expect(screen.queryByText("Beta Summary.pdf")).not.toBeInTheDocument();
+    });
+
+    it("filters files by parent path", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "File1.pdf", parentPath: "IMs/Acme" }),
+          makeFile({ id: "f2", name: "File2.pdf", parentPath: "IMs/Globex" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("File1.pdf")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByPlaceholderText("Search files...");
+      fireEvent.change(searchInput, { target: { value: "Globex" } });
+
+      expect(screen.queryByText("File1.pdf")).not.toBeInTheDocument();
+      expect(screen.getByText("File2.pdf")).toBeInTheDocument();
+    });
+
+    it("is case-insensitive", async () => {
+      mockFetchResponse(
+        [makeFile({ id: "f1", name: "Important Doc.pdf" })],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Important Doc.pdf")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByPlaceholderText("Search files...");
+      fireEvent.change(searchInput, { target: { value: "important" } });
+
+      expect(screen.getByText("Important Doc.pdf")).toBeInTheDocument();
+    });
+
+    it("works together with type filter pills", async () => {
+      mockFetchResponse(
+        [
+          makeFile({ id: "f1", name: "Alpha IM.pdf" }),
+          makeFile({ id: "f2", name: "Beta IM.pdf" }),
+          makeFile({ id: "f3", name: "Alpha NDA.pdf" }),
+        ],
+        {
+          "f1": { status: "completed", dealId: "d1", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f2": { status: "completed", dealId: "d2", fileType: "im_pdf", classificationConfidence: null, classifiedBy: null },
+          "f3": { status: "completed", dealId: "d3", fileType: "nda", classificationConfidence: null, classifiedBy: null },
+        },
+      );
+
+      render(
+        <VirtualFilesList portcoId="portco-1" portcoSlug="test-co" isAdmin={false} />,
+      );
+
+      await waitFor(() => {
+        // IM filter active by default
+        expect(screen.getByText("Alpha IM.pdf")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByPlaceholderText("Search files...");
+      fireEvent.change(searchInput, { target: { value: "Alpha" } });
+
+      // Only Alpha IM should show (IM filter + search "Alpha")
+      expect(screen.getByText("Alpha IM.pdf")).toBeInTheDocument();
+      expect(screen.queryByText("Beta IM.pdf")).not.toBeInTheDocument();
+      expect(screen.queryByText("Alpha NDA.pdf")).not.toBeInTheDocument();
+    });
+  });
+
   describe("file type filter pills", () => {
     it("renders filter pills for classified file types", async () => {
       mockFetchResponse(
