@@ -100,13 +100,14 @@ vi.mock("@/lib/db", () => {
 vi.mock("@/lib/db/schema", () => ({
   files: { _name: "files", gdriveFileId: "gdriveFileId", processingStatus: "processingStatus", dealId: "dealId", fileType: "fileType", classificationConfidence: "classificationConfidence", classifiedBy: "classifiedBy" },
   portcos: { _name: "portcos", gdriveServiceAccountEnc: "gdriveServiceAccountEnc", id: "id" },
-  gdriveFileCache: { _name: "gdrive_file_cache", portcoId: "portco_id", gdriveFileId: "gdrive_file_id", modifiedTime: "modified_time" },
+  gdriveFileCache: { _name: "gdrive_file_cache", portcoId: "portco_id", gdriveFileId: "gdrive_file_id", modifiedTime: "modified_time", fileName: "file_name", parentPath: "parent_path" },
 }));
 
 vi.mock("drizzle-orm", () => ({
   inArray: vi.fn(),
   eq: vi.fn(),
   desc: vi.fn(),
+  asc: vi.fn(),
   count: vi.fn(() => "count"),
   sql: vi.fn(),
 }));
@@ -217,6 +218,24 @@ describe("GET /api/gdrive/files/paginated", () => {
     expect(body.files).toHaveLength(10);
     expect(body.nextCursor).toBeNull();
     expect(body.total).toBe(10);
+  });
+
+  it("returns all files with null nextCursor in folder mode", async () => {
+    mockCacheRows = makeCacheRows(100);
+    mockTotalCount = 100;
+
+    const { GET } = await import("./route");
+    const req = new NextRequest(
+      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001&mode=folder",
+    );
+
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.files).toHaveLength(100);
+    // Folder mode returns all files at once, no pagination
+    expect(body.nextCursor).toBeNull();
+    expect(body.total).toBe(100);
   });
 
   it("includes processedMap for files with processing status", async () => {

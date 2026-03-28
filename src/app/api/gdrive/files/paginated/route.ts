@@ -8,9 +8,10 @@ import {
   portcos,
   gdriveFileCache,
 } from "@/lib/db/schema";
-import { inArray, eq, desc, count, sql } from "drizzle-orm";
+import { inArray, eq, desc, asc, count, sql } from "drizzle-orm";
 
 const PAGE_SIZE = 50;
+const FOLDER_MODE_MAX = 5000;
 
 export async function GET(req: NextRequest) {
   const portcoId = req.nextUrl.searchParams.get("portcoId");
@@ -18,11 +19,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing portcoId" }, { status: 400 });
   }
 
-  const cursor = parseInt(req.nextUrl.searchParams.get("cursor") ?? "0", 10);
-  const limit = Math.min(
-    parseInt(req.nextUrl.searchParams.get("limit") ?? String(PAGE_SIZE), 10),
-    100,
-  );
+  const mode = req.nextUrl.searchParams.get("mode");
+  const isFolderMode = mode === "folder";
+  const cursor = isFolderMode ? 0 : parseInt(req.nextUrl.searchParams.get("cursor") ?? "0", 10);
+  const limit = isFolderMode
+    ? FOLDER_MODE_MAX
+    : Math.min(
+        parseInt(req.nextUrl.searchParams.get("limit") ?? String(PAGE_SIZE), 10),
+        100,
+      );
 
   try {
     const user = await requireAuth();
@@ -48,7 +53,11 @@ export async function GET(req: NextRequest) {
         .select()
         .from(gdriveFileCache)
         .where(eq(gdriveFileCache.portcoId, portcoId))
-        .orderBy(desc(gdriveFileCache.modifiedTime))
+        .orderBy(
+          ...(isFolderMode
+            ? [asc(gdriveFileCache.parentPath), asc(gdriveFileCache.fileName)]
+            : [desc(gdriveFileCache.modifiedTime)]),
+        )
         .offset(cursor)
         .limit(limit),
       db
