@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { files, deals, companyProfiles, promptVersions, evalRuns } from "@/lib/db/schema";
-import { eq, and, count, desc, avg } from "drizzle-orm";
+import { eq, and, count, desc, avg, isNotNull, sql } from "drizzle-orm";
 import {
   AGENT_SLUG,
   EXTRACTION_SLUG,
@@ -130,4 +130,73 @@ export async function getAllPromptVersions() {
   ]);
 
   return { extractionVersions, scoringVersions, legacyVersions };
+}
+
+export async function getFileClassifierStats(portcoId: string) {
+  await requireAuth();
+
+  const [typeCounts, confidenceStats, totalClassified] = await Promise.all([
+    db
+      .select({
+        fileType: files.fileType,
+        count: count(files.id),
+      })
+      .from(files)
+      .where(and(eq(files.portcoId, portcoId), eq(files.classifiedBy, "auto")))
+      .groupBy(files.fileType),
+
+    db
+      .select({
+        avgConfidence: avg(
+          sql<number>`cast(${files.classificationConfidence} as numeric)`,
+        ),
+      })
+      .from(files)
+      .where(
+        and(
+          eq(files.portcoId, portcoId),
+          eq(files.classifiedBy, "auto"),
+          isNotNull(files.classificationConfidence),
+        ),
+      ),
+
+    db
+      .select({ count: count(files.id) })
+      .from(files)
+      .where(and(eq(files.portcoId, portcoId), isNotNull(files.fileType))),
+  ]);
+
+  return {
+    typeCounts: typeCounts.map((t) => ({
+      fileType: t.fileType,
+      count: Number(t.count),
+    })),
+    avgConfidence: confidenceStats[0]?.avgConfidence
+      ? Number(confidenceStats[0].avgConfidence)
+      : null,
+    totalClassified: Number(totalClassified[0]?.count ?? 0),
+    autoClassified: typeCounts.reduce((sum, t) => sum + Number(t.count), 0),
+  };
+}
+
+export async function getRecentClassifiedFiles(portcoId: string) {
+  await requireAuth();
+
+  return db
+    .select({
+      id: files.id,
+      fileName: files.fileName,
+      fileType: files.fileType,
+      classifiedBy: files.classifiedBy,
+      classificationConfidence: files.classificationConfidence,
+      gdriveParentPath: files.gdriveParentPath,
+      dealId: files.dealId,
+      companyName: deals.companyName,
+      createdAt: files.createdAt,
+    })
+    .from(files)
+    .leftJoin(deals, eq(files.dealId, deals.id))
+    .where(and(eq(files.portcoId, portcoId), eq(files.classifiedBy, "auto")))
+    .orderBy(desc(files.createdAt))
+    .limit(10);
 }
