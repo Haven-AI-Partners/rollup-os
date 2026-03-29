@@ -35,11 +35,14 @@ export default async function FileClassifierPage({
 
   const [typeCounts, confidenceStats, totalClassified, versions, recentFiles] =
     await Promise.all([
-      // Count files by type (auto-classified only)
+      // Count files and avg confidence by type (auto-classified only)
       db
         .select({
           fileType: files.fileType,
           count: count(files.id),
+          avgConfidence: avg(
+            sql<number>`cast(${files.classificationConfidence} as numeric)`,
+          ),
         })
         .from(files)
         .where(
@@ -117,7 +120,11 @@ export default async function FileClassifierPage({
 
   // Sort type counts descending
   const sortedTypes = typeCounts
-    .map((t) => ({ fileType: t.fileType, count: Number(t.count) }))
+    .map((t) => ({
+      fileType: t.fileType,
+      count: Number(t.count),
+      avgConfidence: t.avgConfidence ? Number(t.avgConfidence) : null,
+    }))
     .sort((a, b) => b.count - a.count);
 
   // Prompt versioning
@@ -259,9 +266,16 @@ export default async function FileClassifierPage({
                     <span className="text-xs font-medium">
                       {FILE_TYPE_LABELS[t.fileType ?? ""] ?? t.fileType}
                     </span>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {t.count}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {t.avgConfidence !== null && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {(t.avgConfidence * 100).toFixed(0)}%
+                        </span>
+                      )}
+                      <Badge variant="secondary" className="text-[10px]">
+                        {t.count}
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
