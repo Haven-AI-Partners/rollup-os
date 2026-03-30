@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
-import { contentExtractionResultSchema, type ContentExtractionResult } from "../schemas/content-extractor";
-import { buildContentExtractionPrompt } from "../prompts/content-extractor";
+import { contentExtractionResultSchema, type ContentExtractionResult } from "./schema";
+import { buildContentExtractionPrompt } from "./prompt";
 
 /**
  * Agent 1: Content Extractor

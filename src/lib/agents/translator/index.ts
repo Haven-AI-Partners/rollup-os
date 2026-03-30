@@ -1,8 +1,8 @@
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
-import { translationResultSchema, type TranslationResult } from "../schemas/translator";
-import { type ContentExtractionResult, type ExtractedPage } from "../schemas/content-extractor";
-import { buildTranslationPrompt } from "../prompts/translator";
+import { translationResultSchema, type TranslationResult } from "./schema";
+import { type ContentExtractionResult, type ExtractedPage } from "@/lib/agents/content-extractor/schema";
+import { buildTranslationPrompt } from "./prompt";
 
 /**
  * Agent 2: Translator

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { externalSourceRefSchema } from "./source-attribution";
+import { externalSourceRefSchema } from "@/lib/agents/shared/source-attribution";
 
 // ── Agent 4: External Enricher output schema ──
 

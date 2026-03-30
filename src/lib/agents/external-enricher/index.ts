@@ -1,36 +1,28 @@
 import { generateObject, generateText, stepCountIs } from "ai";
 import { google } from "@ai-sdk/google";
-import { externalEnrichmentResultSchema, type ExternalEnrichmentResult } from "../schemas/external-enricher";
-import { buildExternalEnrichmentPrompt } from "../prompts/external-enricher";
-import { type AnalyzerExtractionResult } from "../schemas/analyzer";
+import { externalEnrichmentResultSchema, type ExternalEnrichmentResult } from "./schema";
+import { buildExternalEnrichmentPrompt } from "./prompt";
 
 /**
- * Agent 4: External Enricher
+ * External Enricher Agent
  *
- * Takes key facts from the IM analysis (company name, industry, location)
- * and searches the web for complementary information.
+ * A reusable agent that takes basic company information and searches the web
+ * for complementary data: company info, market context, and risk indicators.
  *
  * All results are tagged with external source URLs and retrieval timestamps.
- * This data is stored SEPARATELY from the IM analysis — never mixed into IM-sourced scores.
+ * This agent is generic — it can be used by any pipeline that needs external
+ * data about a company (IM processing, DD processing, deal chat, etc.).
  */
 export const MODEL_ID = "gemini-2.5-flash";
 
 /** Maximum search steps to prevent excessive API usage */
 const MAX_SEARCH_STEPS = 5;
 
-interface EnrichmentInput {
+/** Generic input for external enrichment — any pipeline can construct this */
+export interface EnrichmentInput {
   companyName: string;
   industry: string | null;
   location: string | null;
-}
-
-/** Extract minimal input for enrichment from the analyzer extraction */
-export function extractEnrichmentInput(extraction: AnalyzerExtractionResult): EnrichmentInput {
-  return {
-    companyName: extraction.companyProfile.companyName.value ?? "Unknown",
-    industry: extraction.companyProfile.industry.value,
-    location: extraction.companyProfile.location.value,
-  };
 }
 
 /**
@@ -44,10 +36,8 @@ export async function enrichExternally(
   input: EnrichmentInput,
 ): Promise<ExternalEnrichmentResult> {
   try {
-    // Step 1: Gather raw research via web search
     const rawResearch = await gatherResearch(input);
 
-    // Step 2: Structure the research into our schema
     const { object } = await generateObject({
       model: google(MODEL_ID),
       schema: externalEnrichmentResultSchema,
@@ -108,7 +98,7 @@ Use both English and Japanese search queries.`,
 }
 
 /** Return empty result when enrichment fails gracefully */
-function emptyEnrichmentResult(): ExternalEnrichmentResult {
+export function emptyEnrichmentResult(): ExternalEnrichmentResult {
   return {
     companyInfo: null,
     marketContext: null,

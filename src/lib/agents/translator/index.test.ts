@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { skipTranslation } from "./translator";
-import { type ContentExtractionResult } from "../schemas/content-extractor";
+import { skipTranslation } from "./index";
+import { type ContentExtractionResult } from "@/lib/agents/content-extractor/schema";
 
 describe("skipTranslation", () => {
   it("passes through English content unchanged", () => {

@@ -1,8 +1,8 @@
-import { extractContent, MODEL_ID as EXTRACTOR_MODEL } from "./agents/content-extractor";
-import { translateContent, skipTranslation, MODEL_ID as TRANSLATOR_MODEL } from "./agents/translator";
+import { extractContent, MODEL_ID as EXTRACTOR_MODEL } from "@/lib/agents/content-extractor";
+import { translateContent, skipTranslation, MODEL_ID as TRANSLATOR_MODEL } from "@/lib/agents/translator";
 import { analyzeContent, MODEL_ID as ANALYZER_MODEL } from "./agents/analyzer";
-import { enrichExternally, extractEnrichmentInput, MODEL_ID as ENRICHER_MODEL } from "./agents/external-enricher";
-import { flattenSourcedExtraction, collectSourceRefs } from "./schemas/analyzer";
+import { enrichExternally, MODEL_ID as ENRICHER_MODEL, type EnrichmentInput } from "@/lib/agents/external-enricher";
+import { flattenSourcedExtraction, collectSourceRefs, type AnalyzerExtractionResult } from "./schemas/analyzer";
 import { type IMPipelineResult } from "./schemas/pipeline-result";
 import { type IMAnalysisResult } from "./schema";
 
@@ -43,7 +43,7 @@ export async function runIMPipeline(
 
   // Agent 4: External Enrichment
   progress("Fetching external information about the company...");
-  const enrichmentInput = extractEnrichmentInput(analyzerExtraction);
+  const enrichmentInput = buildEnrichmentInput(analyzerExtraction);
   const externalEnrichment = await enrichExternally(enrichmentInput);
 
   // Build legacy-compatible IMAnalysisResult
@@ -65,6 +65,15 @@ export async function runIMPipeline(
       analyzerModel: ANALYZER_MODEL,
       enricherModel: ENRICHER_MODEL,
     },
+  };
+}
+
+/** Extract enrichment input from IM analyzer extraction (IM-specific adapter) */
+function buildEnrichmentInput(extraction: AnalyzerExtractionResult): EnrichmentInput {
+  return {
+    companyName: extraction.companyProfile.companyName.value ?? "Unknown",
+    industry: extraction.companyProfile.industry.value,
+    location: extraction.companyProfile.location.value,
   };
 }
 

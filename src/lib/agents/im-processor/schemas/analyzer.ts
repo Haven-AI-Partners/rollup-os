@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { imSourceRefSchema, type IMSourceRef } from "./source-attribution";
+import { imSourceRefSchema, type IMSourceRef } from "@/lib/agents/shared/source-attribution";
 
 // ── Agent 3: Analyzer schemas ──
 // Evolved from the original schema.ts with added source attribution.

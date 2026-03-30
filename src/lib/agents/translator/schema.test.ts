@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { translationResultSchema } from "./translator";
+import { translationResultSchema } from "./schema";
 
 describe("translationResultSchema", () => {
   it("validates correct translation result", () => {

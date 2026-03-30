@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { contentExtractionResultSchema } from "./content-extractor";
+import { contentExtractionResultSchema } from "./schema";
 
 describe("contentExtractionResultSchema", () => {
   it("validates correct extraction result", () => {

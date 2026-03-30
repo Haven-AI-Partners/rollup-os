@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { externalEnrichmentResultSchema } from "./external-enricher";
+import { externalEnrichmentResultSchema } from "./schema";
 
 describe("externalEnrichmentResultSchema", () => {
   it("validates full enrichment result", () => {

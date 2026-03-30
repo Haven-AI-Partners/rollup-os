@@ -1,7 +1,7 @@
-import { type ContentExtractionResult } from "./content-extractor";
-import { type TranslationResult } from "./translator";
+import { type ContentExtractionResult } from "@/lib/agents/content-extractor/schema";
+import { type TranslationResult } from "@/lib/agents/translator/schema";
 import { type AnalyzerExtractionResult, type AnalyzerScoringResult } from "./analyzer";
-import { type ExternalEnrichmentResult } from "./external-enricher";
+import { type ExternalEnrichmentResult } from "@/lib/agents/external-enricher/schema";
 import { type IMAnalysisResult } from "../schema";
 
 // ── Combined pipeline result ──

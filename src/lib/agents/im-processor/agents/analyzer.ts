@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
-import { type TranslationResult, type TranslatedPage } from "../schemas/translator";
+import { type TranslationResult, type TranslatedPage } from "@/lib/agents/translator/schema";
 import {
   analyzerExtractionSchema,
   analyzerScoringSchema,
