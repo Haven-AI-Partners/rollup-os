@@ -139,7 +139,13 @@ function checkAuthGuards() {
   );
 
   const findings = [];
-  const authPatterns = [/requireAuth\(/, /requirePortcoRole\(/];
+  // Match direct auth calls and common wrappers (e.g. requireAdmin)
+  const authPatterns = [
+    /requireAuth\(/,
+    /requirePortcoRole\(/,
+    /requireAdmin\(/,
+    /getCurrentUser\(\)[\s\S]*?if\s*\(\s*!/, // getCurrentUser() followed by null guard
+  ];
 
   for (const file of actionFiles) {
     const content = readFileSync(file, "utf-8");
@@ -177,6 +183,12 @@ function checkAuthGuards() {
 }
 
 // --- 4. Dangerous patterns ---
+
+// Files/directories to exclude from dangerous pattern checks (known safe)
+const PATTERN_IGNORE_PATHS = [
+  "src/components/ui/", // shadcn/ui components — not hand-written
+];
+
 function checkDangerousPatterns() {
   const patterns = [
     {
@@ -198,10 +210,12 @@ function checkDangerousPatterns() {
       description: "Code injection risk",
     },
     {
-      name: "Raw SQL string",
-      regex: /sql`[^`]*\$\{(?!.*\.param)/,
-      severity: "medium",
-      description: "Potential SQL injection if user input is interpolated",
+      name: "Raw SQL via string concatenation",
+      // Only flag string concatenation with SQL keywords, NOT Drizzle's
+      // sql`` template tag which uses parameterized placeholders
+      regex: /(?:query|execute|raw)\s*\(\s*['"`].*(?:SELECT|INSERT|UPDATE|DELETE|DROP)/i,
+      severity: "high",
+      description: "SQL injection risk via string concatenation",
     },
     {
       name: "innerHTML assignment",
@@ -211,14 +225,18 @@ function checkDangerousPatterns() {
     },
     {
       name: "Unvalidated redirect",
-      regex: /redirect\(\s*[^"'`]/,
+      // Only flag redirects using raw request params (searchParams, query, params)
+      regex: /redirect\(.*(?:searchParams|query|params)\./,
       severity: "medium",
       description: "Open redirect risk if URL comes from user input",
     },
   ];
 
   const allFiles = [...findFiles("*.ts"), ...findFiles("*.tsx")].filter(
-    (f) => !f.includes("node_modules") && !f.includes(".test.")
+    (f) =>
+      !f.includes("node_modules") &&
+      !f.includes(".test.") &&
+      !PATTERN_IGNORE_PATHS.some((ignore) => f.startsWith(ignore))
   );
 
   const findings = [];
