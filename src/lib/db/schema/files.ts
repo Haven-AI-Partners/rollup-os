@@ -35,7 +35,9 @@ export const files = pgTable("files", {
   gdriveParentPath: text("gdrive_parent_path"),
   gdriveUrl: text("gdrive_url"),
   sizeBytes: bigint("size_bytes", { mode: "number" }),
+  suggestedCompanyName: text("suggested_company_name"),
   classifiedBy: text("classified_by").$type<"auto" | "manual">(),
+  classificationTier: text("classification_tier").$type<"rules" | "vision">(),
   classificationConfidence: text("classification_confidence"),
   processingStatus: text("processing_status")
     .notNull()

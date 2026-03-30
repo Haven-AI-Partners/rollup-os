@@ -31,7 +31,7 @@ export const classificationSchema = z.object({
     .string()
     .nullable()
     .describe(
-      "Company name inferred from the folder structure or filename. Null if unclear.",
+      "Company name inferred from the document content, folder structure, or filename. Null if unclear.",
     ),
   reasoning: z
     .string()
@@ -39,3 +39,8 @@ export const classificationSchema = z.object({
 });
 
 export type ClassificationResult = z.infer<typeof classificationSchema>;
+
+/** Extended result that includes which tier performed the classification */
+export interface HybridClassificationResult extends ClassificationResult {
+  tier: "rules" | "vision";
+}

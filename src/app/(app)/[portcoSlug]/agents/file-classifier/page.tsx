@@ -17,7 +17,7 @@ import {
 import Link from "next/link";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { AGENT_SLUG, DEFAULT_TEMPLATE, renderTemplate } from "@/lib/agents/file-classifier/prompt";
-import { MODEL_ID } from "@/lib/agents/file-classifier";
+import { MODEL_ID, RULE_CONFIDENCE_THRESHOLD } from "@/lib/agents/file-classifier";
 import { FILE_TYPE_LABELS } from "@/components/files/file-row";
 
 export default async function FileClassifierPage({
@@ -95,6 +95,8 @@ export default async function FileClassifierPage({
           fileName: files.fileName,
           fileType: files.fileType,
           classificationConfidence: files.classificationConfidence,
+          classificationTier: files.classificationTier,
+          suggestedCompanyName: files.suggestedCompanyName,
           gdriveParentPath: files.gdriveParentPath,
           dealId: files.dealId,
           companyName: deals.companyName,
@@ -117,6 +119,10 @@ export default async function FileClassifierPage({
   const avgConfidence = confidenceStats[0]?.avg
     ? Number(confidenceStats[0].avg)
     : null;
+
+  // Count files by classification tier from recent files
+  const rulesCount = recentFiles.filter((f) => f.classificationTier === "rules").length;
+  const visionCount = recentFiles.filter((f) => f.classificationTier === "vision").length;
 
   // Sort type counts descending
   const sortedTypes = typeCounts
@@ -171,20 +177,24 @@ export default async function FileClassifierPage({
         <CardContent>
           <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Model</span>
+              <span className="text-muted-foreground">Approach</span>
+              <span>Hybrid (rules + LLM vision)</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Vision Model</span>
               <span className="font-mono">{MODEL_ID}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Output</span>
-              <span>Structured (generateObject)</span>
+              <span className="text-muted-foreground">Tier 1 (Rules)</span>
+              <span>Keyword matching on metadata</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Input</span>
-              <span>File name + MIME type + folder path</span>
+              <span className="text-muted-foreground">Tier 2 (Vision)</span>
+              <span>PDF page images + metadata</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">File Download</span>
-              <span>Not required (metadata only)</span>
+              <span className="text-muted-foreground">Escalation Threshold</span>
+              <span>{(RULE_CONFIDENCE_THRESHOLD * 100).toFixed(0)}% confidence</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">File Types</span>
@@ -290,7 +300,7 @@ export default async function FileClassifierPage({
           <CardHeader>
             <CardTitle className="text-base">Recent Classifications</CardTitle>
             <CardDescription>
-              Latest files classified by the AI agent
+              Latest files classified — {rulesCount} by rules, {visionCount} by vision
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -327,6 +337,14 @@ export default async function FileClassifierPage({
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 ml-4">
+                      {file.classificationTier && (
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${file.classificationTier === "rules" ? "border-green-300 text-green-700" : "border-purple-300 text-purple-700"}`}
+                        >
+                          {file.classificationTier}
+                        </Badge>
+                      )}
                       {file.fileType && (
                         <Badge variant="secondary" className="text-[10px]">
                           {FILE_TYPE_LABELS[file.fileType] ?? file.fileType}
