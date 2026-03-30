@@ -110,22 +110,24 @@ export function VirtualFilesList({
 
   const syncRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchPage = useCallback(async (cursor: number) => {
+  const fetchPage = useCallback(async (cursor: number, mode: "list" | "folder" = "list") => {
     if (isFetching) return;
 
     setIsFetching(true);
     try {
-      const res = await fetch(
-        `/api/gdrive/files/paginated?portcoId=${encodeURIComponent(portcoId)}&cursor=${cursor}`,
-      );
+      const params = new URLSearchParams({
+        portcoId,
+        cursor: String(cursor),
+        ...(mode === "folder" ? { mode: "folder" } : {}),
+      });
+      const res = await fetch(`/api/gdrive/files/paginated?${params}`);
       if (!res.ok) return;
 
       const data: PageData = await res.json();
 
       if (data.syncing) {
-        // Background sync in progress — retry after a short delay
         setIsSyncing(true);
-        syncRetryRef.current = setTimeout(() => fetchPage(0), 3000);
+        syncRetryRef.current = setTimeout(() => fetchPage(0, mode), 3000);
         return;
       }
 
@@ -142,38 +144,6 @@ export function VirtualFilesList({
     }
   }, [isFetching, portcoId]);
 
-  const fetchAll = useCallback(async () => {
-    if (isFetching) return;
-
-    setIsFetching(true);
-    try {
-      const res = await fetch(
-        `/api/gdrive/files/paginated?portcoId=${encodeURIComponent(portcoId)}&mode=folder`,
-      );
-      if (!res.ok) return;
-
-      const data: PageData = await res.json();
-
-      if (data.syncing) {
-        setIsSyncing(true);
-        syncRetryRef.current = setTimeout(() => fetchAll(), 3000);
-        return;
-      }
-
-      setIsSyncing(false);
-      setFiles(data.files);
-      setProcessedMap(data.processedMap);
-      setNextCursor(null);
-      setTotal(data.total);
-    } catch {
-      // Silently fail
-    } finally {
-      setIsFetching(false);
-      setHasInitialLoad(true);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFetching, portcoId]);
-
   // Clean up sync retry timer on unmount
   useEffect(() => {
     return () => {
@@ -183,11 +153,12 @@ export function VirtualFilesList({
 
   // Fetch data on mount and when view mode changes
   useEffect(() => {
-    if (viewMode === "folder") {
-      fetchAll();
-    } else {
-      fetchPage(0);
-    }
+    setFiles([]);
+    setProcessedMap({});
+    setNextCursor(0);
+    setTotal(null);
+    setHasInitialLoad(false);
+    fetchPage(0, viewMode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portcoId, viewMode]);
 
@@ -343,19 +314,19 @@ export function VirtualFilesList({
         </div>
       )}
       {viewMode === "folder" ? (
-        <div className="h-[calc(100vh-220px)] overflow-auto">
-          <FolderFilesList
-            files={filteredFiles}
-            processedMap={processedMap}
-            portcoSlug={portcoSlug}
-            isAdmin={isAdmin}
-          />
-          {isFetching && (
-            <div className="flex justify-center py-4">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            </div>
-          )}
-        </div>
+        <FolderFilesList
+          files={filteredFiles}
+          processedMap={processedMap}
+          portcoSlug={portcoSlug}
+          isAdmin={isAdmin}
+          hasMore={nextCursor !== null}
+          isFetching={isFetching}
+          onLoadMore={() => {
+            if (nextCursor !== null && !isFetching) {
+              fetchPage(nextCursor, "folder");
+            }
+          }}
+        />
       ) : (
         <div
           ref={parentRef}

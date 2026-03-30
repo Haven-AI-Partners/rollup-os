@@ -11,7 +11,7 @@ import {
 import { inArray, eq, desc, asc, count } from "drizzle-orm";
 
 const PAGE_SIZE = 50;
-const FOLDER_MODE_MAX = 5000;
+const FOLDER_PAGE_SIZE = 500;
 
 export async function GET(req: NextRequest) {
   const portcoId = req.nextUrl.searchParams.get("portcoId");
@@ -21,9 +21,9 @@ export async function GET(req: NextRequest) {
 
   const mode = req.nextUrl.searchParams.get("mode");
   const isFolderMode = mode === "folder";
-  const cursor = isFolderMode ? 0 : parseInt(req.nextUrl.searchParams.get("cursor") ?? "0", 10);
+  const cursor = parseInt(req.nextUrl.searchParams.get("cursor") ?? "0", 10);
   const limit = isFolderMode
-    ? FOLDER_MODE_MAX
+    ? FOLDER_PAGE_SIZE
     : Math.min(
         parseInt(req.nextUrl.searchParams.get("limit") ?? String(PAGE_SIZE), 10),
         100,

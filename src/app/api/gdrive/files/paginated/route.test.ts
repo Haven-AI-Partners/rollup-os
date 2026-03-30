@@ -220,7 +220,7 @@ describe("GET /api/gdrive/files/paginated", () => {
     expect(body.total).toBe(10);
   });
 
-  it("returns all files with null nextCursor in folder mode", async () => {
+  it("returns files with null nextCursor in folder mode when under page size", async () => {
     mockCacheRows = makeCacheRows(100);
     mockTotalCount = 100;
 
@@ -233,9 +233,42 @@ describe("GET /api/gdrive/files/paginated", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.files).toHaveLength(100);
-    // Folder mode returns all files at once, no pagination
     expect(body.nextCursor).toBeNull();
     expect(body.total).toBe(100);
+  });
+
+  it("returns nextCursor in folder mode when more files exist", async () => {
+    mockCacheRows = makeCacheRows(500);
+    mockTotalCount = 1200;
+
+    const { GET } = await import("./route");
+    const req = new NextRequest(
+      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001&mode=folder",
+    );
+
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.files).toHaveLength(500);
+    expect(body.nextCursor).toBe(500);
+    expect(body.total).toBe(1200);
+  });
+
+  it("supports cursor parameter in folder mode for subsequent pages", async () => {
+    mockCacheRows = makeCacheRows(500);
+    mockTotalCount = 1200;
+
+    const { GET } = await import("./route");
+    const req = new NextRequest(
+      "http://localhost/api/gdrive/files/paginated?portcoId=portco-001&mode=folder&cursor=500",
+    );
+
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.files).toHaveLength(500);
+    expect(body.nextCursor).toBe(1000);
+    expect(body.total).toBe(1200);
   });
 
   it("includes processedMap for files with processing status", async () => {

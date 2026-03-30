@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronRight,
   ChevronDown,
   FolderOpen,
+  Loader2,
 } from "lucide-react";
 import { FileRowContent } from "./file-row";
 import type { GDriveFile, ProcessedInfo } from "./virtual-files-list";
@@ -59,6 +60,9 @@ interface FolderFilesListProps {
   processedMap: Record<string, ProcessedInfo>;
   portcoSlug: string;
   isAdmin: boolean;
+  hasMore: boolean;
+  isFetching: boolean;
+  onLoadMore: () => void;
 }
 
 export function FolderFilesList({
@@ -66,15 +70,52 @@ export function FolderFilesList({
   processedMap,
   portcoSlug,
   isAdmin,
+  hasMore,
+  isFetching,
+  onLoadMore,
 }: FolderFilesListProps) {
   const tree = useMemo(() => buildFolderTree(files), [files]);
-  const [expanded, setExpanded] = useState<Set<string>>(() => {
-    // Auto-expand top-level folders
-    return new Set(Array.from(tree.children.keys()));
-  });
+  // Track manually toggled folders. Top-level folders default to expanded.
+  const [manualToggles, setManualToggles] = useState<Set<string>>(new Set());
+
+  const expanded = useMemo(() => {
+    const set = new Set<string>();
+    // Auto-expand all top-level folders unless manually collapsed
+    for (const key of tree.children.keys()) {
+      if (!manualToggles.has(key)) {
+        set.add(key);
+      }
+    }
+    // Add manually expanded non-top-level folders
+    for (const key of manualToggles) {
+      if (!tree.children.has(key)) {
+        set.add(key);
+      }
+    }
+    return set;
+  }, [tree, manualToggles]);
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isFetching) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, isFetching, onLoadMore]);
 
   function toggleFolder(path: string) {
-    setExpanded((prev) => {
+    setManualToggles((prev) => {
       const next = new Set(prev);
       if (next.has(path)) {
         next.delete(path);
@@ -93,29 +134,39 @@ export function FolderFilesList({
   );
 
   return (
-    <div className="rounded-lg border" data-testid="folder-files-list">
-      {sortedChildren.map((child) => (
-        <FolderRow
-          key={child.fullPath}
-          node={child}
-          depth={0}
-          expanded={expanded}
-          onToggle={toggleFolder}
-          processedMap={processedMap}
-          portcoSlug={portcoSlug}
-          isAdmin={isAdmin}
-        />
-      ))}
-      {sortedRootFiles.map((file) => (
-        <FileRow
-          key={file.id}
-          file={file}
-          depth={0}
-          processed={processedMap[file.id]}
-          portcoSlug={portcoSlug}
-          isAdmin={isAdmin}
-        />
-      ))}
+    <div className="h-[calc(100vh-220px)] overflow-auto">
+      <div className="rounded-lg border" data-testid="folder-files-list">
+        {sortedChildren.map((child) => (
+          <FolderRow
+            key={child.fullPath}
+            node={child}
+            depth={0}
+            expanded={expanded}
+            onToggle={toggleFolder}
+            processedMap={processedMap}
+            portcoSlug={portcoSlug}
+            isAdmin={isAdmin}
+          />
+        ))}
+        {sortedRootFiles.map((file) => (
+          <FileRow
+            key={file.id}
+            file={file}
+            depth={0}
+            processed={processedMap[file.id]}
+            portcoSlug={portcoSlug}
+            isAdmin={isAdmin}
+          />
+        ))}
+      </div>
+      {isFetching && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      {hasMore && !isFetching && (
+        <div ref={sentinelRef} className="h-1" />
+      )}
     </div>
   );
 }

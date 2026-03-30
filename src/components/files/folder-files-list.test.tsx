@@ -77,6 +77,9 @@ describe("FolderFilesList", () => {
         processedMap={{}}
         portcoSlug="test-co"
         isAdmin={false}
+        hasMore={false}
+        isFetching={false}
+        onLoadMore={() => {}}
       />,
     );
 
@@ -101,6 +104,9 @@ describe("FolderFilesList", () => {
         processedMap={{}}
         portcoSlug="test-co"
         isAdmin={false}
+        hasMore={false}
+        isFetching={false}
+        onLoadMore={() => {}}
       />,
     );
 
@@ -120,6 +126,9 @@ describe("FolderFilesList", () => {
         processedMap={{}}
         portcoSlug="test-co"
         isAdmin={false}
+        hasMore={false}
+        isFetching={false}
+        onLoadMore={() => {}}
       />,
     );
 
@@ -147,6 +156,9 @@ describe("FolderFilesList", () => {
         processedMap={{}}
         portcoSlug="test-co"
         isAdmin={false}
+        hasMore={false}
+        isFetching={false}
+        onLoadMore={() => {}}
       />,
     );
 
@@ -165,6 +177,9 @@ describe("FolderFilesList", () => {
         processedMap={{}}
         portcoSlug="test-co"
         isAdmin={false}
+        hasMore={false}
+        isFetching={false}
+        onLoadMore={() => {}}
       />,
     );
 
