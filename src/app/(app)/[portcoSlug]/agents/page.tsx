@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { files, deals, companyProfiles, discoveryCampaigns, discoverySessions, discoveryWorkflows, dealThesisNodes } from "@/lib/db/schema";
-import { eq, count, avg, sql } from "drizzle-orm";
+import { eq, and, count, avg, sql, isNotNull } from "drizzle-orm";
 import { getPortcoBySlug } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,9 @@ import {
   Brain,
   MessageSquare,
   FileText,
+  FileOutput,
+  Languages,
+  Globe,
   Users,
   Workflow,
   Star,
@@ -38,6 +41,8 @@ export default async function AgentsPage({
     _avgAutomationScore,
     thesisTreeCount,
     thesisNodeStats,
+    pipelineV2Count,
+    enrichedCount,
   ] = await Promise.all([
     // IM Processor stats
     db
@@ -93,6 +98,19 @@ export default async function AgentsPage({
       })
       .from(dealThesisNodes)
       .where(eq(dealThesisNodes.portcoId, portco.id)),
+
+    // Pipeline v2 agent stats
+    db
+      .select({ count: count(companyProfiles.id) })
+      .from(companyProfiles)
+      .innerJoin(deals, eq(companyProfiles.dealId, deals.id))
+      .where(and(eq(deals.portcoId, portco.id), eq(companyProfiles.pipelineVersion, "v2"))),
+
+    db
+      .select({ count: count(companyProfiles.id) })
+      .from(companyProfiles)
+      .innerJoin(deals, eq(companyProfiles.dealId, deals.id))
+      .where(and(eq(deals.portcoId, portco.id), isNotNull(companyProfiles.externalEnrichment))),
   ]);
 
   // IM Processor summary
@@ -110,6 +128,10 @@ export default async function AgentsPage({
   const thesisTrees = Number(thesisTreeCount[0]?.count ?? 0);
   const thesisComplete = Number(thesisNodeStats[0]?.complete ?? 0);
   const thesisRisk = Number(thesisNodeStats[0]?.risk ?? 0);
+
+  // Pipeline agent stats
+  const v2Processed = Number(pipelineV2Count[0]?.count ?? 0);
+  const enriched = Number(enrichedCount[0]?.count ?? 0);
 
   return (
     <div className="space-y-6">
@@ -239,6 +261,108 @@ export default async function AgentsPage({
               </div>
               <div className="mt-3">
                 <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Content Extractor Card */}
+        <Link href={`/${portcoSlug}/agents/content-extractor`}>
+          <Card className="h-full transition-colors hover:border-primary/50 hover:bg-muted/30 cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-orange-100 p-2.5">
+                    <FileOutput className="size-5 text-orange-700" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Content Extractor</CardTitle>
+                    <CardDescription className="line-clamp-2">
+                      Extracts raw text from PDF documents into structured markdown with page-level attribution
+                    </CardDescription>
+                  </div>
+                </div>
+                <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <FileOutput className="size-3" />
+                  {v2Processed} documents extracted
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+                <Badge variant="outline" className="text-muted-foreground">Pipeline Agent</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Translator Card */}
+        <Link href={`/${portcoSlug}/agents/translator`}>
+          <Card className="h-full transition-colors hover:border-primary/50 hover:bg-muted/30 cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-cyan-100 p-2.5">
+                    <Languages className="size-5 text-cyan-700" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Translator</CardTitle>
+                    <CardDescription className="line-clamp-2">
+                      Faithfully translates extracted document content to English, preserving numbers, names, and formatting
+                    </CardDescription>
+                  </div>
+                </div>
+                <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Languages className="size-3" />
+                  {v2Processed} documents translated
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+                <Badge variant="outline" className="text-muted-foreground">Pipeline Agent</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* External Enricher Card */}
+        <Link href={`/${portcoSlug}/agents/external-enricher`}>
+          <Card className="h-full transition-colors hover:border-primary/50 hover:bg-muted/30 cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-amber-100 p-2.5">
+                    <Globe className="size-5 text-amber-700" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">External Enricher</CardTitle>
+                    <CardDescription className="line-clamp-2">
+                      Searches the web for publicly available company information to complement IM analysis
+                    </CardDescription>
+                  </div>
+                </div>
+                <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Globe className="size-3" />
+                  {enriched} companies enriched
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+                <Badge variant="outline" className="text-muted-foreground">Pipeline Agent</Badge>
               </div>
             </CardContent>
           </Card>
