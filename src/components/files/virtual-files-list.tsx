@@ -12,7 +12,8 @@ import {
   Search,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { FileRowContent, FILE_TYPE_LABELS } from "./file-row";
+import { FileRowContent } from "./file-row";
+import { FILE_TYPE_LABELS } from "@/lib/constants";
 import { FolderFilesList } from "./folder-files-list";
 
 export interface GDriveFile {

@@ -94,6 +94,26 @@ export function flagAgreementBadgeColor(value: number): string {
   return "bg-red-50 text-red-700 border-red-200";
 }
 
+// ── File Type Labels ──
+
+export const FILE_TYPE_LABELS: Record<string, string> = {
+  im_pdf: "IM",
+  report: "Report",
+  attachment: "Attachment",
+  nda: "NDA",
+  dd_financial: "DD Financial",
+  dd_legal: "DD Legal",
+  dd_operational: "DD Operational",
+  dd_tax: "DD Tax",
+  dd_hr: "DD HR",
+  dd_it: "DD IT",
+  loi: "LOI",
+  purchase_agreement: "Purchase Agreement",
+  pmi_plan: "PMI Plan",
+  pmi_report: "PMI Report",
+  other: "Other",
+};
+
 // ── Processing Status Icons ──
 
 export const PROCESSING_STATUS_CONFIG: Record<string, { icon: typeof CheckCircle; colorClass: string }> = {
