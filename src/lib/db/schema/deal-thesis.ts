@@ -10,7 +10,8 @@ export const dealThesisNodes = pgTable("deal_thesis_nodes", {
   portcoId: uuid("portco_id")
     .references(() => portcos.id)
     .notNull(),
-  parentId: uuid("parent_id"),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Self-referential FK requires type assertion
+  parentId: uuid("parent_id").references((): any => dealThesisNodes.id),
   label: text("label").notNull(),
   description: text("description"),
   status: text("status").notNull().default("unknown").$type<

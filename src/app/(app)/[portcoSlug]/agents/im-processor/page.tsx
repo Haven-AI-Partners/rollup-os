@@ -29,6 +29,7 @@ import {
   SCORING_SLUG,
   renderTemplate,
 } from "@/lib/agents/im-processor/prompts/shared";
+import { formatDateShort } from "@/lib/format";
 
 export default async function IMProcessorPage({
   params,
@@ -238,10 +239,7 @@ export default async function IMProcessorPage({
                       )}
                       {file.processedAt && (
                         <span className="text-xs text-muted-foreground">
-                          {new Date(file.processedAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
+                          {formatDateShort(file.processedAt)}
                         </span>
                       )}
                     </div>

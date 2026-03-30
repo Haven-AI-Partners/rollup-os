@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { deals } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { getPortcoBySlug } from "@/lib/auth";
+import { formatNumber, formatDateShort } from "@/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 
@@ -71,7 +72,7 @@ export default async function PortfolioAnalyticsPage({
                     {acq.ebitda && (
                       <div>
                         <p className="text-sm font-medium">
-                          ${Number(acq.ebitda).toLocaleString()}
+                          ${formatNumber(acq.ebitda)}
                         </p>
                         <p className="text-[10px] text-muted-foreground">EBITDA</p>
                       </div>
@@ -79,7 +80,7 @@ export default async function PortfolioAnalyticsPage({
                     {acq.revenue && (
                       <div className="hidden sm:block">
                         <p className="text-sm font-medium">
-                          ${Number(acq.revenue).toLocaleString()}
+                          ${formatNumber(acq.revenue)}
                         </p>
                         <p className="text-[10px] text-muted-foreground">Revenue</p>
                       </div>
@@ -87,10 +88,7 @@ export default async function PortfolioAnalyticsPage({
                     {acq.closedAt && (
                       <div className="hidden sm:block">
                         <p className="text-sm font-medium">
-                          {new Date(acq.closedAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            year: "numeric",
-                          })}
+                          {formatDateShort(acq.closedAt)}
                         </p>
                         <p className="text-[10px] text-muted-foreground">Acquired</p>
                       </div>

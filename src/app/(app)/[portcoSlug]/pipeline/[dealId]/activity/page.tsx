@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getActivityLog } from "@/lib/actions/deals";
 import { Badge } from "@/components/ui/badge";
 import { getDeal } from "@/lib/db/cached-queries";
+import { formatDateTime } from "@/lib/format";
 
 const actionLabels: Record<string, string> = {
   deal_created: "Created",
@@ -47,7 +48,7 @@ export default async function ActivityPage({
                     {actionLabels[entry.action] ?? entry.action}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(entry.createdAt).toLocaleString()}
+                    {formatDateTime(entry.createdAt)}
                   </span>
                 </div>
                 <p className="mt-1 text-sm">{entry.description}</p>

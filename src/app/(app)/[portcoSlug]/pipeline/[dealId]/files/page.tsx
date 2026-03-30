@@ -11,7 +11,7 @@ import { FileTypeBadge } from "@/components/files/file-type-badge";
 import { FileExtractionViewer } from "@/components/files/file-extraction-viewer";
 import { getDeal } from "@/lib/db/cached-queries";
 import { FILE_TYPE_LABELS, FILE_TYPE_BADGE_COLORS } from "@/lib/constants";
-import { formatBytes } from "@/lib/format";
+import { formatBytes, formatDateShort } from "@/lib/format";
 import type { FileType } from "@/lib/db/schema/files";
 
 type FileGroup = {
@@ -128,7 +128,7 @@ export default async function FilesPage({
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-muted-foreground">
                             {formatBytes(file.sizeBytes) ?? ""}
-                            {file.createdAt && ` · ${new Date(file.createdAt).toLocaleDateString()}`}
+                            {file.createdAt && ` · ${formatDateShort(file.createdAt)}`}
                           </span>
                           {file.gdriveParentPath && (
                             <span className="text-[10px] text-muted-foreground/50 truncate max-w-[200px]">

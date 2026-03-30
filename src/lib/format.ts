@@ -57,6 +57,44 @@ export function formatRelativeDate(date: Date | string | null): string {
   return formatRelativeTime(d);
 }
 
+/** Format a date with long month and year (e.g., "March 2024") */
+export function formatDateMonthYear(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** Format a date with short month and 2-digit year (e.g., "Mar '24") */
+export function formatDateShortYear(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    year: "2-digit",
+  });
+}
+
+/** Format a number with locale separators (e.g., 1234 → "1,234") */
+export function formatNumber(value: number | string | null): string {
+  if (value === null || value === undefined) return "—";
+  const num = typeof value === "string" ? Number(value) : value;
+  if (isNaN(num)) return "—";
+  return num.toLocaleString("en-US");
+}
+
+/** Format a date with full timestamp details for SVG/export (e.g., "March 24, 2024 at 02:30 PM") */
+export function formatDateTimeFull(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 /** Format a duration in milliseconds to human-readable (e.g., "5m 30s") */
 export function formatDuration(ms: number): string {
   const secs = Math.round(ms / 1000);

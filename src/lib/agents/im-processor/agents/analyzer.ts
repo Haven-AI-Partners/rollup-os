@@ -34,21 +34,28 @@ export async function extractStructured(
     .map((p: TranslatedPage) => `--- Page ${p.pageNumber} ---\n${p.translatedContent}`)
     .join("\n\n");
 
-  const { object } = await generateObject({
-    model: google(MODEL_ID),
-    schema: analyzerExtractionSchema,
-    system: await buildAnalyzerExtractionPrompt(),
-    messages: [
-      {
-        role: "user",
-        content: `Extract all structured information from these IM pages. For every data point, cite the page number and quote.\n\n${pagesText}`,
-      },
-    ],
-    temperature: 0,
-    seed: 42,
-  });
+  try {
+    const { object } = await generateObject({
+      model: google(MODEL_ID),
+      schema: analyzerExtractionSchema,
+      system: await buildAnalyzerExtractionPrompt(),
+      messages: [
+        {
+          role: "user",
+          content: `Extract all structured information from these IM pages. For every data point, cite the page number and quote.\n\n${pagesText}`,
+        },
+      ],
+      temperature: 0,
+      seed: 42,
+    });
 
-  return object;
+    return object;
+  } catch (error) {
+    console.error("Structured extraction failed:", error);
+    throw new Error(
+      `Structured extraction failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
 }
 
 // ── Sub-pass 2: Scoring with consensus voting ──
@@ -60,21 +67,28 @@ async function scoreExtraction(
   // Flatten sourced extraction to a simpler format for the scoring model
   const flatExtraction = flattenSourcedExtraction(extraction);
 
-  const { object } = await generateObject({
-    model: google(MODEL_ID),
-    schema: analyzerScoringSchema,
-    system: await buildAnalyzerScoringPrompt(),
-    messages: [
-      {
-        role: "user",
-        content: `Score this company based on the following extraction:\n\n${JSON.stringify(flatExtraction, null, 2)}`,
-      },
-    ],
-    temperature: 0,
-    seed,
-  });
+  try {
+    const { object } = await generateObject({
+      model: google(MODEL_ID),
+      schema: analyzerScoringSchema,
+      system: await buildAnalyzerScoringPrompt(),
+      messages: [
+        {
+          role: "user",
+          content: `Score this company based on the following extraction:\n\n${JSON.stringify(flatExtraction, null, 2)}`,
+        },
+      ],
+      temperature: 0,
+      seed,
+    });
 
-  return object;
+    return object;
+  } catch (error) {
+    console.error(`Scoring extraction failed (seed=${seed}):`, error);
+    throw new Error(
+      `Scoring failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
 }
 
 /**

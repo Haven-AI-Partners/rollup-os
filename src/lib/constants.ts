@@ -145,6 +145,61 @@ export const MIME_TYPE_ICONS: Record<string, typeof FileText> = {
   "image/jpeg": Image,
 };
 
+// ── Thesis Node Status ──
+
+export type ThesisStatus = "unknown" | "partial" | "complete" | "risk";
+
+export const THESIS_STATUS_CONFIG: Record<
+  ThesisStatus,
+  {
+    label: string;
+    badgeClass: string;
+    border: string;
+    bg: string;
+  }
+> = {
+  unknown: {
+    label: "Unknown",
+    badgeClass: "bg-gray-100 text-gray-600 border-gray-200",
+    border: "#d1d5db",
+    bg: "#f9fafb",
+  },
+  partial: {
+    label: "Partial",
+    badgeClass: "bg-amber-100 text-amber-700 border-amber-200",
+    border: "#fbbf24",
+    bg: "#fffbeb",
+  },
+  complete: {
+    label: "Complete",
+    badgeClass: "bg-green-100 text-green-700 border-green-200",
+    border: "#22c55e",
+    bg: "#f0fdf4",
+  },
+  risk: {
+    label: "Risk",
+    badgeClass: "bg-red-100 text-red-700 border-red-200",
+    border: "#ef4444",
+    bg: "#fef2f2",
+  },
+};
+
+// ── User Role Labels & Colors ──
+
+export const USER_ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  analyst: "Analyst",
+  viewer: "Viewer",
+};
+
+export const USER_ROLE_COLORS: Record<string, string> = {
+  owner: "bg-amber-100 text-amber-800 border-amber-200",
+  admin: "bg-blue-100 text-blue-800 border-blue-200",
+  analyst: "bg-green-100 text-green-800 border-green-200",
+  viewer: "bg-gray-100 text-gray-800 border-gray-200",
+};
+
 // ── Processing Status Icons ──
 
 export const PROCESSING_STATUS_CONFIG: Record<string, { icon: typeof CheckCircle; colorClass: string }> = {

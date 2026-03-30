@@ -19,38 +19,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { ThesisNode } from "./thesis-tree";
-
-// ── Status colors ──
-
-const STATUS_STYLES: Record<
-  string,
-  { border: string; bg: string; badgeClass: string; label: string }
-> = {
-  unknown: {
-    border: "#d1d5db",
-    bg: "#f9fafb",
-    badgeClass: "bg-gray-100 text-gray-600 border-gray-200",
-    label: "Unknown",
-  },
-  partial: {
-    border: "#fbbf24",
-    bg: "#fffbeb",
-    badgeClass: "bg-amber-100 text-amber-700 border-amber-200",
-    label: "Partial",
-  },
-  complete: {
-    border: "#22c55e",
-    bg: "#f0fdf4",
-    badgeClass: "bg-green-100 text-green-700 border-green-200",
-    label: "Complete",
-  },
-  risk: {
-    border: "#ef4444",
-    bg: "#fef2f2",
-    badgeClass: "bg-red-100 text-red-700 border-red-200",
-    label: "Risk",
-  },
-};
+import { THESIS_STATUS_CONFIG, type ThesisStatus } from "@/lib/constants";
+import { formatDateTimeFull } from "@/lib/format";
 
 // ── Custom node component ──
 
@@ -65,7 +35,7 @@ type ThesisNodeData = {
 };
 
 function ThesisFlowNode({ data }: NodeProps<Node<ThesisNodeData>>) {
-  const style = STATUS_STYLES[data.status] ?? STATUS_STYLES.unknown;
+  const style = THESIS_STATUS_CONFIG[data.status as ThesisStatus] ?? THESIS_STATUS_CONFIG.unknown;
   const nodeStyle = useMemo(() => ({
     borderColor: style.border,
     borderLeftWidth: 3,
@@ -278,13 +248,7 @@ function ThesisFlowInner({
     const originalSvg = svgDoc.documentElement;
     const innerContent = originalSvg.innerHTML;
 
-    const timestamp = new Date().toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const timestamp = formatDateTimeFull(new Date());
 
     const totalWidth = contentWidth;
     const totalHeight = contentHeight + headerHeight;

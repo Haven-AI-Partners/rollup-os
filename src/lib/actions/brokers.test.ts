@@ -181,7 +181,7 @@ describe("broker actions", () => {
       const { createInteraction } = await import("./brokers");
       await expect(
         createInteraction("portco-001", "test-portco", "firm-001", {
-          brokerContactId: "contact-001",
+          brokerContactId: "a0a0a0a0-b1b1-4c2c-8d3d-e4e4e4e4e4e4",
           type: "email_sent",
           occurredAt: "2024-01-01",
         })
@@ -194,7 +194,7 @@ describe("broker actions", () => {
 
       const { createInteraction } = await import("./brokers");
       const result = await createInteraction("portco-001", "test-portco", "firm-001", {
-        brokerContactId: "contact-001",
+        brokerContactId: "a0a0a0a0-b1b1-4c2c-8d3d-e4e4e4e4e4e4",
         type: "call",
         occurredAt: "2024-06-15T10:00",
       });

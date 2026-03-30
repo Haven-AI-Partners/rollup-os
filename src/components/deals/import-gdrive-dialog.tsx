@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FolderOpen, FileText, Download, Brain } from "lucide-react";
 import { importGdriveFile } from "@/lib/actions/im-processing";
+import { formatDateShort } from "@/lib/format";
 
 interface GdriveFile {
   id: string;
@@ -126,7 +127,7 @@ export function ImportGdriveDialog({
                   <p className="text-sm font-medium truncate">{file.name}</p>
                   {file.modifiedTime && (
                     <p className="text-xs text-muted-foreground">
-                      {new Date(file.modifiedTime).toLocaleDateString()}
+                      {formatDateShort(file.modifiedTime)}
                     </p>
                   )}
                 </div>

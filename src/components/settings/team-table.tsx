@@ -25,7 +25,8 @@ import {
 import { UserMinus } from "lucide-react";
 import { updateMemberRole, removeMember } from "@/lib/actions/team";
 import type { UserRole } from "@/lib/auth";
-import { formatRelativeDate } from "@/lib/format";
+import { formatRelativeDate, formatDateShort } from "@/lib/format";
+import { USER_ROLE_LABELS, USER_ROLE_COLORS } from "@/lib/constants";
 
 interface Member {
   id: string;
@@ -47,19 +48,8 @@ interface TeamTableProps {
   portcoSlug: string;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  analyst: "Analyst",
-  viewer: "Viewer",
-};
-
-const ROLE_COLORS: Record<string, string> = {
-  owner: "bg-amber-100 text-amber-800 border-amber-200",
-  admin: "bg-blue-100 text-blue-800 border-blue-200",
-  analyst: "bg-green-100 text-green-800 border-green-200",
-  viewer: "bg-gray-100 text-gray-800 border-gray-200",
-};
+const ROLE_LABELS = USER_ROLE_LABELS;
+const ROLE_COLORS = USER_ROLE_COLORS;
 
 function getInitials(name: string | null, email: string) {
   if (name) {
@@ -225,7 +215,7 @@ function MemberRow({
         {formatRelativeDate(member.lastLoginAt)}
       </td>
       <td className="px-4 py-3 text-muted-foreground">
-        {new Date(member.joinedAt).toLocaleDateString()}
+        {formatDateShort(member.joinedAt)}
       </td>
       {canManage && (
         <td className="px-4 py-3 text-right">

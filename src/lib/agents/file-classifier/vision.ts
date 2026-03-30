@@ -85,13 +85,20 @@ ${pageImages.length > 0 ? `\nThe first ${pageImages.length} page(s) of the docum
     });
   }
 
-  const { object } = await generateObject({
-    model: google(MODEL_ID),
-    schema: classificationSchema,
-    system: VISION_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userContent }],
-    temperature: 0,
-  });
+  try {
+    const { object } = await generateObject({
+      model: google(MODEL_ID),
+      schema: classificationSchema,
+      system: VISION_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userContent }],
+      temperature: 0,
+    });
 
-  return object;
+    return object;
+  } catch (error) {
+    console.error("Vision classification failed:", error);
+    throw new Error(
+      `Vision classification failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
 }
