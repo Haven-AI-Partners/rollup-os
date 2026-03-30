@@ -9,7 +9,6 @@ vi.mock("./rules", () => ({
 
 vi.mock("./vision", () => ({
   classifyWithVision: mockClassifyWithVision,
-  VISION_MODEL_ID: "gemini-2.5-flash",
 }));
 
 // Import after mocks

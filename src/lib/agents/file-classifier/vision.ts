@@ -3,8 +3,7 @@ import { google } from "@ai-sdk/google";
 import { classificationSchema, type ClassificationResult } from "./schema";
 import { downloadFile } from "@/lib/gdrive/client";
 import { renderPdfPagesToImages } from "./pdf-renderer";
-
-export const VISION_MODEL_ID = "gemini-2.5-flash";
+import { MODEL_ID } from "./constants";
 
 const MAX_PAGES = 3;
 
@@ -87,7 +86,7 @@ ${pageImages.length > 0 ? `\nThe first ${pageImages.length} page(s) of the docum
   }
 
   const { object } = await generateObject({
-    model: google(VISION_MODEL_ID),
+    model: google(MODEL_ID),
     schema: classificationSchema,
     system: VISION_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userContent }],
