@@ -1,46 +1,12 @@
-import { SCORING_DIMENSIONS, JP_MARKET_NORMS } from "@/lib/scoring/rubric";
-import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
-import { db } from "@/lib/db";
-import { promptVersions } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import {
+  EXTRACTION_SLUG,
+  SCORING_SLUG,
+  renderTemplate,
+  loadPromptFromDb,
+} from "./shared";
 
-export const EXTRACTION_SLUG = "im-processor-extraction";
-export const SCORING_SLUG = "im-processor-scoring";
-
-/** Build the dynamic rubric section */
-function buildScoringRubric(): string {
-  return SCORING_DIMENSIONS.map((dim) => {
-    const criteriaStr = dim.criteria
-      .map((c) => `  Score ${c.score} (${c.label}): ${JSON.stringify(c.criteria)}`)
-      .join("\n");
-    return `### ${dim.name} (Weight: ${(dim.weight * 100).toFixed(0)}%)
-${dim.description}
-
-**What to evaluate:**
-${dim.whatToEvaluate.map((w) => `- ${w}`).join("\n")}
-
-**Scoring criteria:**
-${criteriaStr}
-
-**Red flags for this dimension:**
-${dim.redFlags.map((r) => `- ${r}`).join("\n")}`;
-  }).join("\n\n");
-}
-
-/** Build the dynamic red flags section */
-function buildRedFlagList(): string {
-  return RED_FLAG_DEFINITIONS.map(
-    (f) => `- ${f.id} [${f.severity}/${f.category}]: ${f.title} — ${f.description}`
-  ).join("\n");
-}
-
-/** Build the dynamic market context section */
-function buildMarketContext(): string {
-  return `- Typical bill rates: ${JP_MARKET_NORMS.billRates}
-- Operating margins: ${JP_MARKET_NORMS.operatingMargins}
-- Employee utilization: ${JP_MARKET_NORMS.employeeUtilization}
-- Payment terms: ${JP_MARKET_NORMS.clientPaymentTerms}`;
-}
+// Re-export slugs for convenience
+export { EXTRACTION_SLUG, SCORING_SLUG };
 
 // ── Extraction prompt (sub-pass 1) ──
 
@@ -119,38 +85,6 @@ When the extraction does NOT provide enough information to evaluate a dimension:
 {{RED_FLAGS}}
 
 Score the company based on the extraction data provided. Ground every score and flag in specific evidence from the extraction.`;
-
-/** Render a template by substituting placeholders with dynamic content */
-export function renderTemplate(template: string): string {
-  return template
-    .replace("{{SCORING_RUBRIC}}", buildScoringRubric())
-    .replace("{{RED_FLAGS}}", buildRedFlagList())
-    .replace("{{MARKET_CONTEXT}}", buildMarketContext());
-}
-
-/** Load a prompt from DB by agent slug, falling back to the provided default */
-async function loadPromptFromDb(agentSlug: string, fallback: string): Promise<string> {
-  try {
-    const [active] = await db
-      .select({ template: promptVersions.template })
-      .from(promptVersions)
-      .where(
-        and(
-          eq(promptVersions.agentSlug, agentSlug),
-          eq(promptVersions.isActive, true),
-        )
-      )
-      .orderBy(desc(promptVersions.version))
-      .limit(1);
-
-    if (active) {
-      return renderTemplate(active.template);
-    }
-  } catch {
-    // DB not available — use default
-  }
-  return renderTemplate(fallback);
-}
 
 /** Build the extraction prompt (sub-pass 1) */
 export async function buildAnalyzerExtractionPrompt(): Promise<string> {
