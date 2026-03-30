@@ -8,7 +8,18 @@
       "esbuild",
       "sharp",
       "unrs-resolver"
-    ]
+    ],
+    "overrides": {
+      "systeminformation": ">=5.31.0",
+      "tar": ">=7.5.8",
+      "effect": ">=3.20.0",
+      "@clerk/backend": ">=3.2.3",
+      "picomatch": ">=4.0.4",
+      "path-to-regexp": ">=8.4.0",
+      "brace-expansion": ">=2.0.3",
+      "cookie": ">=1.0.2",
+      "esbuild": ">=0.25.0"
+    }
   },
   "scripts": {
     "dev": "next dev",
