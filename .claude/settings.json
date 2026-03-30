@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path // .tool_response.filePath // empty' | grep -q 'src/lib/db/schema/' && pnpm db:generate 2>/dev/null || true",
+            "command": "pnpm db:generate 2>/dev/null || true",
+            "if": "Write(src/lib/db/schema/*)",
             "timeout": 30,
             "statusMessage": "Generating database migration..."
           }
