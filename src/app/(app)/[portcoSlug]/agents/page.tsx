@@ -40,7 +40,7 @@ export default async function AgentsPage({
     campaignCount,
     sessionCount,
     workflowCount,
-    _avgAutomationScore,
+    ,
     thesisTreeCount,
     thesisNodeStats,
     pipelineV2Count,

@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor as rtlWaitFor, fireEvent } from "@testing-library/react";
 import { VirtualFilesList, type GDriveFile, type ProcessedInfo, type PageData } from "./virtual-files-list";
 
 // Mock ProcessGdriveFileButton since it has server action dependencies
@@ -55,6 +55,10 @@ function mockFetchResponse(
     json: () => Promise.resolve(data),
   });
 }
+
+/** Wrapper with shorter polling interval since mocks resolve instantly. */
+const waitFor: typeof rtlWaitFor = (cb, opts) =>
+  rtlWaitFor(cb, { interval: 10, ...opts });
 
 beforeEach(() => {
   vi.clearAllMocks();

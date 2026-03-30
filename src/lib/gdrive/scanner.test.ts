@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Bypass rate-limit delays in tests
+vi.mock("./rate-limit", () => ({
+  withRateLimit: (fn: () => Promise<unknown>) => fn(),
+}));
+
 // Simulate a drive with N files via a mock that returns pages from files.list
 function makeMockDrive(totalFiles: number) {
   const allFiles = Array.from({ length: totalFiles }, (_, i) => ({
@@ -134,6 +139,8 @@ vi.mock("drizzle-orm", () => ({
   count: vi.fn(),
 }));
 
+import { listFilesRecursive, crawlAndSyncFiles, crawlFoldersIncremental } from "./scanner";
+
 describe("scanner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -146,7 +153,6 @@ describe("scanner", () => {
         folderId: "root-folder",
       });
 
-      const { listFilesRecursive } = await import("./scanner");
       const files = await listFilesRecursive("portco-1");
 
       expect(files).toHaveLength(80);
@@ -160,7 +166,6 @@ describe("scanner", () => {
         folderId: "root-folder",
       });
 
-      const { listFilesRecursive } = await import("./scanner");
       await listFilesRecursive("portco-1");
 
       expect(mockInsert).not.toHaveBeenCalled();
@@ -169,7 +174,6 @@ describe("scanner", () => {
     it("returns empty array when no drive configured", async () => {
       mockGetDriveClient.mockResolvedValue(null);
 
-      const { listFilesRecursive } = await import("./scanner");
       const files = await listFilesRecursive("portco-1");
 
       expect(files).toHaveLength(0);
@@ -181,7 +185,6 @@ describe("scanner", () => {
         folderId: null,
       });
 
-      const { listFilesRecursive } = await import("./scanner");
       const files = await listFilesRecursive("portco-1");
 
       expect(files).toHaveLength(0);
@@ -196,7 +199,7 @@ describe("scanner", () => {
         folderId: "root-folder",
       });
 
-      const { crawlAndSyncFiles } = await import("./scanner");
+
       const result = await crawlAndSyncFiles("portco-1");
 
       expect(result.files).toHaveLength(450);
@@ -211,7 +214,7 @@ describe("scanner", () => {
         folderId: "root-folder",
       });
 
-      const { crawlAndSyncFiles } = await import("./scanner");
+
       const result = await crawlAndSyncFiles("portco-1");
 
       expect(result.files).toHaveLength(500);
@@ -225,7 +228,7 @@ describe("scanner", () => {
         folderId: "root-folder",
       });
 
-      const { crawlAndSyncFiles } = await import("./scanner");
+
       await crawlAndSyncFiles("portco-1");
 
       expect(mockDelete).toHaveBeenCalled();
@@ -237,7 +240,7 @@ describe("scanner", () => {
         folderId: "root-folder",
       });
 
-      const { crawlAndSyncFiles } = await import("./scanner");
+
       const result = await crawlAndSyncFiles("portco-1");
 
       expect(result.files).toHaveLength(0);
@@ -248,7 +251,7 @@ describe("scanner", () => {
     it("handles no drive configured", async () => {
       mockGetDriveClient.mockResolvedValue(null);
 
-      const { crawlAndSyncFiles } = await import("./scanner");
+
       const result = await crawlAndSyncFiles("portco-1");
 
       expect(result.files).toHaveLength(0);
@@ -260,7 +263,7 @@ describe("scanner", () => {
     it("returns early when no drive configured", async () => {
       mockGetDriveClient.mockResolvedValue(null);
 
-      const { crawlFoldersIncremental } = await import("./scanner");
+
       const result = await crawlFoldersIncremental("portco-1", 480_000);
 
       expect(result.foldersScanned).toBe(0);
@@ -274,7 +277,7 @@ describe("scanner", () => {
         folderId: null,
       });
 
-      const { crawlFoldersIncremental } = await import("./scanner");
+
       const result = await crawlFoldersIncremental("portco-1", 480_000);
 
       expect(result.scanComplete).toBe(true);
@@ -317,7 +320,7 @@ describe("scanner", () => {
         return chain;
       });
 
-      const { crawlFoldersIncremental } = await import("./scanner");
+
       const result = await crawlFoldersIncremental("portco-1", 480_000);
 
       expect(result.foldersScanned).toBe(1);
@@ -361,7 +364,7 @@ describe("scanner", () => {
         return chain;
       });
 
-      const { crawlFoldersIncremental } = await import("./scanner");
+
       const result = await crawlFoldersIncremental("portco-1", 480_000);
 
       expect(result.foldersScanned).toBe(2);
@@ -400,7 +403,7 @@ describe("scanner", () => {
         return chain;
       });
 
-      const { crawlFoldersIncremental } = await import("./scanner");
+
       const result = await crawlFoldersIncremental("portco-1", 480_000);
 
       expect(result.scanComplete).toBe(false);
@@ -433,7 +436,7 @@ describe("scanner", () => {
         return chain;
       });
 
-      const { crawlFoldersIncremental } = await import("./scanner");
+
       const result = await crawlFoldersIncremental("portco-1", 480_000);
 
       expect(result.scanComplete).toBe(false);

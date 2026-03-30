@@ -8,7 +8,7 @@ import {
   portcos,
   gdriveFileCache,
 } from "@/lib/db/schema";
-import { inArray, eq, desc, asc, count, sql } from "drizzle-orm";
+import { inArray, eq, desc, asc, count } from "drizzle-orm";
 
 const PAGE_SIZE = 50;
 const FOLDER_MODE_MAX = 5000;
