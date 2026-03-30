@@ -1,10 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+const { mockUser } = vi.hoisted(() => ({
+  mockUser: { id: "user-001", clerkId: "clerk-001", email: "test@example.com", fullName: "Test User" },
+}));
+
 const mockRetrieve = vi.fn();
 
 vi.mock("@trigger.dev/sdk", () => ({
   runs: { retrieve: mockRetrieve },
+}));
+
+vi.mock("@/lib/auth", () => ({
+  requireAuth: vi.fn().mockResolvedValue(mockUser),
 }));
 
 describe("GET /api/processing/status", () => {

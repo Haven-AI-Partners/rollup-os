@@ -8,13 +8,13 @@ import {
 } from "@/lib/db/schema";
 import { eq, asc, desc, count, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requirePortcoRole, getPortcoBySlug } from "@/lib/auth";
 import {
   createBrokerFirmSchema,
   updateBrokerFirmSchema,
   createBrokerContactSchema,
   createInteractionSchema,
-} from "@/lib/actions/schemas";
+} from "./schemas";
 
 // ── Broker Firms ──
 
@@ -77,6 +77,12 @@ export async function getBrokerFirm(firmId: string) {
   return firm ?? null;
 }
 
+async function resolvePortcoId(portcoSlug: string): Promise<string> {
+  const portco = await getPortcoBySlug(portcoSlug);
+  if (!portco) throw new Error("PortCo not found");
+  return portco.id;
+}
+
 export async function createBrokerFirm(
   portcoSlug: string,
   data: {
@@ -86,7 +92,8 @@ export async function createBrokerFirm(
     specialty?: string;
   }
 ) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "analyst");
 
   const validated = createBrokerFirmSchema.parse(data);
 
@@ -114,7 +121,8 @@ export async function updateBrokerFirm(
     specialty: string;
   }>
 ) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "analyst");
 
   const validated = updateBrokerFirmSchema.parse(data);
 
@@ -130,7 +138,8 @@ export async function updateBrokerFirm(
 }
 
 export async function deleteBrokerFirm(firmId: string, portcoSlug: string) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "admin");
 
   // Delete interactions for this firm's contacts, then contacts, then firm
   const contactIds = await db
@@ -169,7 +178,8 @@ export async function createBrokerContact(
     title?: string;
   }
 ) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "analyst");
 
   const validated = createBrokerContactSchema.parse(data);
 
@@ -199,7 +209,8 @@ export async function updateBrokerContact(
     title: string;
   }>
 ) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "analyst");
 
   const validated = createBrokerContactSchema.partial().parse(data);
 
@@ -218,7 +229,8 @@ export async function deleteBrokerContact(
   portcoSlug: string,
   firmId: string
 ) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "admin");
 
   await db.delete(brokerInteractions).where(eq(brokerInteractions.brokerContactId, contactId));
   await db.delete(brokerContacts).where(eq(brokerContacts.id, contactId));
@@ -261,7 +273,7 @@ export async function createInteraction(
     occurredAt: string;
   }
 ) {
-  await requireAuth();
+  await requirePortcoRole(portcoId, "analyst");
 
   const validated = createInteractionSchema.parse(data);
 

@@ -17,6 +17,8 @@ const { mockUser, mockSelect, mockInsert, mockUpdate, mockDelete, mockFrom, mock
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn().mockResolvedValue(mockUser),
+  requirePortcoRole: vi.fn().mockResolvedValue({ user: mockUser, role: "analyst" }),
+  getPortcoBySlug: vi.fn().mockResolvedValue({ id: "portco-001", slug: "test-portco" }),
 }));
 
 vi.mock("@/lib/db", () => {
@@ -53,12 +55,13 @@ vi.mock("drizzle-orm", () => ({
   inArray: vi.fn((col, vals) => ({ type: "inArray", col, vals })),
 }));
 
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requirePortcoRole } from "@/lib/auth";
 
 describe("broker actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (requireAuth as any).mockResolvedValue(mockUser);
+    (requirePortcoRole as any).mockResolvedValue({ user: mockUser, role: "analyst" });
   });
 
   describe("getBrokerFirms", () => {
@@ -93,8 +96,8 @@ describe("broker actions", () => {
   });
 
   describe("createBrokerFirm", () => {
-    it("throws when user is not authenticated", async () => {
-      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
+    it("throws when user is not authorized", async () => {
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { createBrokerFirm } = await import("./brokers");
       await expect(
@@ -109,15 +112,15 @@ describe("broker actions", () => {
       const { createBrokerFirm } = await import("./brokers");
       const result = await createBrokerFirm("test-portco", { name: "Test Broker" });
 
-      expect(requireAuth).toHaveBeenCalled();
+      expect(requirePortcoRole).toHaveBeenCalledWith("portco-001", "analyst");
       expect(mockInsert).toHaveBeenCalled();
       expect(result).toEqual(mockFirm);
     });
   });
 
   describe("updateBrokerFirm", () => {
-    it("throws when user is not authenticated", async () => {
-      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
+    it("throws when user is not authorized", async () => {
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { updateBrokerFirm } = await import("./brokers");
       await expect(
@@ -127,8 +130,8 @@ describe("broker actions", () => {
   });
 
   describe("deleteBrokerFirm", () => {
-    it("throws when user is not authenticated", async () => {
-      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
+    it("throws when user is not authorized", async () => {
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { deleteBrokerFirm } = await import("./brokers");
       await expect(
@@ -147,14 +150,14 @@ describe("broker actions", () => {
       const { deleteBrokerFirm } = await import("./brokers");
       await deleteBrokerFirm("firm-001", "test-portco");
 
-      expect(requireAuth).toHaveBeenCalled();
+      expect(requirePortcoRole).toHaveBeenCalledWith("portco-001", "admin");
       expect(mockDelete).toHaveBeenCalled();
     });
   });
 
   describe("createBrokerContact", () => {
-    it("throws when user is not authenticated", async () => {
-      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
+    it("throws when user is not authorized", async () => {
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { createBrokerContact } = await import("./brokers");
       await expect(
@@ -164,8 +167,8 @@ describe("broker actions", () => {
   });
 
   describe("deleteBrokerContact", () => {
-    it("throws when user is not authenticated", async () => {
-      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
+    it("throws when user is not authorized", async () => {
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { deleteBrokerContact } = await import("./brokers");
       await expect(
@@ -175,13 +178,13 @@ describe("broker actions", () => {
   });
 
   describe("createInteraction", () => {
-    it("throws when user is not authenticated", async () => {
-      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
+    it("throws when user is not authorized", async () => {
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { createInteraction } = await import("./brokers");
       await expect(
         createInteraction("portco-001", "test-portco", "firm-001", {
-          brokerContactId: "a0a0a0a0-b1b1-4c2c-8d3d-e4e4e4e4e4e4",
+          brokerContactId: "a0000000-0000-1000-a000-000000000001",
           type: "email_sent",
           occurredAt: "2024-01-01",
         })
@@ -194,12 +197,12 @@ describe("broker actions", () => {
 
       const { createInteraction } = await import("./brokers");
       const result = await createInteraction("portco-001", "test-portco", "firm-001", {
-        brokerContactId: "a0a0a0a0-b1b1-4c2c-8d3d-e4e4e4e4e4e4",
+        brokerContactId: "a0000000-0000-1000-a000-000000000001",
         type: "call",
         occurredAt: "2024-06-15T10:00",
       });
 
-      expect(requireAuth).toHaveBeenCalled();
+      expect(requirePortcoRole).toHaveBeenCalledWith("portco-001", "analyst");
       expect(mockInsert).toHaveBeenCalled();
       expect(result).toEqual(mockInteraction);
     });
