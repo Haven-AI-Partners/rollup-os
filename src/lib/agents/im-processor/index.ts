@@ -1,35 +1,24 @@
-import { generateObject } from "ai";
-import { google } from "@ai-sdk/google";
 import { db } from "@/lib/db";
-import { companyProfiles, dealRedFlags, files, deals, pipelineStages, orgChartVersions, orgChartNodes } from "@/lib/db/schema";
-import { eq, and, inArray, desc } from "drizzle-orm";
+import { files } from "@/lib/db/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import { downloadFile } from "@/lib/gdrive/client";
 import { listFilesRecursive } from "@/lib/gdrive/scanner";
-import { calculateWeightedScore } from "@/lib/scoring/rubric";
-import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
-import { buildExtractionPrompt, buildScoringPrompt } from "./prompt";
-import { imExtractionSchema, imScoringSchema, mergeResults, type IMAnalysisResult, type IMExtractionResult, type IMScoringResult } from "./schema";
+import { runIMPipeline } from "./pipeline";
+import {
+  computeScoresFromAnalysis,
+  filterRedFlags,
+  storePipelineResults,
+  getDefaultStageId,
+  createDealFromPipelineResult,
+  updateDealFromPipelineResult,
+} from "./store-results";
 
-/**
- * IMPORTANT: Multimodal PDF input dependency
- *
- * We send PDF files directly to Gemini as binary (multimodal input) rather than
- * extracting text first. This handles both text-based and scanned/image-based PDFs.
- *
- * This approach REQUIRES a multimodal model that supports PDF file inputs.
- * Currently only supported by: Google Gemini, Anthropic Claude, Google Vertex.
- * Switching to a text-only provider (e.g. OpenAI, Mistral) will break PDF processing.
- *
- * If switching providers, you must either:
- * 1. Choose another multimodal provider that supports PDF input, OR
- * 2. Re-introduce text extraction (pdfjs-dist) + OCR for scanned PDFs
- *
- * See docs/architecture.md for more context.
- */
-export const MODEL_ID = "gemini-2.5-flash";
+// Re-export for external consumers
+export { computeScoresFromAnalysis } from "./store-results";
+export { MODEL_ID } from "./agents/analyzer";
 
 interface ProcessIMInput {
-  fileId: string; // files table ID
+  fileId: string;
   dealId: string;
   portcoId: string;
 }
@@ -40,358 +29,6 @@ interface ProcessIMResult {
   overallScore?: number;
   redFlagCount?: number;
   error?: string;
-}
-
-/**
- * Pass 1: Extract structured facts from the PDF (multimodal).
- * No scoring or judgment — just facts, numbers, quotes.
- */
-export async function extractFromIM(pdfBuffer: Buffer): Promise<IMExtractionResult> {
-  const { object } = await generateObject({
-    model: google(MODEL_ID),
-    schema: imExtractionSchema,
-    system: await buildExtractionPrompt(),
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "file",
-            data: pdfBuffer,
-            mediaType: "application/pdf",
-          },
-          {
-            type: "text",
-            text: "Extract all facts from this Information Memorandum document.",
-          },
-        ],
-      },
-    ],
-    temperature: 0,
-    seed: 42,
-  });
-
-  return object;
-}
-
-/**
- * Pass 2: Score the company based on structured extraction (text-only).
- * Same input every time = more consistent scores and flags.
- */
-export async function scoreExtraction(extraction: IMExtractionResult, seed: number = 42) {
-  const { object } = await generateObject({
-    model: google(MODEL_ID),
-    schema: imScoringSchema,
-    system: await buildScoringPrompt(),
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `Score this company based on the following extraction:\n\n${JSON.stringify(extraction, null, 2)}`,
-          },
-        ],
-      },
-    ],
-    temperature: 0,
-    seed,
-  });
-
-  return object;
-}
-
-/** Number of parallel scoring passes for majority voting */
-const SCORING_VOTES = 3;
-
-/**
- * Run Pass 2 multiple times in parallel and majority-vote the results.
- * - Scores: median per dimension
- * - Red flags: keep only flags appearing in majority (2/3+) of runs
- * - Info gaps: same majority rule
- * - Rationale/evidence: taken from the run whose scores are closest to the medians
- */
-async function scoreWithConsensus(extraction: IMExtractionResult): Promise<IMScoringResult> {
-  // Run scoring passes in parallel with different seeds
-  const results = await Promise.all(
-    Array.from({ length: SCORING_VOTES }, (_, i) =>
-      scoreExtraction(extraction, 42 + i)
-    )
-  );
-
-  // 1. Median scores per dimension
-  const dimensionIds = Object.keys(results[0].scoring) as Array<keyof typeof results[0]["scoring"]>;
-  const medianScores: Record<string, number> = {};
-
-  for (const dimId of dimensionIds) {
-    const scores = results.map((r) => r.scoring[dimId].score).sort((a, b) => a - b);
-    medianScores[dimId] = scores[Math.floor(scores.length / 2)];
-  }
-
-  // 2. Pick the "best representative" run — the one whose scores are closest to the medians
-  // This gives us coherent rationale/evidence that matches the consensus scores
-  let bestIdx = 0;
-  let bestDist = Infinity;
-  for (let i = 0; i < results.length; i++) {
-    let dist = 0;
-    for (const dimId of dimensionIds) {
-      dist += Math.abs(results[i].scoring[dimId].score - medianScores[dimId]);
-    }
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestIdx = i;
-    }
-  }
-
-  // Build scoring with median scores but rationale/evidence from best representative
-  const scoring = {} as IMScoringResult["scoring"];
-  for (const dimId of dimensionIds) {
-    const representative = results[bestIdx].scoring[dimId];
-    (scoring as Record<string, unknown>)[dimId] = {
-      score: medianScores[dimId],
-      rationale: representative.rationale,
-      evidence: representative.evidence,
-      dataAvailable: representative.dataAvailable,
-    };
-  }
-
-  // 3. Majority-vote red flags (appear in 2/3+ runs)
-  const flagCounts = new Map<string, { count: number; notes: string }>();
-  for (const result of results) {
-    for (const flag of result.redFlags) {
-      const existing = flagCounts.get(flag.flagId);
-      if (existing) {
-        existing.count++;
-      } else {
-        flagCounts.set(flag.flagId, { count: 1, notes: flag.notes });
-      }
-    }
-  }
-  const majority = Math.ceil(SCORING_VOTES / 2);
-  const redFlags = Array.from(flagCounts.entries())
-    .filter(([, v]) => v.count >= majority)
-    .map(([flagId, v]) => ({ flagId, notes: v.notes }));
-
-  // 4. Majority-vote info gaps (same rule)
-  const gapCounts = new Map<string, { count: number; notes: string }>();
-  for (const result of results) {
-    for (const gap of result.infoGaps) {
-      const existing = gapCounts.get(gap.flagId);
-      if (existing) {
-        existing.count++;
-      } else {
-        gapCounts.set(gap.flagId, { count: 1, notes: gap.notes });
-      }
-    }
-  }
-  const infoGaps = Array.from(gapCounts.entries())
-    .filter(([, v]) => v.count >= majority)
-    .map(([flagId, v]) => ({ flagId, notes: v.notes }));
-
-  return { scoring, redFlags, infoGaps };
-}
-
-/**
- * Two-pass IM analysis with majority-vote consensus:
- * 1. Extract facts from PDF (once, multimodal)
- * 2. Score from structured data (3x parallel, majority-vote flags, median scores)
- */
-async function analyzeIM(pdfBuffer: Buffer): Promise<IMAnalysisResult> {
-  const extraction = await extractFromIM(pdfBuffer);
-  const scoring = await scoreWithConsensus(extraction);
-  return mergeResults(extraction, scoring);
-}
-
-/** Extract dimension scores and build breakdown from analysis */
-export function computeScoresFromAnalysis(analysis: IMAnalysisResult) {
-  const scores: Record<string, number> = {};
-  const scoringBreakdown: Record<string, {
-    score: number;
-    rationale: string;
-    evidence: string;
-    dataAvailable: boolean;
-  }> = {};
-
-  for (const [dimId, dimResult] of Object.entries(analysis.scoring)) {
-    scores[dimId] = dimResult.score;
-    scoringBreakdown[dimId] = {
-      score: dimResult.score,
-      rationale: dimResult.rationale,
-      evidence: dimResult.evidence,
-      dataAvailable: dimResult.dataAvailable,
-    };
-  }
-
-  const { weighted } = calculateWeightedScore(scores);
-  return { scores, scoringBreakdown, weighted };
-}
-
-/** Extract red flags and info gaps from analysis, filtering to known IDs */
-function filterRedFlags(analysis: IMAnalysisResult) {
-  const knownIds = new Set(RED_FLAG_DEFINITIONS.map((f) => f.id));
-
-  const confirmedFlags = analysis.redFlags.filter((f) => knownIds.has(f.flagId));
-  const confirmedGaps = analysis.infoGaps.filter((g) => knownIds.has(g.flagId));
-
-  return { confirmedFlags, confirmedGaps };
-}
-
-/** Store analysis results in the database */
-async function storeResults(
-  dealId: string,
-  portcoId: string,
-  analysis: IMAnalysisResult
-): Promise<string> {
-  const { scoringBreakdown, weighted } = computeScoresFromAnalysis(analysis);
-  const { confirmedFlags, confirmedGaps } = filterRedFlags(analysis);
-
-  // Upsert company profile
-  const [profile] = await db
-    .insert(companyProfiles)
-    .values({
-      dealId,
-      summary: analysis.companyProfile.summary,
-      businessModel: analysis.companyProfile.businessModel,
-      marketPosition: analysis.companyProfile.marketPosition,
-      industryTrends: analysis.companyProfile.industryTrends,
-      strengths: analysis.companyProfile.strengths,
-      keyRisks: analysis.companyProfile.keyRisks,
-      financialHighlights: analysis.financialHighlights,
-      aiOverallScore: weighted.toString(),
-      scoringBreakdown,
-      rawExtraction: analysis,
-      generatedAt: new Date(),
-      modelVersion: MODEL_ID,
-    })
-    .onConflictDoUpdate({
-      target: companyProfiles.dealId,
-      set: {
-        summary: analysis.companyProfile.summary,
-        businessModel: analysis.companyProfile.businessModel,
-        marketPosition: analysis.companyProfile.marketPosition,
-        industryTrends: analysis.companyProfile.industryTrends,
-        strengths: analysis.companyProfile.strengths,
-        keyRisks: analysis.companyProfile.keyRisks,
-        financialHighlights: analysis.financialHighlights,
-        aiOverallScore: weighted.toString(),
-        scoringBreakdown,
-        rawExtraction: analysis,
-        generatedAt: new Date(),
-        modelVersion: MODEL_ID,
-        updatedAt: new Date(),
-      },
-    })
-    .returning({ id: companyProfiles.id });
-
-  // Delete existing AI-generated red flags for this deal, then insert new ones
-  await db
-    .delete(dealRedFlags)
-    .where(eq(dealRedFlags.dealId, dealId));
-
-  // Build flag rows from confirmed red flags + info gaps
-  const defMap = new Map(RED_FLAG_DEFINITIONS.map((d) => [d.id, d]));
-  const flagRows = [
-    ...confirmedFlags.map((flag) => {
-      const def = defMap.get(flag.flagId)!;
-      return {
-        dealId,
-        portcoId,
-        flagId: flag.flagId,
-        severity: def.severity,
-        category: def.category,
-        notes: flag.notes,
-      };
-    }),
-    ...confirmedGaps.map((gap) => {
-      const def = defMap.get(gap.flagId)!;
-      return {
-        dealId,
-        portcoId,
-        flagId: gap.flagId,
-        severity: def.severity,
-        category: def.category,
-        notes: gap.notes,
-      };
-    }),
-  ];
-
-  if (flagRows.length > 0) {
-    await db.insert(dealRedFlags).values(flagRows);
-  }
-
-  // Store org chart from management team extraction
-  if (analysis.managementTeam && analysis.managementTeam.length > 0) {
-    // Get next version number for this deal
-    const [latestVersion] = await db
-      .select({ version: orgChartVersions.version })
-      .from(orgChartVersions)
-      .where(eq(orgChartVersions.dealId, dealId))
-      .orderBy(desc(orgChartVersions.version))
-      .limit(1);
-
-    const nextVersion = (latestVersion?.version ?? 0) + 1;
-
-    // Deactivate previous versions
-    await db
-      .update(orgChartVersions)
-      .set({ isActive: false })
-      .where(
-        and(
-          eq(orgChartVersions.dealId, dealId),
-          eq(orgChartVersions.isActive, true),
-        )
-      );
-
-    // Create new version
-    const [version] = await db
-      .insert(orgChartVersions)
-      .values({
-        dealId,
-        version: nextVersion,
-        label: `AI extraction v${nextVersion}`,
-        isActive: true,
-      })
-      .returning({ id: orgChartVersions.id });
-
-    // Insert nodes — first pass: create all nodes
-    const nodeIdMap = new Map<string, string>(); // name -> db id
-    const nodes = analysis.managementTeam.map((member, i) => ({
-      versionId: version.id,
-      name: member.name,
-      title: member.title,
-      department: member.department,
-      role: member.role,
-      position: i,
-    }));
-
-    const insertedNodes = await db
-      .insert(orgChartNodes)
-      .values(nodes)
-      .returning({ id: orgChartNodes.id, name: orgChartNodes.name });
-
-    for (const node of insertedNodes) {
-      nodeIdMap.set(node.name, node.id);
-    }
-
-    // Second pass: set parentId based on reportsTo (parallel)
-    const parentUpdates = analysis.managementTeam
-      .filter((member) => member.reportsTo)
-      .map((member) => {
-        const nodeId = nodeIdMap.get(member.name);
-        const parentId = nodeIdMap.get(member.reportsTo!);
-        if (nodeId && parentId) {
-          return db
-            .update(orgChartNodes)
-            .set({ parentId })
-            .where(eq(orgChartNodes.id, nodeId));
-        }
-        return null;
-      })
-      .filter(Boolean);
-    await Promise.all(parentUpdates);
-  }
-
-  return profile.id;
 }
 
 const CONCURRENCY_LIMIT = 3;
@@ -417,81 +54,6 @@ async function pMap<T, R>(
   return results;
 }
 
-/** Get or create the first "sourcing" stage for a portco */
-async function getDefaultStageId(portcoId: string): Promise<string> {
-  const [stage] = await db
-    .select({ id: pipelineStages.id })
-    .from(pipelineStages)
-    .where(and(eq(pipelineStages.portcoId, portcoId), eq(pipelineStages.phase, "sourcing")))
-    .orderBy(pipelineStages.position)
-    .limit(1);
-
-  if (stage) return stage.id;
-
-  // Fallback: get any first stage
-  const [anyStage] = await db
-    .select({ id: pipelineStages.id })
-    .from(pipelineStages)
-    .where(eq(pipelineStages.portcoId, portcoId))
-    .orderBy(pipelineStages.position)
-    .limit(1);
-
-  if (anyStage) return anyStage.id;
-  throw new Error("No pipeline stages found for this portco");
-}
-
-/** Try to extract a numeric value from a string like "250,000,000" or "250000000". Returns null for non-numeric text. */
-function parseNumericValue(value: string | null | undefined): string | null {
-  if (!value) return null;
-  // Strip commas, spaces, and common currency symbols
-  const cleaned = value.replace(/[,\s¥$￥€£₩]/g, "");
-  // Only attempt parse if the string is mostly digits (allow leading minus and decimal point)
-  if (!/^-?\d+(\.\d+)?$/.test(cleaned)) return null;
-  return cleaned;
-}
-
-/** Create a deal from IM analysis results */
-async function createDealFromAnalysis(
-  portcoId: string,
-  stageId: string,
-  analysis: IMAnalysisResult,
-  gdriveFileId: string,
-  gdriveModifiedTime?: string | null,
-): Promise<string> {
-  const fin = analysis.financialHighlights;
-  const [deal] = await db
-    .insert(deals)
-    .values({
-      portcoId,
-      stageId,
-      companyName: analysis.companyProfile.companyName,
-      description: analysis.companyProfile.summary.slice(0, 500),
-      source: "agent_scraped" as const,
-      location: analysis.companyProfile.location ?? null,
-      industry: analysis.companyProfile.industry ?? null,
-      askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
-      revenue: parseNumericValue(fin.revenue),
-      ebitda: parseNumericValue(fin.ebitda),
-      currency: fin.currency ?? "JPY",
-      employeeCount: fin.employeeCount ?? null,
-      fullTimeCount: fin.fullTimeCount ?? null,
-      contractorCount: fin.contractorCount ?? null,
-      status: "active",
-      kanbanPosition: 0,
-      metadata: {
-        gdriveSourceFileId: gdriveFileId,
-        currency: fin.currency ?? null,
-        askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
-        revenueRaw: fin.revenue ?? null,
-        ebitdaRaw: fin.ebitda ?? null,
-      },
-      ...(gdriveModifiedTime ? { createdAt: new Date(gdriveModifiedTime) } : {}),
-    })
-    .returning({ id: deals.id });
-
-  return deal.id;
-}
-
 interface ScanFolderResult {
   totalFiles: number;
   newFiles: number;
@@ -512,7 +74,7 @@ interface ScanFolderResult {
 
 /**
  * Scan the GDrive folder for PDFs, create deals for new ones,
- * and process them with AI. Runs up to CONCURRENCY_LIMIT in parallel.
+ * and process them with the 4-agent pipeline. Runs up to CONCURRENCY_LIMIT in parallel.
  */
 export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolderResult> {
   // 1. Recursively list all files from GDrive
@@ -539,12 +101,12 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
     existingFiles.map((f) => [f.gdriveFileId, f.processingStatus])
   );
 
-  // 4. Filter to unprocessed files (not imported, or imported but failed/pending)
+  // 4. Filter to unprocessed files
   const toProcess = pdfs.filter((f) => {
     const status = existingMap.get(f.id);
-    if (status === undefined) return true; // new file
-    if (status === "completed") return false; // already done
-    return true; // retry failed/pending
+    if (status === undefined) return true;
+    if (status === "completed") return false;
+    return true;
   });
 
   if (toProcess.length === 0) {
@@ -573,23 +135,21 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
       const gdriveFileId = gdriveFile.id;
 
       try {
-        // Download PDF
         const buffer = await downloadFile(portcoId, gdriveFileId);
         if (!buffer) {
           return { fileName, gdriveFileId, status: "failed" as const, error: "Download failed" };
         }
 
-        // Analyze with AI (PDF sent directly as multimodal input)
-        const analysis = await analyzeIM(buffer);
+        // Run 4-agent pipeline
+        const pipelineResult = await runIMPipeline(buffer);
+        const analysis = pipelineResult.legacyAnalysis;
 
-        // Create deal if this is a new file
         const isNew = !existingMap.has(gdriveFileId);
         let dealId: string;
 
         if (isNew) {
-          dealId = await createDealFromAnalysis(portcoId, stageId, analysis, gdriveFileId, gdriveFile.modifiedTime);
+          dealId = await createDealFromPipelineResult(portcoId, stageId, pipelineResult, gdriveFileId, gdriveFile.modifiedTime);
 
-          // Create file record linked to the new deal
           await db.insert(files).values({
             dealId,
             portcoId,
@@ -603,7 +163,6 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
             processedAt: new Date(),
           });
         } else {
-          // Find existing file+deal and update
           const [existingFile] = await db
             .select({ id: files.id, dealId: files.dealId })
             .from(files)
@@ -612,36 +171,9 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
 
           if (existingFile.dealId) {
             dealId = existingFile.dealId;
-
-            // Update deal fields from new analysis
-            const fin = analysis.financialHighlights;
-            await db
-              .update(deals)
-              .set({
-                companyName: analysis.companyProfile.companyName,
-                description: analysis.companyProfile.summary.slice(0, 500),
-                location: analysis.companyProfile.location ?? null,
-                industry: analysis.companyProfile.industry ?? null,
-                askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
-                revenue: parseNumericValue(fin.revenue),
-                ebitda: parseNumericValue(fin.ebitda),
-                currency: fin.currency ?? "JPY",
-                employeeCount: fin.employeeCount ?? null,
-      fullTimeCount: fin.fullTimeCount ?? null,
-      contractorCount: fin.contractorCount ?? null,
-                metadata: {
-                  gdriveSourceFileId: gdriveFileId,
-                  currency: fin.currency ?? null,
-                  askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
-                  revenueRaw: fin.revenue ?? null,
-                  ebitdaRaw: fin.ebitda ?? null,
-                },
-                updatedAt: new Date(),
-              })
-              .where(eq(deals.id, dealId));
+            await updateDealFromPipelineResult(dealId, pipelineResult, gdriveFileId);
           } else {
-            // File exists but has no deal (e.g. from scan orchestrator) — create one
-            dealId = await createDealFromAnalysis(portcoId, stageId, analysis, gdriveFileId, gdriveFile.modifiedTime);
+            dealId = await createDealFromPipelineResult(portcoId, stageId, pipelineResult, gdriveFileId, gdriveFile.modifiedTime);
             await db
               .update(files)
               .set({ dealId, updatedAt: new Date() })
@@ -654,8 +186,7 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
             .where(eq(files.id, existingFile.id));
         }
 
-        // Store analysis results
-        await storeResults(dealId, portcoId, analysis);
+        await storePipelineResults(dealId, portcoId, pipelineResult);
 
         const { weighted } = computeScoresFromAnalysis(analysis);
 
@@ -710,11 +241,9 @@ interface ReprocessResult {
 
 /**
  * Reprocess all previously completed IM files for a portco.
- * Re-downloads PDFs, re-runs AI analysis, and overwrites profiles + red flags.
- * Useful when the scoring rubric or red flag definitions change.
+ * Re-downloads PDFs, re-runs 4-agent pipeline, and overwrites profiles + red flags.
  */
 export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResult> {
-  // Find all completed PDF files for this portco
   const completedFiles = await db
     .select({
       id: files.id,
@@ -735,7 +264,6 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
     return { total: 0, processed: 0, failed: 0, results: [] };
   }
 
-  // Reset all to processing
   await db
     .update(files)
     .set({ processingStatus: "processing", updatedAt: new Date() })
@@ -764,43 +292,16 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
         const buffer = await downloadFile(portcoId, file.gdriveFileId);
         if (!buffer) throw new Error("Download failed");
 
-        // Analyze with AI (PDF sent directly as multimodal input)
-        const analysis = await analyzeIM(buffer);
-        await storeResults(fileDealId, portcoId, analysis);
-
-        // Update deal fields from new analysis
-        const fin = analysis.financialHighlights;
-        await db
-          .update(deals)
-          .set({
-            companyName: analysis.companyProfile.companyName,
-            description: analysis.companyProfile.summary.slice(0, 500),
-            location: analysis.companyProfile.location ?? null,
-            industry: analysis.companyProfile.industry ?? null,
-            askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
-            revenue: parseNumericValue(fin.revenue),
-            ebitda: parseNumericValue(fin.ebitda),
-            currency: fin.currency ?? "JPY",
-            employeeCount: fin.employeeCount ?? null,
-      fullTimeCount: fin.fullTimeCount ?? null,
-      contractorCount: fin.contractorCount ?? null,
-            metadata: {
-              gdriveSourceFileId: file.gdriveFileId,
-              currency: fin.currency ?? null,
-              askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
-              revenueRaw: fin.revenue ?? null,
-              ebitdaRaw: fin.ebitda ?? null,
-            },
-            updatedAt: new Date(),
-          })
-          .where(eq(deals.id, fileDealId));
+        const pipelineResult = await runIMPipeline(buffer);
+        await storePipelineResults(fileDealId, portcoId, pipelineResult);
+        await updateDealFromPipelineResult(fileDealId, pipelineResult, file.gdriveFileId);
 
         await db
           .update(files)
           .set({ processingStatus: "completed", processedAt: new Date(), updatedAt: new Date() })
           .where(eq(files.id, file.id));
 
-        const { weighted } = computeScoresFromAnalysis(analysis);
+        const { weighted } = computeScoresFromAnalysis(pipelineResult.legacyAnalysis);
 
         return {
           fileId: file.id,
@@ -858,9 +359,8 @@ interface ProcessGdriveFileResult {
 }
 
 /**
- * Process a single GDrive file: download, extract, analyze, create deal + file record, store results.
+ * Process a single GDrive file through the 4-agent pipeline.
  * This is the single-file equivalent of scanAndProcessFolder.
- * Optional onProgress callback for reporting step-by-step progress.
  */
 export async function processSingleGdriveFile(
   input: ProcessGdriveFileInput,
@@ -887,63 +387,36 @@ export async function processSingleGdriveFile(
     const buffer = await downloadFile(portcoId, gdriveFileId);
     if (!buffer) return { success: false, error: "Failed to download from GDrive" };
 
-    // Analyze with AI (PDF sent directly as multimodal input — handles scanned PDFs too)
-    progress(`Analyzing IM with AI (${(buffer.length / 1024 / 1024).toFixed(1)} MB PDF)...`);
-    const analysis = await analyzeIM(buffer);
+    // Run 4-agent pipeline (with progress forwarding)
+    progress(`Running IM analysis pipeline (${(buffer.length / 1024 / 1024).toFixed(1)} MB PDF)...`);
+    const pipelineResult = await runIMPipeline(buffer, progress);
+    const analysis = pipelineResult.legacyAnalysis;
 
     let dealId: string;
     let fileId: string;
 
     if (existingFile && existingFile.dealId) {
-      // Reuse existing file + deal, update deal fields from new analysis
       progress("Updating existing deal and file record...");
       dealId = existingFile.dealId;
       fileId = existingFile.id;
-
-      const fin = analysis.financialHighlights;
-      await db
-        .update(deals)
-        .set({
-          companyName: analysis.companyProfile.companyName,
-          description: analysis.companyProfile.summary.slice(0, 500),
-          location: analysis.companyProfile.location ?? null,
-          industry: analysis.companyProfile.industry ?? null,
-          askingPrice: parseNumericValue(analysis.companyProfile.askingPrice),
-          revenue: parseNumericValue(fin.revenue),
-          ebitda: parseNumericValue(fin.ebitda),
-          employeeCount: fin.employeeCount ?? null,
-      fullTimeCount: fin.fullTimeCount ?? null,
-      contractorCount: fin.contractorCount ?? null,
-          metadata: {
-            gdriveSourceFileId: gdriveFileId,
-            currency: fin.currency ?? null,
-            askingPriceRaw: analysis.companyProfile.askingPrice ?? null,
-            revenueRaw: fin.revenue ?? null,
-            ebitdaRaw: fin.ebitda ?? null,
-          },
-          updatedAt: new Date(),
-        })
-        .where(eq(deals.id, dealId));
+      await updateDealFromPipelineResult(dealId, pipelineResult, gdriveFileId);
 
       await db
         .update(files)
         .set({ processingStatus: "processing", updatedAt: new Date() })
         .where(eq(files.id, fileId));
     } else {
-      // Create new deal (or existing file has no deal yet, e.g. from scan orchestrator)
       progress(`Creating deal for "${analysis.companyProfile.companyName}"...`);
       const stageId = await getDefaultStageId(portcoId);
-      dealId = await createDealFromAnalysis(portcoId, stageId, analysis, gdriveFileId, input.gdriveModifiedTime);
+      dealId = await createDealFromPipelineResult(portcoId, stageId, pipelineResult, gdriveFileId, input.gdriveModifiedTime);
 
       if (existingFile) {
-        // Link existing file record to the new deal
         fileId = existingFile.id;
         await db
           .update(files)
           .set({ dealId, processingStatus: "processing", updatedAt: new Date() })
           .where(eq(files.id, fileId));
       } else {
-        // Create file record
         const [newFile] = await db
           .insert(files)
           .values({
@@ -963,8 +436,8 @@ export async function processSingleGdriveFile(
     }
 
     // Store results
-    progress("Storing scoring results and red flags...");
-    await storeResults(dealId, portcoId, analysis);
+    progress("Storing analysis results...");
+    await storePipelineResults(dealId, portcoId, pipelineResult);
 
     // Mark complete
     progress("Done!");
@@ -997,7 +470,6 @@ export async function processIM(input: ProcessIMInput): Promise<ProcessIMResult>
   const { fileId, dealId, portcoId } = input;
 
   try {
-    // 1. Get the file record
     const [file] = await db
       .select()
       .from(files)
@@ -1012,13 +484,11 @@ export async function processIM(input: ProcessIMInput): Promise<ProcessIMResult>
       return { success: false, error: "File has no Google Drive ID" };
     }
 
-    // 2. Mark as processing
     await db
       .update(files)
       .set({ processingStatus: "processing", updatedAt: new Date() })
       .where(eq(files.id, fileId));
 
-    // 3. Download PDF
     const buffer = await downloadFile(portcoId, file.gdriveFileId);
     if (!buffer) {
       await db
@@ -1028,13 +498,12 @@ export async function processIM(input: ProcessIMInput): Promise<ProcessIMResult>
       return { success: false, error: "Failed to download file from Google Drive" };
     }
 
-    // 4. Analyze with AI (PDF sent directly as multimodal input)
-    const analysis = await analyzeIM(buffer);
+    // Run 4-agent pipeline
+    const pipelineResult = await runIMPipeline(buffer);
+    const analysis = pipelineResult.legacyAnalysis;
 
-    // 5. Store results
-    const profileId = await storeResults(dealId, portcoId, analysis);
+    const profileId = await storePipelineResults(dealId, portcoId, pipelineResult);
 
-    // 6. Mark file as completed
     await db
       .update(files)
       .set({
@@ -1056,7 +525,6 @@ export async function processIM(input: ProcessIMInput): Promise<ProcessIMResult>
   } catch (error) {
     console.error("IM processing error:", error);
 
-    // Mark file as failed
     await db
       .update(files)
       .set({ processingStatus: "failed", updatedAt: new Date() })
