@@ -10,14 +10,38 @@ vi.mock("@/lib/auth", () => ({
   requirePortcoRole: vi.fn().mockResolvedValue({ user: mockUser, role: "admin" }),
 }));
 
+const dbResults: unknown[] = [];
+const dbCallTracker = {
+  insert: vi.fn(),
+  update: vi.fn(),
+  set: vi.fn(),
+  values: vi.fn(),
+  select: vi.fn(),
+};
+
 vi.mock("@/lib/db", () => {
-  const chainFn = vi.fn();
-  const chain: any = new Proxy({}, {
-    get() {
-      chainFn.mockReturnValue(chain);
-      return chainFn;
-    },
-  });
+  const chain: any = new Proxy(
+    {},
+    {
+      get(_, prop) {
+        if (prop === "then") {
+          if (dbResults.length === 0) return undefined;
+          const val = dbResults.shift();
+          return (resolve: (v: unknown) => void) => {
+            resolve(val);
+            return { then: () => {} };
+          };
+        }
+        if (prop in dbCallTracker) {
+          return (...args: unknown[]) => {
+            (dbCallTracker as any)[prop](...args);
+            return chain;
+          };
+        }
+        return () => chain;
+      },
+    }
+  );
   return { db: chain };
 });
 
@@ -42,11 +66,12 @@ import { getPortcoBySlug, requirePortcoRole } from "@/lib/auth";
 describe("prompt-versions actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbResults.length = 0;
     (getPortcoBySlug as any).mockResolvedValue(mockPortco);
     (requirePortcoRole as any).mockResolvedValue({ user: mockUser, role: "admin" });
   });
 
-  describe("savePromptVersion - auth checks", () => {
+  describe("savePromptVersion", () => {
     it("throws when portco not found", async () => {
       (getPortcoBySlug as any).mockResolvedValue(null);
 
@@ -73,9 +98,65 @@ describe("prompt-versions actions", () => {
         savePromptVersion("test-portco", "extraction", "new template")
       ).rejects.toThrow("Insufficient permissions");
     });
+
+    it("computes next version number from latest", async () => {
+      dbResults.push([{ version: 3 }]); // latest version select
+      dbResults.push(undefined); // deactivate update
+      dbResults.push([{ id: "pv-004", version: 4 }]); // insert returning
+      dbResults.push([]); // autoTriggerEval: no recent file found
+
+      const { savePromptVersion } = await import("./prompt-versions");
+      const result = await savePromptVersion("test-portco", "extraction", "new template", "test change");
+
+      expect(result).toEqual({ id: "pv-004", version: 4 });
+    });
+
+    it("starts at version 1 when no prior versions exist", async () => {
+      dbResults.push([]); // no latest version
+      dbResults.push(undefined); // deactivate update
+      dbResults.push([{ id: "pv-001", version: 1 }]); // insert returning
+      dbResults.push([]); // autoTriggerEval: no recent file
+
+      const { savePromptVersion } = await import("./prompt-versions");
+      const result = await savePromptVersion("test-portco", "extraction", "first template");
+
+      expect(result).toEqual({ id: "pv-001", version: 1 });
+    });
+
+    it("deactivates existing versions before inserting", async () => {
+      dbResults.push([{ version: 2 }]); // latest
+      dbResults.push(undefined); // deactivate
+      dbResults.push([{ id: "pv-003", version: 3 }]); // insert
+      dbResults.push([]); // autoTriggerEval
+
+      const { savePromptVersion } = await import("./prompt-versions");
+      await savePromptVersion("test-portco", "extraction", "template");
+
+      expect(dbCallTracker.update).toHaveBeenCalled();
+      expect(dbCallTracker.set).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }));
+    });
+
+    it("inserts new version as active", async () => {
+      dbResults.push([{ version: 1 }]);
+      dbResults.push(undefined);
+      dbResults.push([{ id: "pv-002", version: 2 }]);
+      dbResults.push([]);
+
+      const { savePromptVersion } = await import("./prompt-versions");
+      await savePromptVersion("test-portco", "extraction", "template", "note");
+
+      expect(dbCallTracker.values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isActive: true,
+          version: 2,
+          template: "template",
+          changeNote: "note",
+        })
+      );
+    });
   });
 
-  describe("activatePromptVersion - auth checks", () => {
+  describe("activatePromptVersion", () => {
     it("throws when user is not admin", async () => {
       (requirePortcoRole as any).mockRejectedValue(new Error("Insufficient permissions"));
 
@@ -84,9 +165,25 @@ describe("prompt-versions actions", () => {
         activatePromptVersion("test-portco", "extraction", "version-001")
       ).rejects.toThrow("Insufficient permissions");
     });
+
+    it("deactivates all then activates specified version", async () => {
+      dbResults.push(undefined); // deactivate all
+      dbResults.push(undefined); // activate specified
+      dbResults.push([{ id: "pv-002", version: 2 }]); // select activated
+      dbResults.push([]); // autoTriggerEval
+
+      const { activatePromptVersion } = await import("./prompt-versions");
+      await activatePromptVersion("test-portco", "extraction", "pv-002");
+
+      expect(dbCallTracker.update).toHaveBeenCalled();
+      // First set call deactivates, second activates
+      const setCalls = dbCallTracker.set.mock.calls;
+      expect(setCalls[0][0]).toEqual({ isActive: false });
+      expect(setCalls[1][0]).toEqual({ isActive: true });
+    });
   });
 
-  describe("resetToDefaultPrompt - auth checks", () => {
+  describe("resetToDefaultPrompt", () => {
     it("throws when user is not admin", async () => {
       (requirePortcoRole as any).mockRejectedValue(new Error("Insufficient permissions"));
 
@@ -94,6 +191,17 @@ describe("prompt-versions actions", () => {
       await expect(
         resetToDefaultPrompt("test-portco", "extraction")
       ).rejects.toThrow("Insufficient permissions");
+    });
+
+    it("deactivates all active versions", async () => {
+      dbResults.push(undefined); // deactivate all
+      dbResults.push([]); // autoTriggerEval: no file
+
+      const { resetToDefaultPrompt } = await import("./prompt-versions");
+      await resetToDefaultPrompt("test-portco", "extraction");
+
+      expect(dbCallTracker.update).toHaveBeenCalled();
+      expect(dbCallTracker.set).toHaveBeenCalledWith({ isActive: false });
     });
   });
 });
