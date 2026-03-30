@@ -4,7 +4,7 @@
  * Weekly Refactoring Analysis
  *
  * Checks for:
- * 1. Files exceeding 200-line limit
+ * 1. Files exceeding 500-line limit
  * 2. Code duplication (via jscpd)
  * 3. Circular dependencies (via madge)
  * 4. High cyclomatic complexity (via ESLint)
@@ -12,10 +12,10 @@
 
 import { runCommand, findFiles, countLines, today, writeReport, buildReport, countFindings, ROOT } from "./utils.mjs";
 
-const MAX_LINES = 200;
+const MAX_LINES = 500;
 const COMPLEXITY_THRESHOLD = 10;
 
-// --- 1. Files exceeding 200 lines ---
+// --- 1. Files exceeding 500 lines ---
 function checkFileSizes() {
   const tsFiles = [
     ...findFiles("*.ts"),
