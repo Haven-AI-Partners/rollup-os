@@ -13,6 +13,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { FILE_TYPE_LABELS } from "@/lib/constants";
 import { ProcessGdriveFileButton } from "@/components/deals/process-gdrive-file-button";
 import type { GDriveFile, ProcessedInfo } from "./virtual-files-list";
 
@@ -36,23 +37,7 @@ function getMimeLabel(mimeType: string) {
   return mimeType.split("/").pop() ?? "File";
 }
 
-export const FILE_TYPE_LABELS: Record<string, string> = {
-  im_pdf: "IM",
-  report: "Report",
-  attachment: "Attachment",
-  nda: "NDA",
-  dd_financial: "DD Financial",
-  dd_legal: "DD Legal",
-  dd_operational: "DD Operational",
-  dd_tax: "DD Tax",
-  dd_hr: "DD HR",
-  dd_it: "DD IT",
-  loi: "LOI",
-  purchase_agreement: "Purchase Agreement",
-  pmi_plan: "PMI Plan",
-  pmi_report: "PMI Report",
-  other: "Other",
-};
+export { FILE_TYPE_LABELS } from "@/lib/constants";
 
 export function formatBytes(bytes: string | null) {
   if (!bytes) return null;

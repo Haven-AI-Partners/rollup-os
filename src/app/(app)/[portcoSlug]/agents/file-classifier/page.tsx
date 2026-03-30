@@ -18,7 +18,7 @@ import Link from "next/link";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { AGENT_SLUG, DEFAULT_TEMPLATE, renderTemplate } from "@/lib/agents/file-classifier/prompt";
 import { MODEL_ID, RULE_CONFIDENCE_THRESHOLD } from "@/lib/agents/file-classifier";
-import { FILE_TYPE_LABELS } from "@/components/files/file-row";
+import { FILE_TYPE_LABELS } from "@/lib/constants";
 
 export default async function FileClassifierPage({
   params,
