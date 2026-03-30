@@ -1,15 +1,8 @@
 import type { HybridClassificationResult } from "./schema";
 import { classifyByRules } from "./rules";
-import { classifyWithVision } from "./vision";
+import { RULE_CONFIDENCE_THRESHOLD } from "./constants";
 
-/** Re-export the model ID used by the vision tier */
-export { VISION_MODEL_ID as MODEL_ID } from "./vision";
-
-/**
- * Rule-based results at or above this confidence skip the LLM vision tier.
- * Below this threshold, the file is escalated to Tier 2 for deeper analysis.
- */
-export const RULE_CONFIDENCE_THRESHOLD = 0.8;
+export { MODEL_ID, RULE_CONFIDENCE_THRESHOLD } from "./constants";
 
 interface ClassifyInput {
   fileName: string;
@@ -53,9 +46,10 @@ export async function classifyFile(
     };
   }
 
-  // Tier 2: LLM vision classification
+  // Tier 2: LLM vision classification (lazy-loaded to avoid pdfjs-dist at module eval)
   if (input.portcoId && input.gdriveFileId) {
     try {
+      const { classifyWithVision } = await import("./vision");
       const visionResult = await classifyWithVision({
         fileName: input.fileName,
         mimeType: input.mimeType,
