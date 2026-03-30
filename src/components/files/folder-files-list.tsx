@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -75,24 +75,27 @@ export function FolderFilesList({
   onLoadMore,
 }: FolderFilesListProps) {
   const tree = useMemo(() => buildFolderTree(files), [files]);
-  const [expanded, setExpanded] = useState<Set<string>>(() => {
-    // Auto-expand top-level folders
-    return new Set(Array.from(tree.children.keys()));
-  });
+  // Track manually toggled folders. Top-level folders default to expanded.
+  const [manualToggles, setManualToggles] = useState<Set<string>>(new Set());
 
-  // Auto-expand new top-level folders as they arrive from later pages
-  useEffect(() => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      for (const key of tree.children.keys()) {
-        next.add(key);
+  const expanded = useMemo(() => {
+    const set = new Set<string>();
+    // Auto-expand all top-level folders unless manually collapsed
+    for (const key of tree.children.keys()) {
+      if (!manualToggles.has(key)) {
+        set.add(key);
       }
-      return next;
-    });
-  }, [tree]);
+    }
+    // Add manually expanded non-top-level folders
+    for (const key of manualToggles) {
+      if (!tree.children.has(key)) {
+        set.add(key);
+      }
+    }
+    return set;
+  }, [tree, manualToggles]);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const stableOnLoadMore = useCallback(onLoadMore, [onLoadMore]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -101,7 +104,7 @@ export function FolderFilesList({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && !isFetching) {
-          stableOnLoadMore();
+          onLoadMore();
         }
       },
       { rootMargin: "200px" },
@@ -109,10 +112,10 @@ export function FolderFilesList({
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, isFetching, stableOnLoadMore]);
+  }, [hasMore, isFetching, onLoadMore]);
 
   function toggleFolder(path: string) {
-    setExpanded((prev) => {
+    setManualToggles((prev) => {
       const next = new Set(prev);
       if (next.has(path)) {
         next.delete(path);
