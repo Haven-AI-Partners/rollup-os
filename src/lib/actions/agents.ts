@@ -7,7 +7,7 @@ import {
   AGENT_SLUG,
   EXTRACTION_SLUG,
   SCORING_SLUG,
-} from "@/lib/agents/im-processor/prompt";
+} from "@/lib/agents/im-processor/prompts/shared";
 import { requireAuth } from "@/lib/auth";
 
 export async function getAgentStats(portcoId: string) {

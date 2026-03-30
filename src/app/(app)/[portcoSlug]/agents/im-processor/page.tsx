@@ -20,13 +20,15 @@ import Link from "next/link";
 import { EvalPanel } from "@/components/agents/eval-panel";
 import { PromptTabs } from "@/components/agents/prompt-tabs";
 import {
-  EXTRACTION_TEMPLATE,
-  SCORING_TEMPLATE,
-  renderTemplate,
+  ANALYZER_EXTRACTION_TEMPLATE,
+  ANALYZER_SCORING_TEMPLATE,
+} from "@/lib/agents/im-processor/prompts/analyzer";
+import {
   AGENT_SLUG,
   EXTRACTION_SLUG,
   SCORING_SLUG,
-} from "@/lib/agents/im-processor/prompt";
+  renderTemplate,
+} from "@/lib/agents/im-processor/prompts/shared";
 import { Button } from "@/components/ui/button";
 
 export default async function IMProcessorPage({
@@ -158,11 +160,11 @@ export default async function IMProcessorPage({
   const avgScore = scoreStats[0]?.avgScore ? Number(scoreStats[0].avgScore) : null;
 
   const activeExtraction = extractionVersions.find((v) => v.isActive);
-  const currentExtractionTemplate = activeExtraction?.template ?? EXTRACTION_TEMPLATE;
+  const currentExtractionTemplate = activeExtraction?.template ?? ANALYZER_EXTRACTION_TEMPLATE;
   const renderedExtractionPrompt = renderTemplate(currentExtractionTemplate);
 
   const activeScoring = scoringVersions.find((v) => v.isActive);
-  const currentScoringTemplate = activeScoring?.template ?? SCORING_TEMPLATE;
+  const currentScoringTemplate = activeScoring?.template ?? ANALYZER_SCORING_TEMPLATE;
   const renderedScoringPrompt = renderTemplate(currentScoringTemplate);
 
   const extractionVersionsForClient = extractionVersions.map((v) => ({
@@ -218,15 +220,23 @@ export default async function IMProcessorPage({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Pipeline</span>
-              <span>Two-pass (extract + score)</span>
+              <span>4-agent sequential</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Pass 1</span>
-              <span>PDF extraction (multimodal)</span>
+              <span className="text-muted-foreground">Agent 1</span>
+              <span>Content extraction (multimodal)</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Pass 2</span>
-              <span>Scoring + flags (3x consensus)</span>
+              <span className="text-muted-foreground">Agent 2</span>
+              <span>Translation (JP → EN)</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Agent 3</span>
+              <span>Analyzer (extract + score, 3x consensus)</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Agent 4</span>
+              <span>External enrichment (web search)</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Scoring</span>
@@ -386,7 +396,7 @@ export default async function IMProcessorPage({
             label: "Extraction",
             agentSlug: EXTRACTION_SLUG,
             currentTemplate: currentExtractionTemplate,
-            defaultTemplate: EXTRACTION_TEMPLATE,
+            defaultTemplate: ANALYZER_EXTRACTION_TEMPLATE,
             renderedPrompt: renderedExtractionPrompt,
             versions: extractionVersionsForClient,
             description: "Extracts facts, numbers, and quotes from the PDF. No scoring or judgment.",
@@ -396,7 +406,7 @@ export default async function IMProcessorPage({
             label: "Scoring",
             agentSlug: SCORING_SLUG,
             currentTemplate: currentScoringTemplate,
-            defaultTemplate: SCORING_TEMPLATE,
+            defaultTemplate: ANALYZER_SCORING_TEMPLATE,
             renderedPrompt: renderedScoringPrompt,
             versions: scoringVersionsForClient,
             description: "Scores dimensions and identifies red flags from the structured extraction.",

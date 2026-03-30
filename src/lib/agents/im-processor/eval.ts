@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { downloadFile } from "@/lib/gdrive/client";
 
 
-import { buildExtractionPrompt, buildScoringPrompt } from "./prompt";
+import { buildAnalyzerExtractionPrompt as buildExtractionPrompt, buildAnalyzerScoringPrompt as buildScoringPrompt } from "./prompts/analyzer";
 import {
   imExtractionSchema,
   imScoringSchema,

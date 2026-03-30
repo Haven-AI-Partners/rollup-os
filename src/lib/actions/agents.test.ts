@@ -47,7 +47,7 @@ vi.mock("@/lib/db/schema", () => ({
   evalRuns: { agentSlug: "agentSlug", createdAt: "createdAt" },
 }));
 
-vi.mock("@/lib/agents/im-processor/prompt", () => ({
+vi.mock("@/lib/agents/im-processor/prompts/shared", () => ({
   AGENT_SLUG: "im-processor",
   EXTRACTION_SLUG: "im-processor-extraction",
   SCORING_SLUG: "im-processor-scoring",
