@@ -34,7 +34,7 @@ interface InterviewChatProps {
   onSessionComplete?: () => void;
 }
 
-export function InterviewChat({ sessionId: _sessionId, employeeName, onSessionComplete }: InterviewChatProps) {
+export function InterviewChat({ employeeName, onSessionComplete }: InterviewChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);

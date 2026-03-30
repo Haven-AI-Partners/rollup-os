@@ -20,7 +20,7 @@ interface SessionFeedbackProps {
   employeeName: string;
 }
 
-export function SessionFeedback({ sessionId: _sessionId, employeeName }: SessionFeedbackProps) {
+export function SessionFeedback({ employeeName }: SessionFeedbackProps) {
   const [rating, setRating] = useState(0);
   const [hoveredStar, setHoveredStar] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
