@@ -5,7 +5,7 @@ import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getPortcoBySlug, getUserPortcoRole } from "@/lib/auth";
 import { getTeamMembers } from "@/lib/actions/team";
-import { SettingsNav } from "@/components/settings/settings-nav";
+import { SettingsPageLayout } from "@/components/settings/settings-page-layout";
 import { TeamTable } from "@/components/settings/team-table";
 import type { UserRole } from "@/lib/auth";
 
@@ -38,33 +38,22 @@ export default async function TeamPage({
   if (!myRole) notFound();
 
   return (
-    <div className="space-y-6">
+    <SettingsPageLayout portcoSlug={portcoSlug} portcoName={portco.name} maxWidth={false}>
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage {portco.name} configuration and integrations.
+        <h2 className="text-lg font-semibold">Team Members</h2>
+        <p className="text-sm text-muted-foreground">
+          {members.length} member{members.length !== 1 ? "s" : ""} in{" "}
+          {portco.name}
         </p>
       </div>
 
-      <SettingsNav portcoSlug={portcoSlug} />
-
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold">Team Members</h2>
-          <p className="text-sm text-muted-foreground">
-            {members.length} member{members.length !== 1 ? "s" : ""} in{" "}
-            {portco.name}
-          </p>
-        </div>
-
-        <TeamTable
-          members={members}
-          currentUserId={dbUser.id}
-          currentUserRole={myRole as UserRole}
-          portcoId={portco.id}
-          portcoSlug={portcoSlug}
-        />
-      </div>
-    </div>
+      <TeamTable
+        members={members}
+        currentUserId={dbUser.id}
+        currentUserRole={myRole as UserRole}
+        portcoId={portco.id}
+        portcoSlug={portcoSlug}
+      />
+    </SettingsPageLayout>
   );
 }

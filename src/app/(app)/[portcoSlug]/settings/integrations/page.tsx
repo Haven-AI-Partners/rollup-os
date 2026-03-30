@@ -3,7 +3,7 @@ import { getPortcoBySlug } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GdriveSettings } from "@/components/settings/gdrive-settings";
-import { SettingsNav } from "@/components/settings/settings-nav";
+import { SettingsPageLayout } from "@/components/settings/settings-page-layout";
 import { getConnectedAccount, getFolderName } from "@/lib/gdrive/client";
 import { getRecentGdriveErrors } from "@/lib/actions/settings";
 import { MessageSquare, Mail, Notebook } from "lucide-react";
@@ -30,17 +30,7 @@ export default async function IntegrationsPage({
     : [null, null, []];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage {portco.name} configuration and integrations.
-        </p>
-      </div>
-
-      <SettingsNav portcoSlug={portcoSlug} />
-
-      <div className="max-w-2xl space-y-6">
+    <SettingsPageLayout portcoSlug={portcoSlug} portcoName={portco.name}>
         <GdriveSettings
           portcoSlug={portcoSlug}
           isConnected={isGdriveConnected}
@@ -112,7 +102,6 @@ export default async function IntegrationsPage({
             </p>
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </SettingsPageLayout>
   );
 }
