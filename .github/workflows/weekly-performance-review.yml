@@ -38,6 +38,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          sign-commits: true
           branch: analysis/performance-${{ steps.date.outputs.date }}
           add-paths: docs/analysis/
           commit-message: |
