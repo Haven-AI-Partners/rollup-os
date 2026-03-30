@@ -4,7 +4,7 @@
 import { describe, it, expect, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { FolderFilesList, buildFolderTree } from "./folder-files-list";
+import { FolderFilesList, buildFolderTree, collectDescendantPaths } from "./folder-files-list";
 import type { GDriveFile } from "./virtual-files-list";
 
 vi.mock("@/components/deals/process-gdrive-file-button", () => ({
@@ -195,5 +195,143 @@ describe("FolderFilesList", () => {
     // Expand C
     fireEvent.click(screen.getByTestId("folder-A/B/C"));
     expect(screen.getByText("Deep.pdf")).toBeInTheDocument();
+  });
+
+  it("expands all subfolders within a folder when expand-all button is clicked", () => {
+    const files = [
+      makeFile({ id: "f1", name: "Deep.pdf", parentPath: "A/B/C" }),
+      makeFile({ id: "f2", name: "Mid.pdf", parentPath: "A/B" }),
+    ];
+
+    render(
+      <FolderFilesList
+        files={files}
+        processedMap={{}}
+        portcoSlug="test-co"
+        isAdmin={false}
+        hasMore={false}
+        isFetching={false}
+        onLoadMore={() => {}}
+      />,
+    );
+
+    // A is auto-expanded, B is visible but not expanded
+    expect(screen.getByTestId("folder-A/B")).toBeInTheDocument();
+    expect(screen.queryByText("Deep.pdf")).not.toBeInTheDocument();
+
+    // Click expand-all on folder A
+    fireEvent.click(screen.getByTestId("folder-expand-all-A"));
+
+    // Now B and C should be expanded, showing Deep.pdf
+    expect(screen.getByText("Deep.pdf")).toBeInTheDocument();
+    expect(screen.getByText("Mid.pdf")).toBeInTheDocument();
+  });
+
+  it("collapses all subfolders when collapse-all button is clicked on an expanded folder", () => {
+    const files = [
+      makeFile({ id: "f1", name: "Deep.pdf", parentPath: "A/B/C" }),
+    ];
+
+    render(
+      <FolderFilesList
+        files={files}
+        processedMap={{}}
+        portcoSlug="test-co"
+        isAdmin={false}
+        hasMore={false}
+        isFetching={false}
+        onLoadMore={() => {}}
+      />,
+    );
+
+    // Expand all subfolders of A first
+    fireEvent.click(screen.getByTestId("folder-expand-all-A"));
+    expect(screen.getByText("Deep.pdf")).toBeInTheDocument();
+
+    // Now collapse all subfolders of A (button toggles to collapse)
+    fireEvent.click(screen.getByTestId("folder-expand-all-A"));
+
+    // A should still be expanded (showing B), but B/C should be collapsed
+    expect(screen.getByTestId("folder-A/B")).toBeInTheDocument();
+    expect(screen.queryByText("Deep.pdf")).not.toBeInTheDocument();
+  });
+
+  it("global expand all expands every folder", () => {
+    const files = [
+      makeFile({ id: "f1", name: "Deep.pdf", parentPath: "A/B/C" }),
+      makeFile({ id: "f2", name: "Other.pdf", parentPath: "X/Y" }),
+    ];
+
+    render(
+      <FolderFilesList
+        files={files}
+        processedMap={{}}
+        portcoSlug="test-co"
+        isAdmin={false}
+        hasMore={false}
+        isFetching={false}
+        onLoadMore={() => {}}
+      />,
+    );
+
+    // Deep files not visible yet
+    expect(screen.queryByText("Deep.pdf")).not.toBeInTheDocument();
+    expect(screen.queryByText("Other.pdf")).not.toBeInTheDocument();
+
+    // Click global expand all
+    fireEvent.click(screen.getByTestId("global-expand-toggle"));
+
+    // All files should now be visible
+    expect(screen.getByText("Deep.pdf")).toBeInTheDocument();
+    expect(screen.getByText("Other.pdf")).toBeInTheDocument();
+  });
+
+  it("global collapse all collapses every folder", () => {
+    const files = [
+      makeFile({ id: "f1", name: "File.pdf", parentPath: "A" }),
+      makeFile({ id: "f2", name: "File2.pdf", parentPath: "B" }),
+    ];
+
+    render(
+      <FolderFilesList
+        files={files}
+        processedMap={{}}
+        portcoSlug="test-co"
+        isAdmin={false}
+        hasMore={false}
+        isFetching={false}
+        onLoadMore={() => {}}
+      />,
+    );
+
+    // Top-level auto-expanded, files visible
+    expect(screen.getByText("File.pdf")).toBeInTheDocument();
+    expect(screen.getByText("File2.pdf")).toBeInTheDocument();
+
+    // Click global collapse all
+    fireEvent.click(screen.getByTestId("global-expand-toggle"));
+
+    // Files should be hidden
+    expect(screen.queryByText("File.pdf")).not.toBeInTheDocument();
+    expect(screen.queryByText("File2.pdf")).not.toBeInTheDocument();
+  });
+});
+
+describe("collectDescendantPaths", () => {
+  it("collects all nested folder paths", () => {
+    const files = [
+      makeFile({ id: "f1", parentPath: "A/B/C" }),
+      makeFile({ id: "f2", parentPath: "A/D" }),
+    ];
+    const tree = buildFolderTree(files);
+    const paths = collectDescendantPaths(tree);
+    expect(paths).toEqual(expect.arrayContaining(["A", "A/B", "A/B/C", "A/D"]));
+    expect(paths).toHaveLength(4);
+  });
+
+  it("returns empty array for root with no children", () => {
+    const tree = buildFolderTree([]);
+    const paths = collectDescendantPaths(tree);
+    expect(paths).toHaveLength(0);
   });
 });

@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronRight,
   ChevronDown,
+  ChevronsDown,
+  ChevronsUp,
   FolderOpen,
   Loader2,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { FileRowContent } from "./file-row";
 import type { GDriveFile, ProcessedInfo } from "./virtual-files-list";
 
@@ -55,6 +58,23 @@ function countFilesRecursive(node: FolderNode): number {
   return count;
 }
 
+export function collectDescendantPaths(node: FolderNode): string[] {
+  const paths: string[] = [];
+  if (node.fullPath) paths.push(node.fullPath);
+  for (const child of node.children.values()) {
+    paths.push(...collectDescendantPaths(child));
+  }
+  return paths;
+}
+
+function allDescendantsExpanded(node: FolderNode, expanded: Set<string>): boolean {
+  for (const child of node.children.values()) {
+    if (!expanded.has(child.fullPath)) return false;
+    if (!allDescendantsExpanded(child, expanded)) return false;
+  }
+  return true;
+}
+
 interface FolderFilesListProps {
   files: GDriveFile[];
   processedMap: Record<string, ProcessedInfo>;
@@ -75,25 +95,29 @@ export function FolderFilesList({
   onLoadMore,
 }: FolderFilesListProps) {
   const tree = useMemo(() => buildFolderTree(files), [files]);
-  // Track manually toggled folders. Top-level folders default to expanded.
-  const [manualToggles, setManualToggles] = useState<Set<string>>(new Set());
 
-  const expanded = useMemo(() => {
-    const set = new Set<string>();
-    // Auto-expand all top-level folders unless manually collapsed
-    for (const key of tree.children.keys()) {
-      if (!manualToggles.has(key)) {
-        set.add(key);
-      }
+  // Direct expanded set — initialized with top-level folders
+  const [expanded, setExpanded] = useState<Set<string>>(() => {
+    return new Set(tree.children.keys());
+  });
+
+  // Re-initialize when tree changes (e.g. new files loaded)
+  const prevTreeRef = useRef(tree);
+  useEffect(() => {
+    if (prevTreeRef.current !== tree) {
+      prevTreeRef.current = tree;
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        for (const key of tree.children.keys()) {
+          if (!next.has(key)) next.add(key);
+        }
+        return next;
+      });
     }
-    // Add manually expanded non-top-level folders
-    for (const key of manualToggles) {
-      if (!tree.children.has(key)) {
-        set.add(key);
-      }
-    }
-    return set;
-  }, [tree, manualToggles]);
+  }, [tree]);
+
+  const allPaths = useMemo(() => collectDescendantPaths(tree), [tree]);
+  const allExpanded = allPaths.length > 0 && allPaths.every((p) => expanded.has(p));
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -114,8 +138,8 @@ export function FolderFilesList({
     return () => observer.disconnect();
   }, [hasMore, isFetching, onLoadMore]);
 
-  function toggleFolder(path: string) {
-    setManualToggles((prev) => {
+  const toggleFolder = useCallback((path: string) => {
+    setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(path)) {
         next.delete(path);
@@ -124,7 +148,23 @@ export function FolderFilesList({
       }
       return next;
     });
-  }
+  }, []);
+
+  const expandDescendants = useCallback((paths: string[]) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      for (const p of paths) next.add(p);
+      return next;
+    });
+  }, []);
+
+  const collapseDescendants = useCallback((paths: string[]) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      for (const p of paths) next.delete(p);
+      return next;
+    });
+  }, []);
 
   const sortedChildren = Array.from(tree.children.values()).sort((a, b) =>
     a.name.localeCompare(b.name),
@@ -135,6 +175,33 @@ export function FolderFilesList({
 
   return (
     <div className="h-[calc(100vh-220px)] overflow-auto">
+      {sortedChildren.length > 0 && (
+        <div className="flex justify-end mb-1">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() =>
+              allExpanded
+                ? collapseDescendants(allPaths)
+                : expandDescendants(allPaths)
+            }
+            className="text-muted-foreground gap-1"
+            data-testid="global-expand-toggle"
+          >
+            {allExpanded ? (
+              <>
+                <ChevronsUp className="size-3" />
+                Collapse All
+              </>
+            ) : (
+              <>
+                <ChevronsDown className="size-3" />
+                Expand All
+              </>
+            )}
+          </Button>
+        </div>
+      )}
       <div className="rounded-lg border" data-testid="folder-files-list">
         {sortedChildren.map((child) => (
           <FolderRow
@@ -143,6 +210,8 @@ export function FolderFilesList({
             depth={0}
             expanded={expanded}
             onToggle={toggleFolder}
+            onExpandDescendants={expandDescendants}
+            onCollapseDescendants={collapseDescendants}
             processedMap={processedMap}
             portcoSlug={portcoSlug}
             isAdmin={isAdmin}
@@ -176,6 +245,8 @@ function FolderRow({
   depth,
   expanded,
   onToggle,
+  onExpandDescendants,
+  onCollapseDescendants,
   processedMap,
   portcoSlug,
   isAdmin,
@@ -184,12 +255,16 @@ function FolderRow({
   depth: number;
   expanded: Set<string>;
   onToggle: (path: string) => void;
+  onExpandDescendants: (paths: string[]) => void;
+  onCollapseDescendants: (paths: string[]) => void;
   processedMap: Record<string, ProcessedInfo>;
   portcoSlug: string;
   isAdmin: boolean;
 }) {
   const isExpanded = expanded.has(node.fullPath);
   const fileCount = countFilesRecursive(node);
+  const hasSubfolders = node.children.size > 0;
+  const descendantsAllExpanded = hasSubfolders && allDescendantsExpanded(node, expanded);
 
   const sortedChildren = Array.from(node.children.values()).sort((a, b) =>
     a.name.localeCompare(b.name),
@@ -216,6 +291,31 @@ function FolderRow({
         <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
         <span className="text-sm font-medium">{node.name}</span>
         <span className="text-[10px] text-muted-foreground/60">{fileCount}</span>
+        {hasSubfolders && (
+          <button
+            type="button"
+            className="ml-auto shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
+            title={descendantsAllExpanded ? "Collapse all subfolders" : "Expand all subfolders"}
+            data-testid={`folder-expand-all-${node.fullPath}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              const paths = collectDescendantPaths(node);
+              if (descendantsAllExpanded) {
+                // Keep the folder itself expanded, collapse descendants only
+                const childPaths = paths.filter((p) => p !== node.fullPath);
+                onCollapseDescendants(childPaths);
+              } else {
+                onExpandDescendants(paths);
+              }
+            }}
+          >
+            {descendantsAllExpanded ? (
+              <ChevronsUp className="size-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronsDown className="size-3.5 text-muted-foreground" />
+            )}
+          </button>
+        )}
       </div>
       {isExpanded && (
         <>
@@ -226,6 +326,8 @@ function FolderRow({
               depth={depth + 1}
               expanded={expanded}
               onToggle={onToggle}
+              onExpandDescendants={onExpandDescendants}
+              onCollapseDescendants={onCollapseDescendants}
               processedMap={processedMap}
               portcoSlug={portcoSlug}
               isAdmin={isAdmin}
