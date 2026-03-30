@@ -17,6 +17,11 @@ export const companyProfiles = pgTable("company_profiles", {
   aiOverallScore: numeric("ai_overall_score"),
   scoringBreakdown: jsonb("scoring_breakdown"),
   rawExtraction: jsonb("raw_extraction"),
+  // Pipeline v2 columns
+  externalEnrichment: jsonb("external_enrichment"),
+  sourceAttributions: jsonb("source_attributions"),
+  rawContentExtraction: jsonb("raw_content_extraction"),
+  pipelineVersion: text("pipeline_version").default("v1"),
   generatedAt: timestamp("generated_at", { withTimezone: true }),
   modelVersion: text("model_version"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
