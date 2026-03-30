@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,8 @@ interface KanbanColumnProps {
 
 export function KanbanColumn({ stage, deals, portcoSlug, selectedIds, onSelect }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+  const dotStyle = useMemo(() => ({ backgroundColor: stage.color ?? "#94a3b8" }), [stage.color]);
+  const scrollStyle = useMemo(() => ({ maxHeight: "calc(100vh - 200px)" }), []);
 
   return (
     <div
@@ -44,14 +47,14 @@ export function KanbanColumn({ stage, deals, portcoSlug, selectedIds, onSelect }
       <div className="flex items-center gap-2 border-b px-3 py-2">
         <div
           className="size-2.5 rounded-full"
-          style={{ backgroundColor: stage.color ?? "#94a3b8" }}
+          style={dotStyle}
         />
         <h3 className="text-sm font-medium">{stage.name}</h3>
         <Badge variant="secondary" className="ml-auto text-xs">
           {deals.length}
         </Badge>
       </div>
-      <div className="flex-1 overflow-y-auto p-2" style={{ maxHeight: "calc(100vh - 200px)" }}>
+      <div className="flex-1 overflow-y-auto p-2" style={scrollStyle}>
         <div ref={setNodeRef} className="flex flex-col gap-2 min-h-[40px]">
           <SortableContext items={deals.map((d) => d.id)} strategy={verticalListSortingStrategy}>
             {deals.map((deal) => (

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
 import { deals } from "./deals";
 import { users } from "./users";
 
@@ -12,7 +12,10 @@ export const orgChartVersions = pgTable("org_chart_versions", {
   isActive: boolean("is_active").notNull().default(false),
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+},
+(table) => [
+  index("idx_org_chart_versions_created_by").on(table.createdBy),
+]);
 
 export const orgChartNodes = pgTable("org_chart_nodes", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -26,4 +29,7 @@ export const orgChartNodes = pgTable("org_chart_nodes", {
   department: text("department"),
   role: text("role").$type<"executive" | "management" | "staff" | "board" | "advisor" | "contractor">(),
   position: integer("position").notNull().default(0),
-});
+},
+(table) => [
+  index("idx_org_chart_nodes_parent").on(table.parentId),
+]);

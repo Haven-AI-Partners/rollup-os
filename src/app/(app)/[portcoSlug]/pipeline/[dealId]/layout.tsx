@@ -5,8 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import dynamic from "next/dynamic";
 import { DealTabs } from "@/components/deals/deal-tabs";
-import { DealChat } from "@/components/deals/deal-chat";
+
+const DealChat = dynamic(
+  () => import("@/components/deals/deal-chat").then((m) => ({ default: m.DealChat })),
+  { ssr: false },
+);
 
 export default async function DealDetailLayout({
   children,

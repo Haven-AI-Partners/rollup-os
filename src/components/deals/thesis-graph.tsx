@@ -66,6 +66,14 @@ type ThesisNodeData = {
 
 function ThesisFlowNode({ data }: NodeProps<Node<ThesisNodeData>>) {
   const style = STATUS_STYLES[data.status] ?? STATUS_STYLES.unknown;
+  const nodeStyle = useMemo(() => ({
+    borderColor: style.border,
+    borderLeftWidth: 3,
+    backgroundColor: style.bg,
+    maxWidth: 200,
+    minWidth: 80,
+    pointerEvents: "all" as const,
+  }), [style.border, style.bg]);
 
   return (
     <>
@@ -75,14 +83,7 @@ function ThesisFlowNode({ data }: NodeProps<Node<ThesisNodeData>>) {
           <TooltipTrigger asChild>
             <div
               className="rounded-md px-2.5 py-1.5 shadow-sm border cursor-default nopan nodrag"
-              style={{
-                borderColor: style.border,
-                borderLeftWidth: 3,
-                backgroundColor: style.bg,
-                maxWidth: 200,
-                minWidth: 80,
-                pointerEvents: "all",
-              }}
+              style={nodeStyle}
             >
               <p className="text-xs font-medium leading-tight">{data.label}</p>
               {data.value && (

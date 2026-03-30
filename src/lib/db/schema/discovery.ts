@@ -28,6 +28,7 @@ export const discoveryCampaigns = pgTable("discovery_campaigns", {
 (table) => [
   index("idx_discovery_campaigns_deal").on(table.dealId),
   index("idx_discovery_campaigns_portco").on(table.portcoId),
+  index("idx_discovery_campaigns_created_by").on(table.createdBy),
 ]);
 
 export const discoverySessions = pgTable("discovery_sessions", {

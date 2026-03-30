@@ -64,6 +64,13 @@
       "when": 1774863797543,
       "tag": "0008_loud_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774872056912,
+      "tag": "0009_chubby_dracula",
+      "breakpoints": true
     }
   ]
 }

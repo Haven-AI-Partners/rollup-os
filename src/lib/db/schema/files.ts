@@ -51,4 +51,6 @@ export const files = pgTable("files", {
 (table) => [
   index("idx_files_gdrive").on(table.gdriveFileId),
   index("idx_files_portco_status").on(table.portcoId, table.processingStatus),
+  index("idx_files_deal").on(table.dealId),
+  index("idx_files_uploaded_by").on(table.uploadedBy),
 ]);

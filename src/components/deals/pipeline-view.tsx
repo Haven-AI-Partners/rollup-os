@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { KanbanBoard } from "./kanban-board";
 import { DealListView } from "./deal-list-view";
 import { LayoutGrid, List } from "lucide-react";
@@ -43,12 +43,14 @@ interface PipelineViewProps {
 
 export function PipelineView({ stages, deals, portcoSlug, userRole }: PipelineViewProps) {
   const [view, setView] = useState<"kanban" | "list">("list");
+  const showKanban = useCallback(() => setView("kanban"), []);
+  const showList = useCallback(() => setView("list"), []);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-1 rounded-md border p-0.5 w-fit">
         <button
-          onClick={() => setView("kanban")}
+          onClick={showKanban}
           className={`flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm transition-colors ${
             view === "kanban"
               ? "bg-primary text-primary-foreground"
@@ -59,7 +61,7 @@ export function PipelineView({ stages, deals, portcoSlug, userRole }: PipelineVi
           Board
         </button>
         <button
-          onClick={() => setView("list")}
+          onClick={showList}
           className={`flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm transition-colors ${
             view === "list"
               ? "bg-primary text-primary-foreground"

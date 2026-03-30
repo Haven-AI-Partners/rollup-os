@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, boolean, jsonb, unique, integer } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, boolean, jsonb, unique, integer, index } from "drizzle-orm/pg-core";
 import { portcos } from "./portcos";
 import { users } from "./users";
 import { deals } from "./deals";
@@ -46,7 +46,10 @@ export const promptVersions = pgTable("prompt_versions", {
   changeNote: text("change_note"),
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+},
+(table) => [
+  index("idx_prompt_versions_created_by").on(table.createdBy),
+]);
 
 export const agentRuns = pgTable("agent_runs", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -69,4 +72,7 @@ export const agentRuns = pgTable("agent_runs", {
   completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+},
+(table) => [
+  index("idx_agent_runs_deal").on(table.dealId),
+]);

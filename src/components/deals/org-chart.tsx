@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { User } from "lucide-react";
@@ -20,6 +21,11 @@ interface OrgChartProps {
 }
 
 function OrgNodeCard({ node }: { node: OrgNode }) {
+  const connectorStyle = useMemo(() => {
+    const offset = `${100 / (node.children.length * 2)}%`;
+    return { left: offset, right: offset };
+  }, [node.children.length]);
+
   return (
     <div className="flex flex-col items-center">
       <Card className="px-4 py-3 min-w-[160px] max-w-[220px] text-center">
@@ -59,10 +65,7 @@ function OrgNodeCard({ node }: { node: OrgNode }) {
             <div className="relative w-full flex justify-center">
               <div
                 className="h-px bg-border absolute top-0"
-                style={{
-                  left: `${100 / (node.children.length * 2)}%`,
-                  right: `${100 / (node.children.length * 2)}%`,
-                }}
+                style={connectorStyle}
               />
             </div>
           )}
