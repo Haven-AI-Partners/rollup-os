@@ -220,6 +220,15 @@ export async function moveDealToStage(
   kanbanPosition: number,
   portcoSlug: string
 ) {
+  // Verify PortCo membership and analyst role before allowing stage move
+  const [deal] = await db
+    .select({ id: deals.id, portcoId: deals.portcoId })
+    .from(deals)
+    .where(eq(deals.id, dealId))
+    .limit(1);
+  if (!deal) throw new Error("Deal not found");
+  await requirePortcoRole(deal.portcoId, "analyst");
+
   return updateDeal(dealId, portcoSlug, { stageId, kanbanPosition });
 }
 

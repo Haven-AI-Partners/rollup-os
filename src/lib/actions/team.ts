@@ -4,9 +4,11 @@ import { db } from "@/lib/db";
 import { users, portcoMemberships } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
+import { getCurrentUser, getUserPortcoRole, hasMinRole, requirePortcoRole, type UserRole } from "@/lib/auth";
 
 export async function getTeamMembers(portcoId: string) {
+  await requirePortcoRole(portcoId, "viewer");
+
   return db
     .select({
       id: users.id,
