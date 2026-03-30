@@ -57,6 +57,13 @@
       "when": 1774855287414,
       "tag": "0007_parallel_madame_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1774863797543,
+      "tag": "0008_loud_giant_man",
+      "breakpoints": true
     }
   ]
 }
