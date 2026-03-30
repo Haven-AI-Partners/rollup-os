@@ -144,11 +144,13 @@ export async function scanClassifyAndProcess(
 
   for (const pdf of newPdfs) {
     try {
-      // Classify
+      // Classify (pass portcoId + gdriveFileId for vision tier)
       const classification = await classifyFile({
         fileName: pdf.name,
         mimeType: pdf.mimeType,
         parentPath: pdf.parentPath,
+        portcoId,
+        gdriveFileId: pdf.id,
       });
       classified++;
 
@@ -176,7 +178,9 @@ export async function scanClassifyAndProcess(
           gdriveUrl: pdf.webViewLink,
           sizeBytes: pdf.size ? Number(pdf.size) : null,
           classifiedBy: "auto",
+          classificationTier: classification.tier,
           classificationConfidence: confidence.toFixed(2),
+          suggestedCompanyName: classification.suggestedCompanyName,
           processingStatus: "pending",
         })
         .returning({ id: files.id });
@@ -381,6 +385,8 @@ export async function scanClassifyAndProcessIncremental(
         fileName: pdf.fileName,
         mimeType: pdf.mimeType,
         parentPath: pdf.parentPath,
+        portcoId,
+        gdriveFileId: pdf.gdriveFileId,
       });
       classified++;
 
@@ -406,7 +412,9 @@ export async function scanClassifyAndProcessIncremental(
           gdriveUrl: pdf.webViewLink,
           sizeBytes: pdf.sizeBytes ? Number(pdf.sizeBytes) : null,
           classifiedBy: "auto",
+          classificationTier: classification.tier,
           classificationConfidence: confidence.toFixed(2),
+          suggestedCompanyName: classification.suggestedCompanyName,
           processingStatus: "pending",
         })
         .returning({ id: files.id });
