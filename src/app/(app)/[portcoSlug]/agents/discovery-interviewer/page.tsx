@@ -7,14 +7,11 @@ import {
   companyEmployees,
   deals,
 } from "@/lib/db/schema";
-import { promptVersions } from "@/lib/db/schema";
 import { eq, count, desc, sql, avg } from "drizzle-orm";
-import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft,
   MessageSquare,
   Users,
   Workflow,
@@ -27,6 +24,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { PromptEditor } from "@/components/agents/prompt-editor";
+import { AgentPageHeader } from "@/components/agents/agent-page-header";
+import { AgentConfigCard } from "@/components/agents/agent-config-card";
+import { getAgentPageAuth, getPromptVersionsForAgent } from "@/lib/agents/page-helpers";
 import { AGENT_SLUG, DEFAULT_TEMPLATE, renderTemplate } from "@/lib/agents/discovery-interviewer/prompt";
 
 export default async function DiscoveryInterviewerPage({
@@ -35,18 +35,10 @@ export default async function DiscoveryInterviewerPage({
   params: Promise<{ portcoSlug: string }>;
 }) {
   const { portcoSlug } = await params;
-  const portco = await getPortcoBySlug(portcoSlug);
-  if (!portco) notFound();
+  const { portco, isAnalyst, isAdmin } = await getAgentPageAuth(portcoSlug);
+  if (!isAnalyst) notFound();
 
-  const user = await getCurrentUser();
-  const role = user ? await getUserPortcoRole(user.id, portco.id) : null;
-  const isAdmin = role ? hasMinRole(role as UserRole, "analyst") : false;
-  if (!isAdmin) notFound();
-
-  const isOwnerOrAdmin = role ? hasMinRole(role as UserRole, "admin") : false;
-
-  // Load campaigns and prompt versions in parallel
-  const [campaigns, versions] = await Promise.all([
+  const [campaigns, promptData] = await Promise.all([
     db
       .select({
         id: discoveryCampaigns.id,
@@ -62,33 +54,8 @@ export default async function DiscoveryInterviewerPage({
       .where(eq(discoveryCampaigns.portcoId, portco.id))
       .orderBy(desc(discoveryCampaigns.createdAt)),
 
-    db
-      .select({
-        id: promptVersions.id,
-        version: promptVersions.version,
-        template: promptVersions.template,
-        isActive: promptVersions.isActive,
-        changeNote: promptVersions.changeNote,
-        createdAt: promptVersions.createdAt,
-      })
-      .from(promptVersions)
-      .where(eq(promptVersions.agentSlug, AGENT_SLUG))
-      .orderBy(desc(promptVersions.version)),
+    getPromptVersionsForAgent(AGENT_SLUG, DEFAULT_TEMPLATE, renderTemplate),
   ]);
-
-  // Determine active template
-  const activeVersion = versions.find((v) => v.isActive);
-  const currentTemplate = activeVersion?.template ?? DEFAULT_TEMPLATE;
-  const renderedPrompt = renderTemplate(currentTemplate);
-
-  const versionsForClient = versions.map((v) => ({
-    id: v.id,
-    version: v.version,
-    template: v.template,
-    isActive: v.isActive,
-    changeNote: v.changeNote,
-    createdAt: v.createdAt.toISOString(),
-  }));
 
   // Load aggregate stats across all campaigns
   const campaignIds = campaigns.map((c) => c.id);
@@ -186,59 +153,25 @@ export default async function DiscoveryInterviewerPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href={`/${portcoSlug}/agents`}>
-            <ArrowLeft className="size-4" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Taro — Discovery Interviewer</h1>
-          <p className="text-sm text-muted-foreground">
-            AI-powered employee interviews to map workflows and identify automation opportunities
-          </p>
-        </div>
-      </div>
+      <AgentPageHeader
+        portcoSlug={portcoSlug}
+        title="Taro — Discovery Interviewer"
+        description="AI-powered employee interviews to map workflows and identify automation opportunities"
+      />
 
-      {/* Configuration */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Configuration</CardTitle>
-            <Badge className="bg-green-100 text-green-800 border-green-200">
-              Active
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Model</span>
-              <span className="font-mono">gemini-2.5-flash</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Language</span>
-              <span>Japanese (Keigo)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Agent Name</span>
-              <span>太郎 (Taro)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Interview Phases</span>
-              <span>4 (rapport, discovery, deps, wrap-up)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tools</span>
-              <span>save_workflow, save_dependency, update_sentiment</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Scoring</span>
-              <span>Deterministic 0-100 (7 factors)</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <AgentConfigCard
+        items={[
+          { label: "Model", value: "gemini-2.5-flash", mono: true },
+          { label: "Language", value: "Japanese (Keigo)" },
+          { label: "Agent Name", value: "太郎 (Taro)" },
+          { label: "Interview Phases", value: "4 (rapport, discovery, deps, wrap-up)" },
+          { label: "Tools", value: "save_workflow, save_dependency, update_sentiment" },
+          { label: "Scoring", value: "Deterministic 0-100 (7 factors)" },
+        ]}
+        badges={
+          <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+        }
+      />
 
       {/* Overview Stats */}
       <Card>
@@ -400,11 +333,11 @@ export default async function DiscoveryInterviewerPage({
       <PromptEditor
         portcoSlug={portcoSlug}
         agentSlug={AGENT_SLUG}
-        currentTemplate={currentTemplate}
+        currentTemplate={promptData.currentTemplate}
         defaultTemplate={DEFAULT_TEMPLATE}
-        renderedPrompt={renderedPrompt}
-        versions={versionsForClient}
-        isAdmin={isOwnerOrAdmin}
+        renderedPrompt={promptData.renderedPrompt}
+        versions={promptData.versionsForClient}
+        isAdmin={isAdmin}
         title="System Prompt"
         description="The interviewer instructions sent to the AI model. Use {{AGENT_NAME}}, {{EMPLOYEE_NAME}}, {{COMPANY_NAME}}, {{CAMPAIGN_DESCRIPTION}} as dynamic placeholders."
       />

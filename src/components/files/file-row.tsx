@@ -5,27 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
   FileText,
-  FolderOpen,
-  Image,
-  FileSpreadsheet,
-  Presentation,
   ExternalLink,
   CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { FILE_TYPE_LABELS } from "@/lib/constants";
+import { FILE_TYPE_LABELS, MIME_TYPE_ICONS } from "@/lib/constants";
+import { formatBytes, formatDateWithYear } from "@/lib/format";
 import { ProcessGdriveFileButton } from "@/components/deals/process-gdrive-file-button";
 import type { GDriveFile, ProcessedInfo } from "./virtual-files-list";
-
-const mimeIcons: Record<string, typeof FileText> = {
-  "application/pdf": FileText,
-  "application/vnd.google-apps.folder": FolderOpen,
-  "application/vnd.google-apps.spreadsheet": FileSpreadsheet,
-  "application/vnd.google-apps.presentation": Presentation,
-  "application/vnd.google-apps.document": FileText,
-  "image/png": Image,
-  "image/jpeg": Image,
-};
 
 function getMimeLabel(mimeType: string) {
   if (mimeType.includes("pdf")) return "PDF";
@@ -35,25 +22,6 @@ function getMimeLabel(mimeType: string) {
   if (mimeType.includes("document")) return "Doc";
   if (mimeType.startsWith("image/")) return "Image";
   return mimeType.split("/").pop() ?? "File";
-}
-
-export { FILE_TYPE_LABELS } from "@/lib/constants";
-
-export function formatBytes(bytes: string | null) {
-  if (!bytes) return null;
-  const b = Number(bytes);
-  if (b < 1024) return `${b} B`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
-  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-export function formatDate(dateStr: string | null) {
-  if (!dateStr) return null;
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 interface FileRowContentProps {
@@ -71,7 +39,7 @@ export function FileRowContent({
   isAdmin,
   showParentPath = true,
 }: FileRowContentProps) {
-  const Icon = mimeIcons[file.mimeType] ?? FileText;
+  const Icon = MIME_TYPE_ICONS[file.mimeType] ?? FileText;
 
   return (
     <>
@@ -97,9 +65,9 @@ export function FileRowContent({
               {formatBytes(file.size)}
             </span>
           )}
-          {formatDate(file.modifiedTime) && (
+          {file.modifiedTime && (
             <span className="text-xs text-muted-foreground">
-              Modified {formatDate(file.modifiedTime)}
+              Modified {formatDateWithYear(file.modifiedTime)}
             </span>
           )}
         </div>

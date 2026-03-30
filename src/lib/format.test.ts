@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { formatCurrency, formatDateTime, formatDateShort, formatDuration, formatRelativeTime } from "./format";
+import {
+  formatBytes,
+  formatCurrency,
+  formatDateTime,
+  formatDateShort,
+  formatDateWithYear,
+  formatDuration,
+  formatRelativeDate,
+  formatRelativeTime,
+} from "./format";
 
 describe("formatCurrency", () => {
   it("formats JPY by default", () => {
@@ -122,8 +131,88 @@ describe("formatRelativeTime", () => {
     expect(formatRelativeTime(threeDaysAgo)).toBe("3d ago");
   });
 
+  it("formats weeks ago", () => {
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    expect(formatRelativeTime(twoWeeksAgo)).toBe("2w ago");
+  });
+
+  it("formats months ago", () => {
+    const threeMonthsAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    expect(formatRelativeTime(threeMonthsAgo)).toBe("3mo ago");
+  });
+
+  it("formats years ago", () => {
+    const twoYearsAgo = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000);
+    expect(formatRelativeTime(twoYearsAgo)).toBe("2y ago");
+  });
+
   it("accepts string dates", () => {
     const twoHrsAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     expect(formatRelativeTime(twoHrsAgo)).toBe("2h ago");
+  });
+});
+
+describe("formatBytes", () => {
+  it("returns null for null input", () => {
+    expect(formatBytes(null)).toBeNull();
+  });
+
+  it("returns null for zero", () => {
+    expect(formatBytes(0)).toBeNull();
+  });
+
+  it("formats bytes", () => {
+    expect(formatBytes(512)).toBe("512 B");
+  });
+
+  it("formats kilobytes", () => {
+    expect(formatBytes(1536)).toBe("1.5 KB");
+  });
+
+  it("formats megabytes", () => {
+    expect(formatBytes(2621440)).toBe("2.5 MB");
+  });
+
+  it("accepts string input", () => {
+    expect(formatBytes("1024")).toBe("1.0 KB");
+  });
+
+  it("returns null for NaN string", () => {
+    expect(formatBytes("not a number")).toBeNull();
+  });
+});
+
+describe("formatDateWithYear", () => {
+  it("formats with month, day, and year", () => {
+    const result = formatDateWithYear("2024-03-15T00:00:00Z");
+    expect(result).toContain("Mar");
+    expect(result).toContain("15");
+    expect(result).toContain("2024");
+  });
+
+  it("accepts Date objects", () => {
+    const result = formatDateWithYear(new Date("2024-12-25"));
+    expect(result).toContain("Dec");
+    expect(result).toContain("2024");
+  });
+});
+
+describe("formatRelativeDate", () => {
+  it("returns 'Never' for null", () => {
+    expect(formatRelativeDate(null)).toBe("Never");
+  });
+
+  it("returns 'Today' for today", () => {
+    expect(formatRelativeDate(new Date())).toBe("Today");
+  });
+
+  it("returns 'Yesterday' for yesterday", () => {
+    const yesterday = new Date(Date.now() - 86400000);
+    expect(formatRelativeDate(yesterday)).toBe("Yesterday");
+  });
+
+  it("delegates to formatRelativeTime for older dates", () => {
+    const tenDaysAgo = new Date(Date.now() - 10 * 86400000);
+    expect(formatRelativeDate(tenDaysAgo)).toBe("1w ago");
   });
 });

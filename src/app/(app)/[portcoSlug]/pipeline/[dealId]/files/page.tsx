@@ -10,38 +10,9 @@ import { ImportGdriveDialog } from "@/components/deals/import-gdrive-dialog";
 import { FileTypeBadge } from "@/components/files/file-type-badge";
 import { FileExtractionViewer } from "@/components/files/file-extraction-viewer";
 import { getDeal } from "@/lib/db/cached-queries";
+import { FILE_TYPE_LABELS, FILE_TYPE_BADGE_COLORS } from "@/lib/constants";
+import { formatBytes } from "@/lib/format";
 import type { FileType } from "@/lib/db/schema/files";
-
-const fileTypeLabels: Record<string, string> = {
-  im_pdf: "IM",
-  report: "Report",
-  attachment: "Attachment",
-  nda: "NDA",
-  dd_financial: "DD Financial",
-  dd_legal: "DD Legal",
-  dd_operational: "DD Operational",
-  dd_tax: "DD Tax",
-  dd_hr: "DD HR",
-  dd_it: "DD IT",
-  loi: "LOI",
-  purchase_agreement: "Purchase Agreement",
-  pmi_plan: "PMI Plan",
-  pmi_report: "PMI Report",
-  other: "Other",
-};
-
-const fileTypeBadgeColors: Record<string, string> = {
-  im_pdf: "bg-blue-100 text-blue-700 border-blue-200",
-  dd_financial: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  dd_legal: "bg-purple-100 text-purple-700 border-purple-200",
-  dd_operational: "bg-orange-100 text-orange-700 border-orange-200",
-  dd_tax: "bg-amber-100 text-amber-700 border-amber-200",
-  dd_hr: "bg-pink-100 text-pink-700 border-pink-200",
-  dd_it: "bg-cyan-100 text-cyan-700 border-cyan-200",
-  nda: "bg-gray-100 text-gray-600 border-gray-200",
-  loi: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  purchase_agreement: "bg-violet-100 text-violet-700 border-violet-200",
-};
 
 type FileGroup = {
   label: string;
@@ -55,14 +26,6 @@ const FILE_GROUPS: FileGroup[] = [
   { label: "PMI", types: ["pmi_plan", "pmi_report"] },
   { label: "Other", types: ["report", "attachment", "other"] },
 ];
-
-function formatBytes(bytes: number | null) {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 
 export default async function FilesPage({
   params,
@@ -153,7 +116,7 @@ export default async function FilesPage({
                 {group.files.map((file) => {
                   const isPdf = file.mimeType === "application/pdf";
                   const badgeColor =
-                    fileTypeBadgeColors[file.fileType ?? ""] ?? "bg-gray-100 text-gray-600 border-gray-200";
+                    FILE_TYPE_BADGE_COLORS[file.fileType ?? ""] ?? "bg-gray-100 text-gray-600 border-gray-200";
                   return (
                     <div
                       key={file.id}
@@ -164,7 +127,7 @@ export default async function FilesPage({
                         <p className="text-sm font-medium truncate">{file.fileName}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-muted-foreground">
-                            {formatBytes(file.sizeBytes)}
+                            {formatBytes(file.sizeBytes) ?? ""}
                             {file.createdAt && ` · ${new Date(file.createdAt).toLocaleDateString()}`}
                           </span>
                           {file.gdriveParentPath && (
@@ -176,7 +139,7 @@ export default async function FilesPage({
                       </div>
                       {file.fileType && (
                         <FileTypeBadge
-                          label={fileTypeLabels[file.fileType] ?? file.fileType}
+                          label={FILE_TYPE_LABELS[file.fileType] ?? file.fileType}
                           className={badgeColor}
                           classificationConfidence={file.classificationConfidence}
                           classifiedBy={file.classifiedBy}

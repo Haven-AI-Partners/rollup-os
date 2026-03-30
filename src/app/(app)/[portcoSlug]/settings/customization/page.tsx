@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getPortcoBySlug } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { SettingsNav } from "@/components/settings/settings-nav";
+import { SettingsPageLayout } from "@/components/settings/settings-page-layout";
 import { Building2, Scale, AlertTriangle } from "lucide-react";
 import { SCORING_DIMENSIONS } from "@/lib/scoring/rubric";
 import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
@@ -21,17 +21,7 @@ export default async function CustomizationPage({
   const infoGapFlags = RED_FLAG_DEFINITIONS.filter((f) => f.severity === "info_gap").length;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage {portco.name} configuration and integrations.
-        </p>
-      </div>
-
-      <SettingsNav portcoSlug={portcoSlug} />
-
-      <div className="max-w-2xl space-y-6">
+    <SettingsPageLayout portcoSlug={portcoSlug} portcoName={portco.name}>
         {/* PortCo Profile */}
         <Card>
           <CardHeader>
@@ -190,7 +180,6 @@ export default async function CustomizationPage({
             </p>
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </SettingsPageLayout>
   );
 }

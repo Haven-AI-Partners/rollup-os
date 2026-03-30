@@ -5,6 +5,7 @@ import { dealThesisNodes, companyProfiles } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
+import { formatCurrency } from "@/lib/format";
 import { getBaseTemplate } from "@/lib/thesis/template";
 import type { IMAnalysisResult } from "@/lib/agents/im-processor/schema";
 import { generateIndustryNodes, insertGeneratedNodes } from "@/lib/agents/thesis-generator";
@@ -364,16 +365,4 @@ function translateTitle(title: string): string {
     }
   }
   return title;
-}
-
-function formatCurrency(amount: string, currency: string | null): string {
-  const num = Number(amount);
-  if (isNaN(num)) return amount;
-  const c = currency ?? "JPY";
-  if (c === "JPY") {
-    if (num >= 100_000_000) return `${(num / 100_000_000).toFixed(1)}億円`;
-    if (num >= 10_000) return `${(num / 10_000).toFixed(0)}万円`;
-    return `${num.toLocaleString()}円`;
-  }
-  return `${c} ${num.toLocaleString()}`;
 }
