@@ -3,7 +3,7 @@ import { processIM, reprocessAllFiles, processSingleGdriveFile, MODEL_ID } from 
 import { runEval } from "@/lib/agents/im-processor/eval";
 import { scanClassifyAndProcessIncremental } from "@/lib/agents/scan-orchestrator";
 import { processDDDocument } from "@/lib/agents/dd-processor";
-import { autoGenerateThesisTree } from "@/lib/actions/thesis";
+import { createThesisTreeForDeal } from "@/lib/thesis/create-tree";
 import { db } from "@/lib/db";
 import { portcos } from "@/lib/db/schema";
 import { and, isNotNull } from "drizzle-orm";
@@ -23,7 +23,7 @@ export const generateThesisTreeTask = task({
   run: async (payload: { dealId: string; portcoId: string }) => {
     logger.info("Generating thesis tree", { dealId: payload.dealId });
 
-    const count = await autoGenerateThesisTree(payload.dealId, payload.portcoId);
+    const count = await createThesisTreeForDeal(payload.dealId, payload.portcoId);
 
     logger.info("Thesis tree generated", { dealId: payload.dealId, nodesCreated: count });
     return { dealId: payload.dealId, nodesCreated: count };
