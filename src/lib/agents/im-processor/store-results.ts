@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { companyProfiles, dealRedFlags, deals, pipelineStages, orgChartVersions, orgChartNodes } from "@/lib/db/schema";
+import { companyProfiles, dealRedFlags, deals, fileExtractions, pipelineStages, orgChartVersions, orgChartNodes } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { calculateWeightedScore } from "@/lib/scoring/rubric";
 import { RED_FLAG_DEFINITIONS } from "@/lib/scoring/red-flags";
@@ -52,6 +52,7 @@ export async function storePipelineResults(
   dealId: string,
   portcoId: string,
   pipelineResult: IMPipelineResult,
+  fileId?: string,
 ): Promise<string> {
   const analysis = pipelineResult.legacyAnalysis;
   const { scoringBreakdown, weighted } = computeScoresFromAnalysis(analysis);
@@ -76,10 +77,6 @@ export async function storePipelineResults(
       // Pipeline v2 columns
       externalEnrichment: pipelineResult.externalEnrichment,
       sourceAttributions,
-      rawContentExtraction: {
-        contentExtraction: pipelineResult.contentExtraction,
-        translation: pipelineResult.translation,
-      },
       pipelineVersion: "v2",
       generatedAt: new Date(),
       modelVersion: pipelineResult.metadata.analyzerModel,
@@ -99,10 +96,6 @@ export async function storePipelineResults(
         rawExtraction: analysis,
         externalEnrichment: pipelineResult.externalEnrichment,
         sourceAttributions,
-        rawContentExtraction: {
-          contentExtraction: pipelineResult.contentExtraction,
-          translation: pipelineResult.translation,
-        },
         pipelineVersion: "v2",
         generatedAt: new Date(),
         modelVersion: pipelineResult.metadata.analyzerModel,
@@ -144,6 +137,31 @@ export async function storePipelineResults(
 
   if (flagRows.length > 0) {
     await db.insert(dealRedFlags).values(flagRows);
+  }
+
+  // Store per-file extraction (for the document viewer)
+  if (fileId) {
+    await db
+      .insert(fileExtractions)
+      .values({
+        fileId,
+        contentExtraction: pipelineResult.contentExtraction,
+        translation: pipelineResult.translation,
+        extractionModel: pipelineResult.metadata.contentExtractionModel,
+        translationModel: pipelineResult.metadata.translationModel,
+        pipelineVersion: "v2",
+      })
+      .onConflictDoUpdate({
+        target: fileExtractions.fileId,
+        set: {
+          contentExtraction: pipelineResult.contentExtraction,
+          translation: pipelineResult.translation,
+          extractionModel: pipelineResult.metadata.contentExtractionModel,
+          translationModel: pipelineResult.metadata.translationModel,
+          pipelineVersion: "v2",
+          extractedAt: new Date(),
+        },
+      });
   }
 
   // Store org chart from management team extraction

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { deals, companyProfiles, promptVersions } from "@/lib/db/schema";
-import { eq, and, count, desc, isNotNull } from "drizzle-orm";
+import { files, fileExtractions, promptVersions } from "@/lib/db/schema";
+import { eq, count, desc } from "drizzle-orm";
 import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,10 +30,10 @@ export default async function TranslatorPage({
 
   const [v2Profiles, versions] = await Promise.all([
     db
-      .select({ count: count(companyProfiles.id) })
-      .from(companyProfiles)
-      .innerJoin(deals, eq(companyProfiles.dealId, deals.id))
-      .where(and(eq(deals.portcoId, portco.id), isNotNull(companyProfiles.rawContentExtraction))),
+      .select({ count: count(fileExtractions.id) })
+      .from(fileExtractions)
+      .innerJoin(files, eq(fileExtractions.fileId, files.id))
+      .where(eq(files.portcoId, portco.id)),
 
     db
       .select({

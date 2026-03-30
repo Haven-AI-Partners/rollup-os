@@ -20,7 +20,6 @@ export const companyProfiles = pgTable("company_profiles", {
   // Pipeline v2 columns
   externalEnrichment: jsonb("external_enrichment"),
   sourceAttributions: jsonb("source_attributions"),
-  rawContentExtraction: jsonb("raw_content_extraction"),
   pipelineVersion: text("pipeline_version").default("v1"),
   generatedAt: timestamp("generated_at", { withTimezone: true }),
   modelVersion: text("model_version"),

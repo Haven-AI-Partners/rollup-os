@@ -5,6 +5,7 @@ export * from "./deal-tasks";
 export * from "./deal-red-flags";
 export * from "./brokers";
 export * from "./files";
+export * from "./file-extractions";
 export * from "./profiles";
 export * from "./embeddings";
 export * from "./agents";
