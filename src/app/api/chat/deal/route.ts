@@ -3,8 +3,8 @@ import { google } from "@ai-sdk/google";
 import { db } from "@/lib/db";
 import { companyProfiles, dealThesisNodes } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { auth } from "@clerk/nextjs/server";
 import { getDeal } from "@/lib/db/cached-queries";
+import { requireAuth, getUserPortcoRole } from "@/lib/auth";
 import type { IMAnalysisResult } from "@/lib/agents/im-processor/schema";
 
 const MODEL_ID = "gemini-2.5-flash";
@@ -106,15 +106,22 @@ ${filledNodes
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  const user = await requireAuth();
 
   const { messages, dealId } = await req.json();
 
   if (!dealId) {
     return new Response("Missing dealId", { status: 400 });
+  }
+
+  // Verify user has access to this deal's portco
+  const deal = await getDeal(dealId);
+  if (!deal) {
+    return new Response("Deal not found", { status: 404 });
+  }
+  const role = await getUserPortcoRole(user.id, deal.portcoId);
+  if (!role) {
+    return new Response("Not a member of this PortCo", { status: 403 });
   }
 
   const dealContext = await buildDealContext(dealId);

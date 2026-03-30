@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockUser } = vi.hoisted(() => ({
+const { mockUser, mockSelect, mockFrom, mockWhere, mockLimit, mockOrderBy, mockReturning } = vi.hoisted(() => ({
   mockUser: { id: "user-001", clerkId: "clerk-001", email: "test@example.com", fullName: "Test User" },
+  mockSelect: vi.fn(),
+  mockFrom: vi.fn(),
+  mockWhere: vi.fn(),
+  mockLimit: vi.fn(),
+  mockOrderBy: vi.fn(),
+  mockReturning: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -10,14 +16,23 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/db", () => {
-  const chainFn = vi.fn();
-  const chain: any = new Proxy({}, {
-    get() {
-      chainFn.mockReturnValue(chain);
-      return chainFn;
-    },
+  const chain = () => ({
+    select: mockSelect,
+    from: mockFrom,
+    where: mockWhere,
+    limit: mockLimit,
+    orderBy: mockOrderBy,
+    returning: mockReturning,
+    insert: vi.fn().mockReturnValue({ values: vi.fn().mockReturnValue({ returning: mockReturning }) }),
+    update: vi.fn().mockReturnValue({ set: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ returning: mockReturning }) }) }),
+    values: vi.fn().mockReturnValue({ returning: mockReturning }),
+    set: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ returning: mockReturning }) }),
+    delete: vi.fn().mockReturnValue({ where: mockWhere }),
   });
-  return { db: chain };
+  for (const fn of [mockSelect, mockFrom, mockWhere, mockLimit, mockOrderBy, mockReturning]) {
+    fn.mockReturnValue(chain());
+  }
+  return { db: chain() };
 });
 
 vi.mock("@/lib/db/schema", () => ({
@@ -32,12 +47,11 @@ vi.mock("drizzle-orm", () => ({
   isNull: vi.fn(),
 }));
 
-import { requireAuth, requirePortcoRole } from "@/lib/auth";
+import { requirePortcoRole } from "@/lib/auth";
 
 describe("tasks actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (requireAuth as any).mockResolvedValue(mockUser);
     (requirePortcoRole as any).mockResolvedValue({ user: mockUser, role: "analyst" });
   });
 
@@ -56,8 +70,10 @@ describe("tasks actions", () => {
   });
 
   describe("updateTask", () => {
-    it("throws when user is not authenticated", async () => {
-      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
+    it("throws when user is not authorized", async () => {
+      // updateTask fetches task first, then checks portco role
+      mockLimit.mockResolvedValueOnce([{ id: "task-001", portcoId: "portco-001", title: "Task", status: "todo" }]);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { updateTask } = await import("./tasks");
       await expect(
