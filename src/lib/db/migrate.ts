@@ -40,10 +40,22 @@ async function backfillJournalIfNeeded(sql: postgres.Sql) {
     recorded.map((r) => String((r as Record<string, unknown>).created_at))
   );
 
+  // Only backfill migrations older than or equal to the latest recorded one.
+  // Newer migrations are genuinely new and should be executed by migrate().
+  const maxRecorded = recorded.reduce(
+    (max, r) => Math.max(max, Number((r as Record<string, unknown>).created_at)),
+    0
+  );
+
   let backfilled = 0;
 
   for (const entry of journal.entries) {
     if (recordedTimestamps.has(String(entry.when))) {
+      continue;
+    }
+
+    // Skip migrations newer than the latest recorded — they are genuinely new
+    if (entry.when > maxRecorded) {
       continue;
     }
 
