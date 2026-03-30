@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,6 +28,8 @@ export function FinancialEntryForm({ dealId, portcoId, portcoSlug }: FinancialEn
   const [ebitda, setEbitda] = useState("");
   const [netIncome, setNetIncome] = useState("");
   const [ebitdaMarginPct, setEbitdaMarginPct] = useState("");
+  const openForm = useCallback(() => setOpen(true), []);
+  const closeForm = useCallback(() => setOpen(false), []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,7 +57,7 @@ export function FinancialEntryForm({ dealId, portcoId, portcoSlug }: FinancialEn
 
   if (!open) {
     return (
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button variant="outline" size="sm" onClick={openForm}>
         <Plus className="mr-1 size-3.5" />
         Add Financial Period
       </Button>
@@ -66,7 +68,7 @@ export function FinancialEntryForm({ dealId, portcoId, portcoSlug }: FinancialEn
     <form onSubmit={handleSubmit} className="rounded-md border p-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">New Financial Period</p>
-        <Button type="button" variant="ghost" size="icon" onClick={() => setOpen(false)}>
+        <Button type="button" variant="ghost" size="icon" onClick={closeForm}>
           <ChevronUp className="size-4" />
         </Button>
       </div>

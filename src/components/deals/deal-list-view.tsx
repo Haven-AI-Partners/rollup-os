@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -104,14 +104,14 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
       });
   }, [deals, query, stageFilter, sortField, sortDir]);
 
-  function toggleSort(field: SortField) {
+  const toggleSort = useCallback((field: SortField) => {
     if (sortField === field) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortDir(field === "companyName" || field === "industry" ? "asc" : "desc");
     }
-  }
+  }, [sortField]);
 
   const sortHeader = (field: SortField, children: React.ReactNode) => {
     const active = sortField === field;

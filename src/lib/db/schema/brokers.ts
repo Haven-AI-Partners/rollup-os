@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, numeric, integer, jsonb, unique } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, numeric, integer, jsonb, unique, index } from "drizzle-orm/pg-core";
 import { portcos } from "./portcos";
 import { deals } from "./deals";
 
@@ -48,7 +48,11 @@ export const brokerInteractions = pgTable("broker_interactions", {
   occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+},
+(table) => [
+  index("idx_broker_interactions_deal").on(table.dealId),
+  index("idx_broker_interactions_contact").on(table.brokerContactId),
+]);
 
 export const brokerMetrics = pgTable(
   "broker_metrics",
@@ -66,5 +70,8 @@ export const brokerMetrics = pgTable(
     imRequestToRecv: numeric("im_request_to_recv"),
     computedAt: timestamp("computed_at", { withTimezone: true }).notNull(),
   },
-  (table) => [unique().on(table.brokerFirmId, table.brokerContactId, table.period)]
+  (table) => [
+    unique().on(table.brokerFirmId, table.brokerContactId, table.period),
+    index("idx_broker_metrics_contact").on(table.brokerContactId),
+  ]
 );

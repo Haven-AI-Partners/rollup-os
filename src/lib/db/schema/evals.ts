@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, jsonb, numeric } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, jsonb, numeric, index } from "drizzle-orm/pg-core";
 import { files } from "./files";
 import { users } from "./users";
 
@@ -31,7 +31,10 @@ export const evalRuns = pgTable("eval_runs", {
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
-});
+},
+(table) => [
+  index("idx_eval_runs_created_by").on(table.createdBy),
+]);
 
 /** Individual iteration result within an eval run */
 export const evalIterations = pgTable("eval_iterations", {

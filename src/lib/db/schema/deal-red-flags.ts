@@ -26,4 +26,6 @@ export const dealRedFlags = pgTable("deal_red_flags", {
 (table) => [
   index("idx_red_flags_deal").on(table.dealId),
   index("idx_red_flags_deal_resolved").on(table.dealId, table.resolved, table.severity),
+  index("idx_red_flags_flagged_by").on(table.flaggedBy),
+  index("idx_red_flags_resolved_by").on(table.resolvedBy),
 ]);

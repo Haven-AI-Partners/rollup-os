@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -377,6 +377,14 @@ export function ThesisTree({ roots, portcoSlug, dealId, companyName, stats }: Th
   const [downloading, setDownloading] = useState(false);
   const downloadRef = useRef<(() => Promise<void>) | null>(null);
   const completionPct = stats.total > 0 ? Math.round(((stats.complete + stats.partial) / stats.total) * 100) : 0;
+  const showList = useCallback(() => setView("list"), []);
+  const showGraph = useCallback(() => setView("graph"), []);
+
+  const progressStyles = useMemo(() => ({
+    complete: stats.total > 0 ? { width: `${(stats.complete / stats.total) * 100}%` } : undefined,
+    partial: stats.total > 0 ? { width: `${(stats.partial / stats.total) * 100}%` } : undefined,
+    risk: stats.total > 0 ? { width: `${(stats.risk / stats.total) * 100}%` } : undefined,
+  }), [stats.complete, stats.partial, stats.risk, stats.total]);
 
   async function handleDownload() {
     if (!downloadRef.current) return;
@@ -426,7 +434,7 @@ export function ThesisTree({ roots, portcoSlug, dealId, companyName, stats }: Th
         <div className="flex items-center rounded-md border p-0.5">
           <button
             type="button"
-            onClick={() => setView("list")}
+            onClick={showList}
             className={`rounded px-2 py-1 transition-colors ${view === "list" ? "bg-muted" : "hover:bg-muted/50"}`}
             title="List view"
           >
@@ -434,7 +442,7 @@ export function ThesisTree({ roots, portcoSlug, dealId, companyName, stats }: Th
           </button>
           <button
             type="button"
-            onClick={() => setView("graph")}
+            onClick={showGraph}
             className={`rounded px-2 py-1 transition-colors ${view === "graph" ? "bg-muted" : "hover:bg-muted/50"}`}
             title="Graph view"
           >
@@ -446,13 +454,13 @@ export function ThesisTree({ roots, portcoSlug, dealId, companyName, stats }: Th
       {/* Progress bar */}
       <div className="h-2 w-full rounded-full bg-muted overflow-hidden flex">
         {stats.complete > 0 && (
-          <div className="h-full bg-green-500" style={{ width: `${(stats.complete / stats.total) * 100}%` }} />
+          <div className="h-full bg-green-500" style={progressStyles.complete} />
         )}
         {stats.partial > 0 && (
-          <div className="h-full bg-amber-400" style={{ width: `${(stats.partial / stats.total) * 100}%` }} />
+          <div className="h-full bg-amber-400" style={progressStyles.partial} />
         )}
         {stats.risk > 0 && (
-          <div className="h-full bg-red-500" style={{ width: `${(stats.risk / stats.total) * 100}%` }} />
+          <div className="h-full bg-red-500" style={progressStyles.risk} />
         )}
       </div>
 

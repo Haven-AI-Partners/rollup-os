@@ -12,6 +12,8 @@ interface ScoringBreakdownProps {
   overallScore?: number | null;
 }
 
+import { useMemo } from "react";
+
 function ScoreBar({ score, maxScore = 5 }: { score: number; maxScore?: number }) {
   const pct = (score / maxScore) * 100;
   const color =
@@ -19,11 +21,12 @@ function ScoreBar({ score, maxScore = 5 }: { score: number; maxScore?: number })
     score >= 3 ? "bg-yellow-500" :
     score >= 2 ? "bg-orange-500" :
     "bg-red-500";
+  const barStyle = useMemo(() => ({ width: `${pct}%` }), [pct]);
 
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-2 rounded-full bg-muted">
-        <div className={`h-2 rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+        <div className={`h-2 rounded-full ${color} transition-all`} style={barStyle} />
       </div>
       <span className="text-sm font-medium w-8 text-right">{score.toFixed(1)}</span>
     </div>

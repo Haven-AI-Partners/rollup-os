@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,13 +73,13 @@ export function RedFlagsPanel({ dealId, portcoId, portcoSlug, initialFlags }: Re
     }
   }
 
-  async function handleResolve(flagRecordId: string) {
+  const handleResolve = useCallback(async (flagRecordId: string) => {
     await resolveRedFlag(flagRecordId, portcoSlug, dealId);
-  }
+  }, [portcoSlug, dealId]);
 
-  async function handleRemove(flagRecordId: string) {
+  const handleRemove = useCallback(async (flagRecordId: string) => {
     await removeRedFlag(flagRecordId, portcoSlug, dealId);
-  }
+  }, [portcoSlug, dealId]);
 
   return (
     <Card>

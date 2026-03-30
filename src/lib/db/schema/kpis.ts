@@ -48,5 +48,7 @@ export const kpiValues = pgTable(
       table.dealId,
       table.period
     ),
+    index("idx_kpi_values_deal").on(table.dealId),
+    index("idx_kpi_values_agent_run").on(table.agentRunId),
   ]
 );

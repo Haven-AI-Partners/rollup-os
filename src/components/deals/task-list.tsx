@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -68,10 +68,10 @@ export function TaskList({ dealId, portcoId, portcoSlug, initialTasks }: TaskLis
     }
   }
 
-  async function handleToggleStatus(task: Task) {
+  const handleToggleStatus = useCallback(async (task: Task) => {
     const newStatus = task.status === "completed" ? "todo" : "completed";
     await updateTask(task.id, portcoSlug, dealId, { status: newStatus });
-  }
+  }, [portcoSlug, dealId]);
 
   return (
     <div className="space-y-4">

@@ -46,6 +46,8 @@ export const dealTasks = pgTable("deal_tasks", {
 (table) => [
   index("idx_tasks_deal").on(table.dealId),
   index("idx_tasks_deal_status").on(table.dealId, table.status),
+  index("idx_tasks_assigned_to").on(table.assignedTo),
+  index("idx_tasks_parent").on(table.parentTaskId),
 ]);
 
 export const dealActivityLog = pgTable("deal_activity_log", {
@@ -67,4 +69,5 @@ export const dealActivityLog = pgTable("deal_activity_log", {
 (table) => [
   index("idx_activity_deal").on(table.dealId),
   index("idx_activity_deal_ts").on(table.dealId, table.createdAt),
+  index("idx_activity_user").on(table.userId),
 ]);

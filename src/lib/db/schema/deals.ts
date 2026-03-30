@@ -54,6 +54,9 @@ export const deals = pgTable("deals", {
 (table) => [
   index("idx_deals_portco_status").on(table.portcoId, table.status),
   index("idx_deals_portco_stage").on(table.portcoId, table.stageId),
+  index("idx_deals_assigned_to").on(table.assignedTo),
+  index("idx_deals_broker_firm").on(table.brokerFirmId),
+  index("idx_deals_broker_contact").on(table.brokerContactId),
 ]);
 
 export const dealTransfers = pgTable("deal_transfers", {
