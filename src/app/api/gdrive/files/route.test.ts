@@ -1,10 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+const { mockUser } = vi.hoisted(() => ({
+  mockUser: { id: "user-001", clerkId: "clerk-001", email: "test@example.com", fullName: "Test User" },
+}));
+
 const mockListFiles = vi.fn();
 
 vi.mock("@/lib/gdrive/client", () => ({
   listFiles: (...args: unknown[]) => mockListFiles(...args),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  requireAuth: vi.fn().mockResolvedValue(mockUser),
+  getUserPortcoRole: vi.fn().mockResolvedValue("analyst"),
 }));
 
 describe("GET /api/gdrive/files", () => {

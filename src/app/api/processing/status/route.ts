@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runs } from "@trigger.dev/sdk";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
+  await requireAuth();
+
   const runId = req.nextUrl.searchParams.get("runId");
   if (!runId) {
     return NextResponse.json({ error: "Missing runId" }, { status: 400 });

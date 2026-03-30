@@ -75,11 +75,12 @@ export async function updateTask(
     dueDate: string;
   }>
 ) {
-  const user = await requireAuth();
   const validated = updateTaskSchema.parse(data);
 
   const [current] = await db.select().from(dealTasks).where(eq(dealTasks.id, taskId)).limit(1);
   if (!current) throw new Error("Task not found");
+
+  const { user } = await requirePortcoRole(current.portcoId, "analyst");
 
   const [updated] = await db
     .update(dealTasks)
