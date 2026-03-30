@@ -62,7 +62,7 @@ export function VirtualFilesList({
   portcoSlug,
   isAdmin,
 }: VirtualFilesListProps) {
-  const [viewMode, setViewMode] = useState<"list" | "folder">("list");
+  const [viewMode, setViewMode] = useState<"list" | "folder">("folder");
   const [files, setFiles] = useState<GDriveFile[]>([]);
   const [processedMap, setProcessedMap] = useState<Record<string, ProcessedInfo>>({});
   const [nextCursor, setNextCursor] = useState<number | null>(0);
