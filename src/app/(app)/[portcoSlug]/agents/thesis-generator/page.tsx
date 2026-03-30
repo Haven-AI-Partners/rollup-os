@@ -1,13 +1,10 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { dealThesisNodes, deals, promptVersions } from "@/lib/db/schema";
+import { dealThesisNodes, deals } from "@/lib/db/schema";
 import { eq, count, desc, sql } from "drizzle-orm";
-import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft,
   TreePine,
   CheckCircle,
   AlertTriangle,
@@ -16,6 +13,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { PromptEditor } from "@/components/agents/prompt-editor";
+import { AgentPageHeader } from "@/components/agents/agent-page-header";
+import { AgentConfigCard } from "@/components/agents/agent-config-card";
+import { getAgentPageAuth, getPromptVersionsForAgent } from "@/lib/agents/page-helpers";
 import { AGENT_SLUG, DEFAULT_TEMPLATE, renderTemplate } from "@/lib/agents/thesis-generator/prompt";
 import { MODEL_ID } from "@/lib/agents/thesis-generator";
 
@@ -25,19 +25,10 @@ export default async function ThesisGeneratorPage({
   params: Promise<{ portcoSlug: string }>;
 }) {
   const { portcoSlug } = await params;
-  const portco = await getPortcoBySlug(portcoSlug);
-  if (!portco) notFound();
+  const { portco, isAnalyst, isAdmin } = await getAgentPageAuth(portcoSlug);
+  if (!isAnalyst) notFound();
 
-  const user = await getCurrentUser();
-  const role = user ? await getUserPortcoRole(user.id, portco.id) : null;
-  const isAdmin = role ? hasMinRole(role as UserRole, "analyst") : false;
-  if (!isAdmin) notFound();
-
-  const isOwnerOrAdmin = role ? hasMinRole(role as UserRole, "admin") : false;
-
-  // Load stats and prompt versions in parallel
-  const [statusCounts, treeCounts, versions, recentDeals] = await Promise.all([
-    // Count nodes by status across all deals
+  const [statusCounts, treeCounts, promptData, recentDeals] = await Promise.all([
     db
       .select({
         status: dealThesisNodes.status,
@@ -47,7 +38,6 @@ export default async function ThesisGeneratorPage({
       .where(eq(dealThesisNodes.portcoId, portco.id))
       .groupBy(dealThesisNodes.status),
 
-    // Count deals with thesis trees
     db
       .select({
         count: sql<number>`count(distinct ${dealThesisNodes.dealId})`,
@@ -55,21 +45,8 @@ export default async function ThesisGeneratorPage({
       .from(dealThesisNodes)
       .where(eq(dealThesisNodes.portcoId, portco.id)),
 
-    // Prompt versions
-    db
-      .select({
-        id: promptVersions.id,
-        version: promptVersions.version,
-        template: promptVersions.template,
-        isActive: promptVersions.isActive,
-        changeNote: promptVersions.changeNote,
-        createdAt: promptVersions.createdAt,
-      })
-      .from(promptVersions)
-      .where(eq(promptVersions.agentSlug, AGENT_SLUG))
-      .orderBy(desc(promptVersions.version)),
+    getPromptVersionsForAgent(AGENT_SLUG, DEFAULT_TEMPLATE, renderTemplate),
 
-    // Recent deals with thesis trees
     db
       .select({
         dealId: dealThesisNodes.dealId,
@@ -94,75 +71,27 @@ export default async function ThesisGeneratorPage({
   const unknownNodes = statusMap.get("unknown") ?? 0;
   const totalTrees = Number(treeCounts[0]?.count ?? 0);
 
-  // Prompt versioning
-  const activeVersion = versions.find((v) => v.isActive);
-  const currentTemplate = activeVersion?.template ?? DEFAULT_TEMPLATE;
-  const renderedPrompt = renderTemplate(currentTemplate);
-
-  const versionsForClient = versions.map((v) => ({
-    id: v.id,
-    version: v.version,
-    template: v.template,
-    isActive: v.isActive,
-    changeNote: v.changeNote,
-    createdAt: v.createdAt.toISOString(),
-  }));
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href={`/${portcoSlug}/agents`}>
-            <ArrowLeft className="size-4" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">DD Thesis Generator</h1>
-          <p className="text-sm text-muted-foreground">
-            AI-powered due diligence tree generation — maps all information needed to evaluate each deal
-          </p>
-        </div>
-      </div>
+      <AgentPageHeader
+        portcoSlug={portcoSlug}
+        title="DD Thesis Generator"
+        description="AI-powered due diligence tree generation — maps all information needed to evaluate each deal"
+      />
 
-      {/* Configuration */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Configuration</CardTitle>
-            <Badge className="bg-green-100 text-green-800 border-green-200">
-              Active
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Model</span>
-              <span className="font-mono">{MODEL_ID}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Output</span>
-              <span>Structured (generateObject)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Base Template</span>
-              <span>40 universal DD nodes</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">AI Enhancement</span>
-              <span>10-25 industry-specific nodes</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Pre-fill</span>
-              <span>IM extraction data</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Node Statuses</span>
-              <span>unknown, partial, complete, risk</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <AgentConfigCard
+        items={[
+          { label: "Model", value: MODEL_ID, mono: true },
+          { label: "Output", value: "Structured (generateObject)" },
+          { label: "Base Template", value: "40 universal DD nodes" },
+          { label: "AI Enhancement", value: "10-25 industry-specific nodes" },
+          { label: "Pre-fill", value: "IM extraction data" },
+          { label: "Node Statuses", value: "unknown, partial, complete, risk" },
+        ]}
+        badges={
+          <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+        }
+      />
 
       {/* Stats */}
       <Card>
@@ -288,11 +217,11 @@ export default async function ThesisGeneratorPage({
       <PromptEditor
         portcoSlug={portcoSlug}
         agentSlug={AGENT_SLUG}
-        currentTemplate={currentTemplate}
+        currentTemplate={promptData.currentTemplate}
         defaultTemplate={DEFAULT_TEMPLATE}
-        renderedPrompt={renderedPrompt}
-        versions={versionsForClient}
-        isAdmin={isOwnerOrAdmin}
+        renderedPrompt={promptData.renderedPrompt}
+        versions={promptData.versionsForClient}
+        isAdmin={isAdmin}
         title="System Prompt"
         description="Instructions for generating industry-specific thesis nodes. Use {{COMPANY_NAME}}, {{INDUSTRY}}, {{BUSINESS_MODEL}}, {{MARKET_POSITION}}, {{STRENGTHS}}, {{KEY_RISKS}}, {{INVESTMENT_THESIS}}, {{TEMPLATE_NODES}}, {{RAW_OBSERVATIONS}} as placeholders."
       />

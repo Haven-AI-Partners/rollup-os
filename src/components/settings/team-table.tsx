@@ -25,6 +25,7 @@ import {
 import { UserMinus } from "lucide-react";
 import { updateMemberRole, removeMember } from "@/lib/actions/team";
 import type { UserRole } from "@/lib/auth";
+import { formatRelativeDate } from "@/lib/format";
 
 interface Member {
   id: string;
@@ -72,18 +73,6 @@ function getInitials(name: string | null, email: string) {
   return email[0].toUpperCase();
 }
 
-function formatRelativeDate(date: Date | null) {
-  if (!date) return "Never";
-  const now = new Date();
-  const diff = now.getTime() - new Date(date).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days}d ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
-  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
-  return `${Math.floor(days / 365)}y ago`;
-}
 
 function getRolesForEditor(currentRole: UserRole): UserRole[] {
   if (currentRole === "owner") return ["owner", "admin", "analyst", "viewer"];

@@ -1,8 +1,6 @@
-import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { files, deals, companyProfiles, promptVersions, evalRuns } from "@/lib/db/schema";
+import { files, deals, companyProfiles, evalRuns } from "@/lib/db/schema";
 import { eq, and, count, desc, avg } from "drizzle-orm";
-import { getPortcoBySlug, getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 import { MODEL_ID } from "@/lib/agents/im-processor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +12,13 @@ import {
   Clock,
   Loader2,
   Star,
-  ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { EvalPanel } from "@/components/agents/eval-panel";
 import { PromptTabs } from "@/components/agents/prompt-tabs";
+import { AgentPageHeader } from "@/components/agents/agent-page-header";
+import { AgentConfigCard } from "@/components/agents/agent-config-card";
+import { getAgentPageAuth, getPromptVersionsForAgent } from "@/lib/agents/page-helpers";
 import {
   ANALYZER_EXTRACTION_TEMPLATE,
   ANALYZER_SCORING_TEMPLATE,
@@ -29,7 +29,6 @@ import {
   SCORING_SLUG,
   renderTemplate,
 } from "@/lib/agents/im-processor/prompts/shared";
-import { Button } from "@/components/ui/button";
 
 export default async function IMProcessorPage({
   params,
@@ -37,14 +36,9 @@ export default async function IMProcessorPage({
   params: Promise<{ portcoSlug: string }>;
 }) {
   const { portcoSlug } = await params;
-  const portco = await getPortcoBySlug(portcoSlug);
-  if (!portco) notFound();
+  const { portco, isAdmin } = await getAgentPageAuth(portcoSlug);
 
-  const user = await getCurrentUser();
-  const role = user ? await getUserPortcoRole(user.id, portco.id) : null;
-  const isAdmin = role ? hasMinRole(role as UserRole, "admin") : false;
-
-  const [statusCounts, recentFiles, scoreStats, extractionVersions, scoringVersions, legacyVersions, processedFiles, recentEvals] = await Promise.all([
+  const [statusCounts, recentFiles, scoreStats, extractionData, scoringData, legacyData, processedFiles, recentEvals] = await Promise.all([
     db
       .select({
         status: files.processingStatus,
@@ -79,44 +73,9 @@ export default async function IMProcessorPage({
       .innerJoin(deals, eq(companyProfiles.dealId, deals.id))
       .where(eq(deals.portcoId, portco.id)),
 
-    db
-      .select({
-        id: promptVersions.id,
-        version: promptVersions.version,
-        template: promptVersions.template,
-        isActive: promptVersions.isActive,
-        changeNote: promptVersions.changeNote,
-        createdAt: promptVersions.createdAt,
-      })
-      .from(promptVersions)
-      .where(eq(promptVersions.agentSlug, EXTRACTION_SLUG))
-      .orderBy(desc(promptVersions.version)),
-
-    db
-      .select({
-        id: promptVersions.id,
-        version: promptVersions.version,
-        template: promptVersions.template,
-        isActive: promptVersions.isActive,
-        changeNote: promptVersions.changeNote,
-        createdAt: promptVersions.createdAt,
-      })
-      .from(promptVersions)
-      .where(eq(promptVersions.agentSlug, SCORING_SLUG))
-      .orderBy(desc(promptVersions.version)),
-
-    db
-      .select({
-        id: promptVersions.id,
-        version: promptVersions.version,
-        template: promptVersions.template,
-        isActive: promptVersions.isActive,
-        changeNote: promptVersions.changeNote,
-        createdAt: promptVersions.createdAt,
-      })
-      .from(promptVersions)
-      .where(eq(promptVersions.agentSlug, AGENT_SLUG))
-      .orderBy(desc(promptVersions.version)),
+    getPromptVersionsForAgent(EXTRACTION_SLUG, ANALYZER_EXTRACTION_TEMPLATE, renderTemplate),
+    getPromptVersionsForAgent(SCORING_SLUG, ANALYZER_SCORING_TEMPLATE, renderTemplate),
+    getPromptVersionsForAgent(AGENT_SLUG, ""),
 
     db
       .select({
@@ -159,96 +118,29 @@ export default async function IMProcessorPage({
   const total = completed + failed + processing + pending;
   const avgScore = scoreStats[0]?.avgScore ? Number(scoreStats[0].avgScore) : null;
 
-  const activeExtraction = extractionVersions.find((v) => v.isActive);
-  const currentExtractionTemplate = activeExtraction?.template ?? ANALYZER_EXTRACTION_TEMPLATE;
-  const renderedExtractionPrompt = renderTemplate(currentExtractionTemplate);
-
-  const activeScoring = scoringVersions.find((v) => v.isActive);
-  const currentScoringTemplate = activeScoring?.template ?? ANALYZER_SCORING_TEMPLATE;
-  const renderedScoringPrompt = renderTemplate(currentScoringTemplate);
-
-  const extractionVersionsForClient = extractionVersions.map((v) => ({
-    id: v.id,
-    version: v.version,
-    template: v.template,
-    isActive: v.isActive,
-    changeNote: v.changeNote,
-    createdAt: v.createdAt.toISOString(),
-  }));
-
-  const scoringVersionsForClient = scoringVersions.map((v) => ({
-    id: v.id,
-    version: v.version,
-    template: v.template,
-    isActive: v.isActive,
-    changeNote: v.changeNote,
-    createdAt: v.createdAt.toISOString(),
-  }));
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href={`/${portcoSlug}/agents`}>
-            <ArrowLeft className="size-4" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">IM Processor</h1>
-          <p className="text-sm text-muted-foreground">
-            Analyzes Information Memorandum PDFs with AI to extract company
-            profiles, score deals, and flag risks
-          </p>
-        </div>
-      </div>
+      <AgentPageHeader
+        portcoSlug={portcoSlug}
+        title="IM Processor"
+        description="Analyzes Information Memorandum PDFs with AI to extract company profiles, score deals, and flag risks"
+      />
 
-      {/* Configuration */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Configuration</CardTitle>
-            <Badge className="bg-green-100 text-green-800 border-green-200">
-              Active
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Model</span>
-              <span className="font-mono">{MODEL_ID}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Pipeline</span>
-              <span>4-agent sequential</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Agent 1</span>
-              <span>Content extraction (multimodal)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Agent 2</span>
-              <span>Translation (JP → EN)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Agent 3</span>
-              <span>Analyzer (extract + score, 3x consensus)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Agent 4</span>
-              <span>External enrichment (web search)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Scoring</span>
-              <span>8 dimensions, weighted</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Concurrency</span>
-              <span>3 parallel</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <AgentConfigCard
+        items={[
+          { label: "Model", value: MODEL_ID, mono: true },
+          { label: "Pipeline", value: "4-agent sequential" },
+          { label: "Agent 1", value: "Content extraction (multimodal)" },
+          { label: "Agent 2", value: "Translation (JP → EN)" },
+          { label: "Agent 3", value: "Analyzer (extract + score, 3x consensus)" },
+          { label: "Agent 4", value: "External enrichment (web search)" },
+          { label: "Scoring", value: "8 dimensions, weighted" },
+          { label: "Concurrency", value: "3 parallel" },
+        ]}
+        badges={
+          <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+        }
+      />
 
       {/* Stats & Recent Runs */}
       <Card>
@@ -395,28 +287,28 @@ export default async function IMProcessorPage({
             id: "extraction",
             label: "Extraction",
             agentSlug: EXTRACTION_SLUG,
-            currentTemplate: currentExtractionTemplate,
+            currentTemplate: extractionData.currentTemplate,
             defaultTemplate: ANALYZER_EXTRACTION_TEMPLATE,
-            renderedPrompt: renderedExtractionPrompt,
-            versions: extractionVersionsForClient,
+            renderedPrompt: extractionData.renderedPrompt,
+            versions: extractionData.versionsForClient,
             description: "Extracts facts, numbers, and quotes from the PDF. No scoring or judgment.",
           },
           {
             id: "scoring",
             label: "Scoring",
             agentSlug: SCORING_SLUG,
-            currentTemplate: currentScoringTemplate,
+            currentTemplate: scoringData.currentTemplate,
             defaultTemplate: ANALYZER_SCORING_TEMPLATE,
-            renderedPrompt: renderedScoringPrompt,
-            versions: scoringVersionsForClient,
+            renderedPrompt: scoringData.renderedPrompt,
+            versions: scoringData.versionsForClient,
             description: "Scores dimensions and identifies red flags from the structured extraction.",
           },
         ]}
-        legacyVersions={legacyVersions.map((v) => ({
+        legacyVersions={legacyData.versionsForClient.map((v) => ({
           id: v.id,
           version: v.version,
           changeNote: v.changeNote,
-          createdAt: v.createdAt.toISOString(),
+          createdAt: v.createdAt,
         }))}
         isAdmin={isAdmin}
       />

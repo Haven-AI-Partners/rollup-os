@@ -18,7 +18,17 @@ export function formatDateShort(date: Date | string): string {
   });
 }
 
-/** Format a date as a relative time string (e.g., "2 hours ago", "5 minutes ago") */
+/** Format a date with short month, day, and year (e.g., "Mar 24, 2024") */
+export function formatDateWithYear(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** Format a date as a relative time string (e.g., "2 hours ago", "3w ago") */
 export function formatRelativeTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const diffMs = Date.now() - d.getTime();
@@ -30,7 +40,21 @@ export function formatRelativeTime(date: Date | string): string {
   const diffHr = Math.floor(diffMin / 60);
   if (diffHr < 24) return `${diffHr}h ago`;
   const diffDays = Math.floor(diffHr / 24);
-  return `${diffDays}d ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+  return `${Math.floor(diffDays / 365)}y ago`;
+}
+
+/** Format a date as a relative string, returning "Never" for null */
+export function formatRelativeDate(date: Date | string | null): string {
+  if (!date) return "Never";
+  const d = typeof date === "string" ? new Date(date) : date;
+  const diffMs = Date.now() - d.getTime();
+  const days = Math.floor(diffMs / 86400000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return formatRelativeTime(d);
 }
 
 /** Format a duration in milliseconds to human-readable (e.g., "5m 30s") */
@@ -76,4 +100,14 @@ export function formatCurrency(value: string | number | null, currency?: string 
     // Fallback for unknown currency codes
     return `${code} ${num.toLocaleString()}`;
   }
+}
+
+/** Format a byte count to human-readable (e.g., "1.5 KB", "2.3 MB") */
+export function formatBytes(bytes: number | string | null): string | null {
+  if (bytes === null || bytes === undefined) return null;
+  const b = typeof bytes === "string" ? Number(bytes) : bytes;
+  if (isNaN(b) || b === 0) return null;
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 }
