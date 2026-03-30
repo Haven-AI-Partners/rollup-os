@@ -40,7 +40,7 @@ interface Stage {
   color: string | null;
 }
 
-type SortField = "companyName" | "aiScore" | "revenue" | "ebitda" | "redFlagCount" | "createdAt";
+type SortField = "companyName" | "industry" | "aiScore" | "revenue" | "ebitda" | "redFlagCount" | "createdAt";
 type SortDir = "asc" | "desc";
 
 interface DealListViewProps {
@@ -60,8 +60,8 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
   const canDelete = userRole === "admin" || userRole === "owner";
 
   const gridCols = canDelete
-    ? "grid-cols-[1fr_140px_100px_100px_100px_80px_100px_48px]"
-    : "grid-cols-[1fr_140px_100px_100px_100px_80px_100px]";
+    ? "grid-cols-[1fr_140px_140px_100px_100px_100px_80px_100px_48px]"
+    : "grid-cols-[1fr_140px_140px_100px_100px_100px_80px_100px]";
 
   const stageMap = useMemo(
     () => new Map(stages.map((s) => [s.id, s])),
@@ -86,6 +86,8 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
         switch (sortField) {
           case "companyName":
             return dir * a.companyName.localeCompare(b.companyName);
+          case "industry":
+            return dir * (a.industry ?? "").localeCompare(b.industry ?? "");
           case "aiScore":
             return dir * ((Number(a.aiScore) || 0) - (Number(b.aiScore) || 0));
           case "revenue":
@@ -107,7 +109,7 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
-      setSortDir(field === "companyName" ? "asc" : "desc");
+      setSortDir(field === "companyName" || field === "industry" ? "asc" : "desc");
     }
   }
 
@@ -164,6 +166,7 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
         {/* Header */}
         <div className={`grid ${gridCols} gap-4 px-4 py-2 border-b bg-muted/50`}>
           {sortHeader("companyName", "Company")}
+          {sortHeader("industry", "Industry")}
           <span className="text-xs font-medium text-muted-foreground">Stage</span>
           {sortHeader("aiScore", "Score")}
           {sortHeader("revenue", "Revenue")}
@@ -189,18 +192,16 @@ export function DealListView({ deals, stages, portcoSlug, userRole }: DealListVi
               >
                 <div className="min-w-0 overflow-hidden">
                   <div className="text-sm font-medium truncate">{deal.companyName}</div>
-                  <div className="flex items-center gap-1 mt-0.5 overflow-hidden">
-                    {deal.industry && (
-                      <span className="text-xs text-muted-foreground truncate shrink min-w-0">
-                        {deal.industry}
-                      </span>
-                    )}
-                    {deal.location && (
+                  {deal.location && (
+                    <div className="flex items-center gap-1 mt-0.5 overflow-hidden">
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 truncate max-w-[100px]">
                         {deal.location}
                       </Badge>
-                    )}
-                  </div>
+                    </div>
+                  )}
+                </div>
+                <div className="text-sm text-muted-foreground truncate">
+                  {deal.industry ?? "--"}
                 </div>
                 <div>
                   {stage && (

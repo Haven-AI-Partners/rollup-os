@@ -56,7 +56,7 @@ Based on these signals, determine what type of document this is.
 
 Classify the file based on the information provided.`;
 
-function renderTemplate(template: string): string {
+export function renderTemplate(template: string): string {
   return template.replace("{{FILE_TYPES}}", FILE_TYPE_DESCRIPTIONS);
 }
 

@@ -19,6 +19,8 @@ import {
   TreePine,
   CheckCircle,
   AlertTriangle,
+  FolderSearch,
+  Target,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -43,6 +45,9 @@ export default async function AgentsPage({
     thesisNodeStats,
     pipelineV2Count,
     enrichedCount,
+    classifierAutoCount,
+    classifierTotalCount,
+    classifierConfidence,
   ] = await Promise.all([
     // IM Processor stats
     db
@@ -111,6 +116,30 @@ export default async function AgentsPage({
       .from(companyProfiles)
       .innerJoin(deals, eq(companyProfiles.dealId, deals.id))
       .where(and(eq(deals.portcoId, portco.id), isNotNull(companyProfiles.externalEnrichment))),
+
+    // File Classifier stats
+    db
+      .select({ count: count(files.id) })
+      .from(files)
+      .where(and(eq(files.portcoId, portco.id), eq(files.classifiedBy, "auto"))),
+
+    db
+      .select({ count: count(files.id) })
+      .from(files)
+      .where(and(eq(files.portcoId, portco.id), isNotNull(files.fileType))),
+
+    db
+      .select({
+        avg: avg(sql<number>`cast(${files.classificationConfidence} as numeric)`),
+      })
+      .from(files)
+      .where(
+        and(
+          eq(files.portcoId, portco.id),
+          eq(files.classifiedBy, "auto"),
+          isNotNull(files.classificationConfidence),
+        ),
+      ),
   ]);
 
   // IM Processor summary
@@ -132,6 +161,13 @@ export default async function AgentsPage({
   // Pipeline agent stats
   const v2Processed = Number(pipelineV2Count[0]?.count ?? 0);
   const enriched = Number(enrichedCount[0]?.count ?? 0);
+
+  // File Classifier summary
+  const fcAutoClassified = Number(classifierAutoCount[0]?.count ?? 0);
+  const fcTotalClassified = Number(classifierTotalCount[0]?.count ?? 0);
+  const fcAvgConfidence = classifierConfidence[0]?.avg
+    ? Number(classifierConfidence[0].avg)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -256,6 +292,45 @@ export default async function AgentsPage({
                   <span className="flex items-center gap-1 text-red-600">
                     <AlertTriangle className="size-3" />
                     {thesisRisk} risks
+                  </span>
+                )}
+              </div>
+              <div className="mt-3">
+                <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* File Classifier Card */}
+        <Link href={`/${portcoSlug}/agents/file-classifier`}>
+          <Card className="h-full transition-colors hover:border-primary/50 hover:bg-muted/30 cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-orange-100 p-2.5">
+                    <FolderSearch className="size-5 text-orange-700" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">File Classifier</CardTitle>
+                    <CardDescription className="line-clamp-2">
+                      Classifies GDrive files by type using metadata signals to route documents through the pipeline
+                    </CardDescription>
+                  </div>
+                </div>
+                <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <FileText className="size-3" />
+                  {fcAutoClassified}/{fcTotalClassified} auto-classified
+                </span>
+                {fcAvgConfidence && (
+                  <span className="flex items-center gap-1">
+                    <Target className="size-3 text-orange-500" />
+                    {(fcAvgConfidence * 100).toFixed(0)}% avg confidence
                   </span>
                 )}
               </div>
