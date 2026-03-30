@@ -146,11 +146,12 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
 
         const isNew = !existingMap.has(gdriveFileId);
         let dealId: string;
+        let resolvedFileId: string | undefined;
 
         if (isNew) {
           dealId = await createDealFromPipelineResult(portcoId, stageId, pipelineResult, gdriveFileId, gdriveFile.modifiedTime);
 
-          await db.insert(files).values({
+          const [newFile] = await db.insert(files).values({
             dealId,
             portcoId,
             fileName,
@@ -161,13 +162,16 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
             sizeBytes: gdriveFile.size ? Number(gdriveFile.size) : null,
             processingStatus: "completed",
             processedAt: new Date(),
-          });
+          }).returning({ id: files.id });
+          resolvedFileId = newFile.id;
         } else {
           const [existingFile] = await db
             .select({ id: files.id, dealId: files.dealId })
             .from(files)
             .where(eq(files.gdriveFileId, gdriveFileId))
             .limit(1);
+
+          resolvedFileId = existingFile.id;
 
           if (existingFile.dealId) {
             dealId = existingFile.dealId;
@@ -186,7 +190,7 @@ export async function scanAndProcessFolder(portcoId: string): Promise<ScanFolder
             .where(eq(files.id, existingFile.id));
         }
 
-        await storePipelineResults(dealId, portcoId, pipelineResult);
+        await storePipelineResults(dealId, portcoId, pipelineResult, resolvedFileId);
 
         const { weighted } = computeScoresFromAnalysis(analysis);
 
@@ -293,7 +297,7 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
         if (!buffer) throw new Error("Download failed");
 
         const pipelineResult = await runIMPipeline(buffer);
-        await storePipelineResults(fileDealId, portcoId, pipelineResult);
+        await storePipelineResults(fileDealId, portcoId, pipelineResult, file.id);
         await updateDealFromPipelineResult(fileDealId, pipelineResult, file.gdriveFileId);
 
         await db
@@ -437,7 +441,7 @@ export async function processSingleGdriveFile(
 
     // Store results
     progress("Storing analysis results...");
-    await storePipelineResults(dealId, portcoId, pipelineResult);
+    await storePipelineResults(dealId, portcoId, pipelineResult, fileId);
 
     // Mark complete
     progress("Done!");
@@ -502,7 +506,7 @@ export async function processIM(input: ProcessIMInput): Promise<ProcessIMResult>
     const pipelineResult = await runIMPipeline(buffer);
     const analysis = pipelineResult.legacyAnalysis;
 
-    const profileId = await storePipelineResults(dealId, portcoId, pipelineResult);
+    const profileId = await storePipelineResults(dealId, portcoId, pipelineResult, fileId);
 
     await db
       .update(files)

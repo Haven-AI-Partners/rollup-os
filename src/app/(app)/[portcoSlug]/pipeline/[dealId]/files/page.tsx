@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { files, portcos } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { files, fileExtractions, portcos } from "@/lib/db/schema";
+import { eq, inArray } from "drizzle-orm";
 import { getCurrentUser, getUserPortcoRole, hasMinRole, type UserRole } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { FileText, ExternalLink, FolderOpen } from "lucide-react";
 import { ProcessIMButton } from "@/components/deals/process-im-button";
 import { ImportGdriveDialog } from "@/components/deals/import-gdrive-dialog";
 import { FileTypeBadge } from "@/components/files/file-type-badge";
+import { FileExtractionViewer } from "@/components/files/file-extraction-viewer";
 import { getDeal } from "@/lib/db/cached-queries";
 import type { FileType } from "@/lib/db/schema/files";
 
@@ -91,6 +92,18 @@ export default async function FilesPage({
       .where(eq(files.dealId, dealId))
       .orderBy(files.createdAt),
   ]);
+
+  // Find which files have extractions
+  const dealFileIds = dealFiles.map((f) => f.id);
+  const extractedFileIds = new Set(
+    dealFileIds.length > 0
+      ? (await db
+          .select({ fileId: fileExtractions.fileId })
+          .from(fileExtractions)
+          .where(inArray(fileExtractions.fileId, dealFileIds))
+        ).map((r) => r.fileId)
+      : []
+  );
 
   const isGdriveConnected = Boolean(portco?.gdriveTokenEnc);
   const isAdmin = role ? hasMinRole(role as UserRole, "admin") : false;
@@ -181,6 +194,12 @@ export default async function FilesPage({
                       >
                         {file.processingStatus}
                       </Badge>
+                      {extractedFileIds.has(file.id) && (
+                        <FileExtractionViewer
+                          fileId={file.id}
+                          fileName={file.fileName}
+                        />
+                      )}
                       {isPdf && isAdmin && file.fileType === "im_pdf" && (
                         <ProcessIMButton
                           portcoSlug={portcoSlug}
