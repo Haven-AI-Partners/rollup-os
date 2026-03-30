@@ -96,25 +96,28 @@ export function FolderFilesList({
 }: FolderFilesListProps) {
   const tree = useMemo(() => buildFolderTree(files), [files]);
 
-  // Direct expanded set — initialized with top-level folders
+  // Direct expanded set — initialized with top-level folders.
+  // Uses a key derived from sorted top-level folder names to reinitialize
+  // when the tree structure changes (e.g. new files loaded from pagination).
+  const topLevelKey = useMemo(
+    () => Array.from(tree.children.keys()).sort().join("\0"),
+    [tree],
+  );
+
   const [expanded, setExpanded] = useState<Set<string>>(() => {
     return new Set(tree.children.keys());
   });
 
-  // Re-initialize when tree changes (e.g. new files loaded)
-  const prevTreeRef = useRef(tree);
-  useEffect(() => {
-    if (prevTreeRef.current !== tree) {
-      prevTreeRef.current = tree;
-      setExpanded((prev) => {
-        const next = new Set(prev);
-        for (const key of tree.children.keys()) {
-          if (!next.has(key)) next.add(key);
-        }
-        return next;
-      });
+  // Reset expanded state when top-level folders change
+  const [prevTopLevelKey, setPrevTopLevelKey] = useState(topLevelKey);
+  if (prevTopLevelKey !== topLevelKey) {
+    setPrevTopLevelKey(topLevelKey);
+    const next = new Set(expanded);
+    for (const key of tree.children.keys()) {
+      next.add(key);
     }
-  }, [tree]);
+    setExpanded(next);
+  }
 
   const allPaths = useMemo(() => collectDescendantPaths(tree), [tree]);
   const allExpanded = allPaths.length > 0 && allPaths.every((p) => expanded.has(p));
