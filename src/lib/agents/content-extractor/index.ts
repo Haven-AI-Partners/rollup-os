@@ -6,7 +6,6 @@ import {
   type ContentExtractionResult,
 } from "./schema";
 import { buildContentExtractionPrompt } from "./prompt";
-import { getPdfPageCount, renderPdfPagesToImages } from "@/lib/agents/shared/pdf-renderer";
 
 /**
  * Agent 1: Content Extractor
@@ -16,38 +15,49 @@ import { getPdfPageCount, renderPdfPagesToImages } from "@/lib/agents/shared/pdf
  * No interpretation, no translation, no analysis.
  *
  * Uses Gemini multimodal to handle both text-based and scanned/image PDFs.
- * For large PDFs (>BATCH_SIZE pages), renders pages to images and processes
- * in batches to avoid output token truncation.
+ * If a single-pass extraction fails (output truncation on large/dense PDFs),
+ * automatically retries by asking the model to transcribe page ranges in batches.
  */
 export const MODEL_ID = "gemini-2.5-flash";
 
 /**
- * Maximum pages per extraction batch.
- * Dense Japanese IMs can produce ~1000+ output tokens per page, and Gemini's
- * output limit is 65 536 tokens. 5 pages keeps us well within budget even for
- * the heaviest documents while still benefiting from batching.
+ * Maximum pages per extraction batch when falling back to chunked extraction.
+ * Dense Japanese IMs can produce ~1000+ output tokens per page. 5 pages keeps
+ * each call well within the 65 536 output token budget.
  */
 const BATCH_SIZE = 5;
 
 /**
  * Maximum output tokens for generateObject calls.
  * Gemini 2.5 Flash supports up to 65 536 output tokens, but the default is
- * much lower (~8 192). The original code had no maxTokens set, which was the
- * primary cause of truncation — the model hit the default limit mid-response.
+ * much lower (~8 192). The original code had no maxOutputTokens set, which was
+ * the primary cause of truncation — the model hit the default limit mid-response.
  */
 const MAX_OUTPUT_TOKENS = 65536;
 
 export async function extractContent(pdfBuffer: Buffer): Promise<ContentExtractionResult> {
-  const pageCount = await getPdfPageCount(pdfBuffer);
-
-  if (pageCount <= BATCH_SIZE) {
-    return extractFromPdf(pdfBuffer);
+  try {
+    return await extractFromPdf(pdfBuffer);
+  } catch (error) {
+    // If single-pass failed due to output truncation (parse error), retry in batches
+    if (isOutputTruncationError(error)) {
+      console.warn("Single-pass extraction failed (likely output truncation), retrying in batches...");
+      return extractInBatches(pdfBuffer);
+    }
+    throw error;
   }
-
-  return extractInBatches(pdfBuffer, pageCount);
 }
 
-/** Extract content from a small PDF (send full PDF buffer directly) */
+/** Check if the error indicates the model's output was truncated mid-JSON */
+function isOutputTruncationError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return msg.includes("no object generated")
+    || msg.includes("could not parse")
+    || msg.includes("json parsing failed");
+}
+
+/** Extract content from a PDF in a single pass (send full PDF buffer directly) */
 async function extractFromPdf(pdfBuffer: Buffer): Promise<ContentExtractionResult> {
   try {
     const { object } = await generateObject({
@@ -84,37 +94,42 @@ async function extractFromPdf(pdfBuffer: Buffer): Promise<ContentExtractionResul
   }
 }
 
-/** Extract content from a large PDF by rendering pages to images and processing in batches */
-async function extractInBatches(
-  pdfBuffer: Buffer,
-  pageCount: number,
-): Promise<ContentExtractionResult> {
-  // Render all pages to images
-  const allImages = await renderPdfPagesToImages(pdfBuffer, pageCount);
-
-  // Split into batches
-  const batches: { images: typeof allImages; startPage: number }[] = [];
-  for (let i = 0; i < allImages.length; i += BATCH_SIZE) {
-    batches.push({
-      images: allImages.slice(i, i + BATCH_SIZE),
-      startPage: i + 1,
-    });
-  }
-
+/**
+ * Extract content by asking the model to transcribe page ranges in batches.
+ * Re-sends the full PDF each time but instructs the model to only output
+ * specific pages. This avoids pdfjs-dist (which requires DOM APIs unavailable
+ * in Trigger.dev's Node.js runtime) while still working around output truncation.
+ */
+async function extractInBatches(pdfBuffer: Buffer): Promise<ContentExtractionResult> {
   const systemPrompt = await buildContentExtractionPrompt();
 
-  // First batch: use full schema to get metadata (language, title)
-  const firstResult = await extractBatchWithMetadata(
-    batches[0].images,
-    batches[0].startPage,
+  // First batch: extract pages 1–BATCH_SIZE with metadata
+  const firstResult = await extractPageRange(
+    pdfBuffer,
+    1,
+    BATCH_SIZE,
     systemPrompt,
-  );
+    true,
+  ) as ContentExtractionResult;
 
-  // Remaining batches: use pages-only schema, process in parallel
+  const totalPages = firstResult.metadata.totalPages;
+
+  // If the document fits in one batch, we're done
+  if (totalPages <= BATCH_SIZE) {
+    return firstResult;
+  }
+
+  // Remaining batches: extract subsequent page ranges in parallel
+  const batchStarts: number[] = [];
+  for (let start = BATCH_SIZE + 1; start <= totalPages; start += BATCH_SIZE) {
+    batchStarts.push(start);
+  }
+
   const remainingResults = await Promise.all(
-    batches.slice(1).map((batch) =>
-      extractBatchPagesOnly(batch.images, batch.startPage, systemPrompt),
-    ),
+    batchStarts.map((start) => {
+      const end = Math.min(start + BATCH_SIZE - 1, totalPages);
+      return extractPageRange(pdfBuffer, start, end, systemPrompt, false);
+    }),
   );
 
   // Merge all pages
@@ -125,36 +140,58 @@ async function extractInBatches(
 
   return {
     pages: allPages,
-    metadata: {
-      ...firstResult.metadata,
-      totalPages: pageCount,
-    },
+    metadata: firstResult.metadata,
   };
 }
 
-/** Extract a batch of page images with full schema (includes metadata) */
-async function extractBatchWithMetadata(
-  images: { base64: string; mimeType: string }[],
+/**
+ * Extract a specific page range from the PDF.
+ * Sends the full PDF but instructs the model to only transcribe the given range.
+ */
+async function extractPageRange(
+  pdfBuffer: Buffer,
   startPage: number,
+  endPage: number,
   systemPrompt: string,
-): Promise<ContentExtractionResult> {
+  includeMetadata: true,
+): Promise<ContentExtractionResult>;
+async function extractPageRange(
+  pdfBuffer: Buffer,
+  startPage: number,
+  endPage: number,
+  systemPrompt: string,
+  includeMetadata: false,
+): Promise<{ pages: ContentExtractionResult["pages"] }>;
+async function extractPageRange(
+  pdfBuffer: Buffer,
+  startPage: number,
+  endPage: number,
+  systemPrompt: string,
+  includeMetadata: boolean,
+): Promise<ContentExtractionResult | { pages: ContentExtractionResult["pages"] }> {
+  const schema = includeMetadata
+    ? contentExtractionResultSchema
+    : contentExtractionBatchSchema;
+
+  const rangeInstruction = `Transcribe ONLY pages ${startPage} through ${endPage} of this document into markdown. Output exactly what you see — do not interpret, summarize, or translate. Skip all pages outside this range.`;
+
   try {
     const { object } = await generateObject({
       model: google(MODEL_ID),
-      schema: contentExtractionResultSchema,
+      schema,
       system: systemPrompt,
       messages: [
         {
           role: "user",
           content: [
-            ...images.map((img) => ({
-              type: "image" as const,
-              image: img.base64,
-              mimeType: img.mimeType,
-            })),
             {
-              type: "text" as const,
-              text: `Transcribe these ${images.length} page images (pages ${startPage}–${startPage + images.length - 1}) into markdown. Output exactly what you see — do not interpret, summarize, or translate.`,
+              type: "file",
+              data: pdfBuffer,
+              mediaType: "application/pdf",
+            },
+            {
+              type: "text",
+              text: rangeInstruction,
             },
           ],
         },
@@ -166,50 +203,9 @@ async function extractBatchWithMetadata(
 
     return object;
   } catch (error) {
-    console.error(`Content extraction batch failed (pages ${startPage}–${startPage + images.length - 1}):`, error);
+    console.error(`Content extraction failed (pages ${startPage}–${endPage}):`, error);
     throw new Error(
-      `Content extraction failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-    );
-  }
-}
-
-/** Extract a batch of page images (pages only, no metadata) */
-async function extractBatchPagesOnly(
-  images: { base64: string; mimeType: string }[],
-  startPage: number,
-  systemPrompt: string,
-): Promise<{ pages: ContentExtractionResult["pages"] }> {
-  try {
-    const { object } = await generateObject({
-      model: google(MODEL_ID),
-      schema: contentExtractionBatchSchema,
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: [
-            ...images.map((img) => ({
-              type: "image" as const,
-              image: img.base64,
-              mimeType: img.mimeType,
-            })),
-            {
-              type: "text" as const,
-              text: `Transcribe these ${images.length} page images (pages ${startPage}–${startPage + images.length - 1}) into markdown. Output exactly what you see — do not interpret, summarize, or translate.`,
-            },
-          ],
-        },
-      ],
-      temperature: 0,
-      seed: 42,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-    });
-
-    return object;
-  } catch (error) {
-    console.error(`Content extraction batch failed (pages ${startPage}–${startPage + images.length - 1}):`, error);
-    throw new Error(
-      `Content extraction failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      `Content extraction failed (pages ${startPage}–${endPage}): ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
