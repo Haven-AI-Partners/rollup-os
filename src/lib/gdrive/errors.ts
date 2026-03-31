@@ -3,6 +3,7 @@ export class GDriveAuthError extends Error {
   constructor(
     message: string,
     public readonly originalError?: unknown,
+    public readonly portcoId?: string,
   ) {
     super(message);
     this.name = "GDriveAuthError";
