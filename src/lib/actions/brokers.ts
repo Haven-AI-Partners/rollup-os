@@ -8,7 +8,13 @@ import {
 } from "@/lib/db/schema";
 import { eq, asc, desc, count, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requirePortcoRole, getPortcoBySlug } from "@/lib/auth";
+import {
+  createBrokerFirmSchema,
+  updateBrokerFirmSchema,
+  createBrokerContactSchema,
+  createInteractionSchema,
+} from "./schemas";
 
 // ── Broker Firms ──
 
@@ -71,6 +77,12 @@ export async function getBrokerFirm(firmId: string) {
   return firm ?? null;
 }
 
+async function resolvePortcoId(portcoSlug: string): Promise<string> {
+  const portco = await getPortcoBySlug(portcoSlug);
+  if (!portco) throw new Error("PortCo not found");
+  return portco.id;
+}
+
 export async function createBrokerFirm(
   portcoSlug: string,
   data: {
@@ -80,15 +92,18 @@ export async function createBrokerFirm(
     specialty?: string;
   }
 ) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "analyst");
+
+  const validated = createBrokerFirmSchema.parse(data);
 
   const [firm] = await db
     .insert(brokerFirms)
     .values({
-      name: data.name,
-      website: data.website,
-      region: data.region,
-      specialty: data.specialty,
+      name: validated.name,
+      website: validated.website,
+      region: validated.region,
+      specialty: validated.specialty,
     })
     .returning();
 
@@ -106,11 +121,14 @@ export async function updateBrokerFirm(
     specialty: string;
   }>
 ) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "analyst");
+
+  const validated = updateBrokerFirmSchema.parse(data);
 
   const [updated] = await db
     .update(brokerFirms)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...validated, updatedAt: new Date() })
     .where(eq(brokerFirms.id, firmId))
     .returning();
 
@@ -120,7 +138,8 @@ export async function updateBrokerFirm(
 }
 
 export async function deleteBrokerFirm(firmId: string, portcoSlug: string) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "admin");
 
   // Delete interactions for this firm's contacts, then contacts, then firm
   const contactIds = await db
@@ -159,16 +178,19 @@ export async function createBrokerContact(
     title?: string;
   }
 ) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "analyst");
+
+  const validated = createBrokerContactSchema.parse(data);
 
   const [contact] = await db
     .insert(brokerContacts)
     .values({
       brokerFirmId: firmId,
-      fullName: data.fullName,
-      email: data.email,
-      phone: data.phone,
-      title: data.title,
+      fullName: validated.fullName,
+      email: validated.email,
+      phone: validated.phone,
+      title: validated.title,
     })
     .returning();
 
@@ -187,11 +209,14 @@ export async function updateBrokerContact(
     title: string;
   }>
 ) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "analyst");
+
+  const validated = createBrokerContactSchema.partial().parse(data);
 
   const [updated] = await db
     .update(brokerContacts)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...validated, updatedAt: new Date() })
     .where(eq(brokerContacts.id, contactId))
     .returning();
 
@@ -204,7 +229,8 @@ export async function deleteBrokerContact(
   portcoSlug: string,
   firmId: string
 ) {
-  await requireAuth();
+  const portcoId = await resolvePortcoId(portcoSlug);
+  await requirePortcoRole(portcoId, "admin");
 
   await db.delete(brokerInteractions).where(eq(brokerInteractions.brokerContactId, contactId));
   await db.delete(brokerContacts).where(eq(brokerContacts.id, contactId));
@@ -247,19 +273,21 @@ export async function createInteraction(
     occurredAt: string;
   }
 ) {
-  await requireAuth();
+  await requirePortcoRole(portcoId, "analyst");
+
+  const validated = createInteractionSchema.parse(data);
 
   const [interaction] = await db
     .insert(brokerInteractions)
     .values({
-      brokerContactId: data.brokerContactId,
-      dealId: data.dealId || null,
+      brokerContactId: validated.brokerContactId,
+      dealId: validated.dealId || null,
       portcoId,
-      type: data.type,
-      direction: data.direction,
-      subject: data.subject,
-      body: data.body,
-      occurredAt: new Date(data.occurredAt),
+      type: validated.type,
+      direction: validated.direction,
+      subject: validated.subject,
+      body: validated.body,
+      occurredAt: new Date(validated.occurredAt),
     })
     .returning();
 

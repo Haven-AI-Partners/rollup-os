@@ -130,7 +130,7 @@ describe("deals actions", () => {
       const { createDeal } = await import("./deals");
       const result = await createDeal("portco-001", "test-portco", {
         companyName: "Test Co",
-        stageId: "stage-001",
+        stageId: "a0000000-0000-1000-a000-000000000001",
         source: "broker_referral",
       });
 
@@ -143,7 +143,9 @@ describe("deals actions", () => {
 
   describe("updateDeal", () => {
     it("throws when user is not authenticated", async () => {
-      (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
+      // updateDeal fetches deal first, then checks portco role
+      mockLimit.mockResolvedValueOnce([{ id: "deal-001", portcoId: "portco-001" }]);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { updateDeal } = await import("./deals");
       await expect(

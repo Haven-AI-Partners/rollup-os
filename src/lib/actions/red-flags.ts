@@ -1,14 +1,21 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { dealRedFlags, dealActivityLog } from "@/lib/db/schema";
+import { deals, dealRedFlags, dealActivityLog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { requireAuth, requirePortcoRole } from "@/lib/auth";
+import { requirePortcoRole } from "@/lib/auth";
 import { addRedFlagSchema } from "./schemas";
 
 export async function getRedFlagsForDeal(dealId: string) {
-  await requireAuth();
+  const [deal] = await db
+    .select({ id: deals.id, portcoId: deals.portcoId })
+    .from(deals)
+    .where(eq(deals.id, dealId))
+    .limit(1);
+  if (!deal) throw new Error("Deal not found");
+  await requirePortcoRole(deal.portcoId, "viewer");
+
   return db
     .select()
     .from(dealRedFlags)
@@ -60,7 +67,13 @@ export async function resolveRedFlag(
   portcoSlug: string,
   dealId: string
 ) {
-  const user = await requireAuth();
+  const [flag] = await db
+    .select({ id: dealRedFlags.id, portcoId: dealRedFlags.portcoId })
+    .from(dealRedFlags)
+    .where(eq(dealRedFlags.id, flagRecordId))
+    .limit(1);
+  if (!flag) throw new Error("Red flag not found");
+  const { user } = await requirePortcoRole(flag.portcoId, "analyst");
 
   const [updated] = await db
     .update(dealRedFlags)
@@ -77,7 +90,13 @@ export async function unresolveRedFlag(
   portcoSlug: string,
   dealId: string
 ) {
-  await requireAuth();
+  const [flag] = await db
+    .select({ id: dealRedFlags.id, portcoId: dealRedFlags.portcoId })
+    .from(dealRedFlags)
+    .where(eq(dealRedFlags.id, flagRecordId))
+    .limit(1);
+  if (!flag) throw new Error("Red flag not found");
+  await requirePortcoRole(flag.portcoId, "analyst");
 
   const [updated] = await db
     .update(dealRedFlags)
@@ -94,7 +113,13 @@ export async function removeRedFlag(
   portcoSlug: string,
   dealId: string
 ) {
-  await requireAuth();
+  const [flag] = await db
+    .select({ id: dealRedFlags.id, portcoId: dealRedFlags.portcoId })
+    .from(dealRedFlags)
+    .where(eq(dealRedFlags.id, flagRecordId))
+    .limit(1);
+  if (!flag) throw new Error("Red flag not found");
+  await requirePortcoRole(flag.portcoId, "admin");
 
   await db.delete(dealRedFlags).where(eq(dealRedFlags.id, flagRecordId));
   revalidatePath(`/${portcoSlug}/pipeline/${dealId}`);

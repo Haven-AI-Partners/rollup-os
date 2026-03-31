@@ -33,31 +33,38 @@ async function extractFromDocument(
 ): Promise<DDExtractionResult> {
   const systemPrompt = await buildDDProcessorPrompt(fileType);
 
-  const { object } = await generateObject({
-    model: google(MODEL_ID),
-    schema: ddExtractionSchema,
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "file",
-            data: pdfBuffer,
-            mediaType: "application/pdf",
-          },
-          {
-            type: "text",
-            text: "Extract all relevant due diligence findings from this document and map them to thesis tree nodes.",
-          },
-        ],
-      },
-    ],
-    temperature: 0,
-    seed: 42,
-  });
+  try {
+    const { object } = await generateObject({
+      model: google(MODEL_ID),
+      schema: ddExtractionSchema,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: pdfBuffer,
+              mediaType: "application/pdf",
+            },
+            {
+              type: "text",
+              text: "Extract all relevant due diligence findings from this document and map them to thesis tree nodes.",
+            },
+          ],
+        },
+      ],
+      temperature: 0,
+      seed: 42,
+    });
 
-  return object;
+    return object;
+  } catch (error) {
+    console.error("DD document extraction failed:", error);
+    throw new Error(
+      `DD extraction failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
 }
 
 /**

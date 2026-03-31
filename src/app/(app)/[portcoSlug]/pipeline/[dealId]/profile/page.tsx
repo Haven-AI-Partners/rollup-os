@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoringBreakdown } from "@/components/deals/scoring-breakdown";
 import { SCORING_DIMENSIONS } from "@/lib/scoring/rubric";
 import { getDeal } from "@/lib/db/cached-queries";
+import { formatDateTime } from "@/lib/format";
 
 export default async function ProfilePage({
   params,
@@ -164,7 +165,7 @@ export default async function ProfilePage({
 
       <p className="text-xs text-muted-foreground">
         {profile.generatedAt
-          ? `Generated ${new Date(profile.generatedAt).toLocaleString()}`
+          ? `Generated ${formatDateTime(profile.generatedAt)}`
           : ""}
         {profile.modelVersion ? ` | Model: ${profile.modelVersion}` : ""}
       </p>

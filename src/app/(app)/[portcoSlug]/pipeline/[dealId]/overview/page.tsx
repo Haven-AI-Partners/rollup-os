@@ -5,7 +5,7 @@ import { eq, count, sql } from "drizzle-orm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RedFlagsPanel } from "@/components/deals/red-flags-panel";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateShort } from "@/lib/format";
 import { getDeal } from "@/lib/db/cached-queries";
 
 export default async function DealOverviewPage({
@@ -175,7 +175,7 @@ export default async function DealOverviewPage({
                     <div>
                       <p className="text-sm">{entry.description}</p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(entry.createdAt).toLocaleDateString()}
+                        {formatDateShort(entry.createdAt)}
                       </p>
                     </div>
                   </div>

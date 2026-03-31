@@ -46,6 +46,14 @@ const nextConfig: NextConfig = {
           key: "Permissions-Policy",
           value: "camera=(), microphone=(), geolocation=()",
         },
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains; preload",
+        },
+        {
+          key: "Content-Security-Policy",
+          value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://*.clerk.accounts.dev; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.clerk.com https://*.googleusercontent.com; font-src 'self' data:; connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://accounts.google.com https://*.googleapis.com https://*.google.com https://*.langfuse.com; frame-src 'self' https://accounts.google.com https://*.clerk.accounts.dev; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
+        },
       ],
     },
   ],

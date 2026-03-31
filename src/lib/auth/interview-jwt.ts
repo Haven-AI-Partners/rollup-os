@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import { jwtVerify, SignJWT } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.INTERVIEW_JWT_SECRET || process.env.CLERK_SECRET_KEY || "discovery-interview-secret"
-);
+const jwtSecretValue = process.env.INTERVIEW_JWT_SECRET || process.env.CLERK_SECRET_KEY;
+if (!jwtSecretValue) {
+  throw new Error("Missing INTERVIEW_JWT_SECRET or CLERK_SECRET_KEY environment variable");
+}
+const JWT_SECRET = new TextEncoder().encode(jwtSecretValue);
 
 export async function validateInterviewSession(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get("discovery_session")?.value;

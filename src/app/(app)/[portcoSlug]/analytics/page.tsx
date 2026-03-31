@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { deals, pipelineStages, brokerFirms, companyProfiles } from "@/lib/db/schema";
 import { eq, and, sql, count, avg, desc } from "drizzle-orm";
 import { getPortcoBySlug } from "@/lib/auth";
+import { formatDateShortYear, formatDateMonthYear } from "@/lib/format";
 import { PipelineCharts } from "@/components/dashboard/pipeline-charts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, Trophy, Star } from "lucide-react";
@@ -91,12 +92,12 @@ export default async function AnalyticsPage({
   for (const entry of monthlyChartData) {
     const [y, m] = (entry.month as string).split("-");
     const date = new Date(Number(y), Number(m) - 1);
-    entry.month = date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    entry.month = formatDateShortYear(date);
   }
 
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const currentMonthLabel = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const currentMonthLabel = formatDateMonthYear(now);
   const currentMonthRows = dealsByMonth.filter((r) => r.month === currentMonthKey);
 
   // Current month funnel: cumulative — a deal at stage N counts toward all stages <= N

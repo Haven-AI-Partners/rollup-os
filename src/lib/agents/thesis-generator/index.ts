@@ -100,24 +100,31 @@ export async function generateIndustryNodes(
     }),
   ]);
 
-  const { object } = await generateObject({
-    model: google(MODEL_ID),
-    schema: thesisGenerationSchema,
-    system: prompt,
-    messages: [
-      {
-        role: "user",
-        content: `Generate industry-specific diligence nodes for this acquisition target.
+  try {
+    const { object } = await generateObject({
+      model: google(MODEL_ID),
+      schema: thesisGenerationSchema,
+      system: prompt,
+      messages: [
+        {
+          role: "user",
+          content: `Generate industry-specific diligence nodes for this acquisition target.
 
 ## Web Research Findings
 The following market research was gathered via web search. Use it to inform your node generation, especially for market size, competitive landscape, and regulatory requirements:
 
 ${marketResearch}`,
-      },
-    ],
-  });
+        },
+      ],
+    });
 
-  return object;
+    return object;
+  } catch (error) {
+    console.error("Thesis node generation failed:", error);
+    throw new Error(
+      `Thesis generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
 }
 
 /**

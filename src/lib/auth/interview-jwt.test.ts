@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import { createInterviewToken, validateInterviewSession } from "./interview-jwt";
+import { describe, it, expect, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-// Set a known secret for deterministic tests
-beforeAll(() => {
+// Must be set before the module-level check in interview-jwt.ts
+vi.hoisted(() => {
   process.env.INTERVIEW_JWT_SECRET = "test-jwt-secret-for-unit-tests-1234";
 });
+
+import { createInterviewToken, validateInterviewSession } from "./interview-jwt";
 
 function buildRequest(cookie?: string): NextRequest {
   const req = new NextRequest("https://example.com/api/test");
