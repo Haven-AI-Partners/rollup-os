@@ -200,6 +200,15 @@ export const USER_ROLE_COLORS: Record<string, string> = {
   viewer: "bg-gray-100 text-gray-800 border-gray-200",
 };
 
+export const USER_ROLE_DESCRIPTIONS: Record<string, string> = {
+  owner:
+    "Full access. Can manage all settings, team members, and data across all PortCos.",
+  admin: "Can manage team members, settings, and all deal data.",
+  analyst:
+    "Can view and edit deals, brokers, and analytics. Cannot manage team or settings.",
+  viewer: "Read-only access. Can view deals, brokers, and analytics.",
+};
+
 // ── Processing Status Icons ──
 
 export const PROCESSING_STATUS_CONFIG: Record<string, { icon: typeof CheckCircle; colorClass: string }> = {

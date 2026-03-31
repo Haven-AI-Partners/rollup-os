@@ -24,6 +24,17 @@ import {
   SidebarMenuItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  USER_ROLE_LABELS,
+  USER_ROLE_COLORS,
+  USER_ROLE_DESCRIPTIONS,
+} from "@/lib/constants";
 import { PortcoSwitcher } from "./portco-switcher";
 
 interface AppSidebarProps {
@@ -147,9 +158,26 @@ export function AppSidebar({ portcoSlug, portcos, currentPortco, userRole }: App
         )}
       </SidebarContent>
       <SidebarFooter className="border-t p-4">
-        <p className="text-xs text-muted-foreground">
-          {currentPortco.industry ?? "M&A Platform"}
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {currentPortco.industry ?? "M&A Platform"}
+          </p>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="outline"
+                className={`cursor-default text-xs ${USER_ROLE_COLORS[userRole] ?? ""}`}
+              >
+                {USER_ROLE_LABELS[userRole] ?? userRole}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-60">
+              <p className="text-xs">
+                {USER_ROLE_DESCRIPTIONS[userRole] ?? "Unknown role"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
