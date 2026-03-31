@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("@/components/ui/button", () => ({
   Button: (props: any) => <button {...props} />,
@@ -54,7 +54,9 @@ describe("ProcessIMButton", () => {
   it("handles process button click", async () => {
     mockProcessIMFile.mockResolvedValue({ runId: "run-1" });
     render(<ProcessIMButton {...defaultProps} />);
-    fireEvent.click(screen.getByText("Process IM"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Process IM"));
+    });
     expect(mockProcessIMFile).toHaveBeenCalledWith("test-portco", "file-1");
   });
 });
