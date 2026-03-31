@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -63,6 +64,9 @@ export function EditFirmDialog({ firm, portcoSlug }: EditFirmDialogProps) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Broker Firm</DialogTitle>
+          <DialogDescription className="sr-only">
+            Edit the details of this broker firm
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
