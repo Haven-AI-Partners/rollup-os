@@ -1,5 +1,8 @@
 # Rollup OS
 
+[![Tests](https://github.com/Haven-AI-Partners/rollup-os/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/Haven-AI-Partners/rollup-os/actions/workflows/test.yml)
+[![Coverage](https://codecov.io/gh/Haven-AI-Partners/rollup-os/branch/main/graph/badge.svg)](https://codecov.io/gh/Haven-AI-Partners/rollup-os)
+
 M&A deal flow analysis and automation platform for managing rollup acquisitions across multiple portfolio companies (PortCos). Built for teams running buy-and-build strategies who need to source, score, and manage deal pipelines at scale.
 
 ## Key Features
