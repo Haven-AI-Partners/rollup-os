@@ -1,6 +1,6 @@
 "use client";
 
-import { useSignIn, useAuth } from "@clerk/nextjs";
+import { useSignIn, useAuth, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,19 +11,25 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { GoogleIcon } from "@/components/icons/google";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function SignInPage() {
   const { signIn, isLoaded } = useSignIn();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, isLoaded: isAuthLoaded } = useAuth();
+  const { signOut } = useClerk();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const signOutAttempted = useRef(false);
 
+  // If Clerk thinks the user is signed in but they landed on /sign-in,
+  // the server-side session is likely stale. Sign out to clear client state.
   useEffect(() => {
-    if (isSignedIn) {
-      router.replace("/");
+    if (!isAuthLoaded) return;
+    if (isSignedIn && !signOutAttempted.current) {
+      signOutAttempted.current = true;
+      signOut();
     }
-  }, [isSignedIn, router]);
+  }, [isSignedIn, isAuthLoaded, signOut]);
 
   const handleGoogleSignIn = async () => {
     if (!isLoaded || !signIn) return;
@@ -31,8 +37,8 @@ export default function SignInPage() {
     try {
       await signIn.sso({
         strategy: "oauth_google",
-        redirectUrl: "/sso-callback",
-        redirectCallbackUrl: "/",
+        redirectUrl: "/",
+        redirectCallbackUrl: "/sso-callback",
       });
     } catch (err) {
       console.error("Sign-in error:", err);
