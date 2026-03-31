@@ -1,3 +1,5 @@
+import { GDriveAuthError } from "./errors";
+
 /** Throttle delay between consecutive Google Drive API calls (ms). */
 const THROTTLE_DELAY_MS = 100;
 
@@ -46,6 +48,39 @@ export function setOnRateLimitError(
   onRateLimitError = callback;
 }
 
+/**
+ * Known OAuth error message substrings returned by Google's token endpoint.
+ * These indicate the refresh token or client credentials are invalid — retrying is pointless.
+ */
+const AUTH_ERROR_MESSAGES = [
+  "invalid_request",
+  "invalid_grant",
+  "invalid_client",
+  "unauthorized_client",
+  "invalid_token",
+];
+
+/** Check if an error is an OAuth/authentication failure that should not be retried. */
+export function isAuthError(error: unknown): boolean {
+  if (!(error && typeof error === "object")) return false;
+
+  // Check error.message for OAuth error strings
+  const message = (error as { message?: string }).message?.toLowerCase() ?? "";
+  if (AUTH_ERROR_MESSAGES.some((msg) => message.includes(msg))) return true;
+
+  // Check HTTP 401 status
+  if ("response" in error) {
+    const status = (error as { response?: { status?: number } }).response?.status;
+    if (status === 401) return true;
+  }
+
+  // Check error.code (googleapis sometimes uses string codes)
+  const code = (error as { code?: string | number }).code;
+  if (code === 401 || code === "401") return true;
+
+  return false;
+}
+
 /** Check if an error is a Google API error with a retryable status code. */
 function isRetryableError(error: unknown): { retryable: boolean; status?: number } {
   if (error && typeof error === "object" && "response" in error) {
@@ -88,6 +123,18 @@ export async function withRateLimit<T>(
       lastCallTime = Date.now();
       return await fn();
     } catch (error) {
+      // Auth/OAuth errors are fatal — never retry
+      if (isAuthError(error)) {
+        const label = context ?? "unknown";
+        console.error(
+          `GDrive auth error [${label}]: ${error instanceof Error ? error.message : "unknown"}`,
+        );
+        throw new GDriveAuthError(
+          `OAuth/auth failure during ${label}: ${error instanceof Error ? error.message : "unknown"}`,
+          error,
+        );
+      }
+
       const { retryable, status } = isRetryableError(error);
 
       if (!retryable || attempt === MAX_RETRIES) {

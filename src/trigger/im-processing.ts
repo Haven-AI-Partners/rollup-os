@@ -9,6 +9,7 @@ import { portcos } from "@/lib/db/schema";
 import { and, isNotNull } from "drizzle-orm";
 import type { FileType } from "@/lib/db/schema/files";
 import { registerGdriveErrorLogger, unregisterGdriveErrorLogger } from "@/lib/gdrive/error-logger";
+import { GDriveAuthError } from "@/lib/gdrive/errors";
 
 // ---------------------------------------------------------------------------
 // Queue definitions – partition concurrency so task types don't starve each other.
@@ -122,6 +123,14 @@ export const scanFolderTask = task({
       });
 
       return result;
+    } catch (error) {
+      if (error instanceof GDriveAuthError) {
+        logger.error("GDrive authentication failed — token may be expired or revoked", {
+          portcoId: payload.portcoId,
+          error: error.message,
+        });
+      }
+      throw error;
     } finally {
       unregisterGdriveErrorLogger();
     }
