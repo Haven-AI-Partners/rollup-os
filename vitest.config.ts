@@ -11,6 +11,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html", "lcov"],
       include: ["src/lib/**", "src/app/api/**", "src/components/**"],
+      exclude: ["src/lib/db/migrations/**"],
     },
   },
   resolve: {
