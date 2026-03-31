@@ -1,4 +1,4 @@
-import { getDocument, type PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
+import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const RENDER_SCALE = 1.5;
 const IMAGE_MIME_TYPE = "image/png";
@@ -11,11 +11,14 @@ interface PageImage {
 /**
  * Render the first N pages of a PDF buffer as PNG images.
  * Uses pdfjs-dist for rendering in a Node.js environment.
+ * The pdfjs-dist import is deferred to avoid DOMMatrix errors in bundlers
+ * that evaluate modules at build time (e.g. Trigger.dev).
  */
 export async function renderPdfPagesToImages(
   pdfBuffer: Buffer,
   maxPages: number,
 ): Promise<PageImage[]> {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   let doc: PDFDocumentProxy | null = null;
   try {
     const data = new Uint8Array(pdfBuffer);
