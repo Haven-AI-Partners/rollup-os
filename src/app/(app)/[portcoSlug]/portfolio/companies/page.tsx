@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Building2 } from "lucide-react";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateShort } from "@/lib/format";
 
 export default async function PortfolioCompaniesPage({
   params,
@@ -91,10 +91,7 @@ export default async function PortfolioCompaniesPage({
                     {deal.closedAt && (
                       <div className="hidden sm:block">
                         <p className="font-medium">
-                          {new Date(deal.closedAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            year: "numeric",
-                          })}
+                          {formatDateShort(deal.closedAt)}
                         </p>
                         <p className="text-xs text-muted-foreground">Acquired</p>
                       </div>

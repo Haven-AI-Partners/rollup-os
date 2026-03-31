@@ -56,21 +56,28 @@ async function translateBatch(
     .map((p: ExtractedPage) => `--- Page ${p.pageNumber} ---\n${p.content}`)
     .join("\n\n");
 
-  const { object } = await generateObject({
-    model: google(MODEL_ID),
-    schema: translationResultSchema,
-    system: await buildTranslationPrompt(),
-    messages: [
-      {
-        role: "user",
-        content: `Source language: ${sourceLanguage}\n\nTranslate the following document pages to English:\n\n${pagesText}`,
-      },
-    ],
-    temperature: 0,
-    seed: 42,
-  });
+  try {
+    const { object } = await generateObject({
+      model: google(MODEL_ID),
+      schema: translationResultSchema,
+      system: await buildTranslationPrompt(),
+      messages: [
+        {
+          role: "user",
+          content: `Source language: ${sourceLanguage}\n\nTranslate the following document pages to English:\n\n${pagesText}`,
+        },
+      ],
+      temperature: 0,
+      seed: 42,
+    });
 
-  return object;
+    return object;
+  } catch (error) {
+    console.error("Translation batch failed:", error);
+    throw new Error(
+      `Translation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
 }
 
 /** Translate large documents in batches and merge results */

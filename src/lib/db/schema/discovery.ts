@@ -3,6 +3,7 @@ import { deals } from "./deals";
 import { portcos } from "./portcos";
 import { users } from "./users";
 import { companyEmployees } from "./company-employees";
+import { promptVersions } from "./agents";
 
 export const discoveryCampaigns = pgTable("discovery_campaigns", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -50,7 +51,7 @@ export const discoverySessions = pgTable("discovery_sessions", {
   feedbackTags: jsonb("feedback_tags").$type<string[]>(),
   feedbackComment: text("feedback_comment"),
   feedbackAt: timestamp("feedback_at", { withTimezone: true }),
-  promptVersionId: uuid("prompt_version_id"),
+  promptVersionId: uuid("prompt_version_id").references(() => promptVersions.id),
   startedAt: timestamp("started_at", { withTimezone: true }),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   lastActiveAt: timestamp("last_active_at", { withTimezone: true }),

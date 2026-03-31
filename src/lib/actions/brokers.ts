@@ -94,6 +94,7 @@ export async function createBrokerFirm(
 ) {
   const portcoId = await resolvePortcoId(portcoSlug);
   await requirePortcoRole(portcoId, "analyst");
+
   const validated = createBrokerFirmSchema.parse(data);
 
   const [firm] = await db
@@ -122,6 +123,7 @@ export async function updateBrokerFirm(
 ) {
   const portcoId = await resolvePortcoId(portcoSlug);
   await requirePortcoRole(portcoId, "analyst");
+
   const validated = updateBrokerFirmSchema.parse(data);
 
   const [updated] = await db
@@ -178,6 +180,7 @@ export async function createBrokerContact(
 ) {
   const portcoId = await resolvePortcoId(portcoSlug);
   await requirePortcoRole(portcoId, "analyst");
+
   const validated = createBrokerContactSchema.parse(data);
 
   const [contact] = await db
@@ -209,9 +212,11 @@ export async function updateBrokerContact(
   const portcoId = await resolvePortcoId(portcoSlug);
   await requirePortcoRole(portcoId, "analyst");
 
+  const validated = createBrokerContactSchema.partial().parse(data);
+
   const [updated] = await db
     .update(brokerContacts)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...validated, updatedAt: new Date() })
     .where(eq(brokerContacts.id, contactId))
     .returning();
 
@@ -269,6 +274,7 @@ export async function createInteraction(
   }
 ) {
   await requirePortcoRole(portcoId, "analyst");
+
   const validated = createInteractionSchema.parse(data);
 
   const [interaction] = await db

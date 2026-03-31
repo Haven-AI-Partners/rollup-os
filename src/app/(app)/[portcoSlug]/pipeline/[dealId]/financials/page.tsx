@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FinancialEntryForm } from "@/components/deals/financial-entry-form";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@/lib/format";
 import { getDeal } from "@/lib/db/cached-queries";
 
 function pct(val: string | null) {
@@ -59,7 +59,7 @@ export default async function FinancialsPage({
             <div>
               <p className="text-xs text-muted-foreground">Employees</p>
               <p className="text-sm font-medium">
-                {deal.employeeCount?.toLocaleString() ?? "—"}
+                {formatNumber(deal.employeeCount)}
               </p>
             </div>
           </div>

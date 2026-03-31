@@ -1,6 +1,7 @@
 import { pgTable, uuid, text, timestamp, integer, jsonb, numeric, index } from "drizzle-orm/pg-core";
 import { files } from "./files";
 import { users } from "./users";
+import { promptVersions } from "./agents";
 
 /** An eval run processes one file N times and compares results */
 export const evalRuns = pgTable("eval_runs", {
@@ -12,7 +13,7 @@ export const evalRuns = pgTable("eval_runs", {
   fileName: text("file_name").notNull(),
   iterations: integer("iterations").notNull(),
   /** Prompt version used for this eval */
-  promptVersionId: uuid("prompt_version_id"),
+  promptVersionId: uuid("prompt_version_id").references(() => promptVersions.id),
   promptVersionLabel: text("prompt_version_label"),
   /** Model used for this eval */
   modelId: text("model_id"),
