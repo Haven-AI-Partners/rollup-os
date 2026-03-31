@@ -24,8 +24,8 @@ importers:
         specifier: ^7.0.7
         version: 7.0.7(next@16.2.1(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@clerk/ui':
-        specifier: ^1.2.3
-        version: 1.2.3(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@types/react@19.2.14)(bs58@6.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(react-native@0.84.1(@babel/core@7.29.0)(@types/react@19.2.14)(bufferutil@4.1.0)(react@19.2.4)(utf-8-validate@6.0.6))(typescript@5.9.3)
+        specifier: ^1.2.4
+        version: 1.2.4(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@types/react@19.2.14)(bs58@6.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(react-dom@19.2.4(react@19.2.4))(react-native@0.84.1(@babel/core@7.29.0)(@types/react@19.2.14)(bufferutil@4.1.0)(react@19.2.4)(utf-8-validate@6.0.6))(react@19.2.4)(typescript@5.9.3)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -499,8 +499,8 @@ packages:
     resolution: {integrity: sha512-I3YLnSioYFG+EVFBYm0ilN28+FC8H+hkqMgB5Pdl7AcotQOn3JhiZMqLel2H0P390p8FEJKQNnrvXk3BemeKKQ==}
     engines: {node: '>=20.9.0'}
 
-  '@clerk/localizations@4.2.3':
-    resolution: {integrity: sha512-Fnq2i0G26IAKDn3JhejoJkv2IT9f7yiXmPagPYuNkoeWLyUv+RqYVNRMva+m/7htCM0R5JHbUNbuGPzzoHHArA==}
+  '@clerk/localizations@4.2.4':
+    resolution: {integrity: sha512-yDraD7BEcSFTvpoed8MWzSO+JrxwtS1pydM2uvm1nhnDz4gZNzhSt7gGs+mGIIjWeS8PQGMR0cq8DfvHUxCwwg==}
     engines: {node: '>=20.9.0'}
 
   '@clerk/nextjs@7.0.7':
@@ -530,9 +530,12 @@ packages:
       react-dom:
         optional: true
 
-  '@clerk/ui@1.2.3':
-    resolution: {integrity: sha512-RYS08D/O1gC2s8LCQh+o97m+Cbz0GSquYjITuEsyTAZcOlNZC0qRFC/AybCgInqQvNZ7kU/4zNrhVU1wdnLDFw==}
+  '@clerk/ui@1.2.4':
+    resolution: {integrity: sha512-xksDqDjmuks47qtkqUMVnslXS2yfzHZ8AscmPHnlvVb9lFFWz7fsXjmw5j72UCVO5AQenylRhB9pxp0tmHtrRw==}
     engines: {node: '>=20.9.0'}
+    peerDependencies:
+      react: ^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0
+      react-dom: ^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0
 
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
@@ -9056,7 +9059,7 @@ snapshots:
       - react
       - react-dom
 
-  '@clerk/localizations@4.2.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@clerk/localizations@4.2.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@clerk/shared': 4.3.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
     transitivePeerDependencies:
@@ -9092,9 +9095,9 @@ snapshots:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
 
-  '@clerk/ui@1.2.3(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@types/react@19.2.14)(bs58@6.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(react-native@0.84.1(@babel/core@7.29.0)(@types/react@19.2.14)(bufferutil@4.1.0)(react@19.2.4)(utf-8-validate@6.0.6))(typescript@5.9.3)':
+  '@clerk/ui@1.2.4(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@types/react@19.2.14)(bs58@6.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(react-dom@19.2.4(react@19.2.4))(react-native@0.84.1(@babel/core@7.29.0)(@types/react@19.2.14)(bufferutil@4.1.0)(react@19.2.4)(utf-8-validate@6.0.6))(react@19.2.4)(typescript@5.9.3)':
     dependencies:
-      '@clerk/localizations': 4.2.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@clerk/localizations': 4.2.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@clerk/shared': 4.3.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@emotion/cache': 11.11.0
       '@emotion/react': 11.11.1(@types/react@19.2.14)(react@19.2.4)
