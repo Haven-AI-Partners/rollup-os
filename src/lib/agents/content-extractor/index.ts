@@ -72,7 +72,7 @@ async function extractFromPdf(pdfBuffer: Buffer): Promise<ContentExtractionResul
       ],
       temperature: 0,
       seed: 42,
-      maxTokens: MAX_OUTPUT_TOKENS,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
     });
 
     return object;
@@ -161,7 +161,7 @@ async function extractBatchWithMetadata(
       ],
       temperature: 0,
       seed: 42,
-      maxTokens: MAX_OUTPUT_TOKENS,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
     });
 
     return object;
@@ -202,7 +202,7 @@ async function extractBatchPagesOnly(
       ],
       temperature: 0,
       seed: 42,
-      maxTokens: MAX_OUTPUT_TOKENS,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
     });
 
     return object;
