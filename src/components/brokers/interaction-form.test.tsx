@@ -3,8 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { InteractionForm } from "./interaction-form";
 
 const mockCreateInteraction = vi.fn().mockResolvedValue(undefined);
@@ -55,10 +54,9 @@ describe("InteractionForm", () => {
   });
 
   it("calls onClose on cancel", async () => {
-    const user = userEvent.setup();
     render(<InteractionForm {...defaultProps} />);
 
-    await user.click(screen.getByRole("button", { name: /cancel/i }));
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
 
     expect(mockOnClose).toHaveBeenCalled();
   });

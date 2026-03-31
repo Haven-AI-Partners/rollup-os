@@ -3,8 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { EditFirmDialog } from "./edit-firm-dialog";
 
 const mockUpdateBrokerFirm = vi.fn().mockResolvedValue(undefined);
@@ -32,10 +31,9 @@ describe("EditFirmDialog", () => {
   });
 
   it("pre-fills form with existing firm data", async () => {
-    const user = userEvent.setup();
     render(<EditFirmDialog firm={firm} portcoSlug="test-portco" />);
 
-    await user.click(screen.getByRole("button", { name: /edit/i }));
+    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
     expect(screen.getByLabelText("Firm Name *")).toHaveValue("TRANBI");
     expect(screen.getByLabelText("Website")).toHaveValue("https://tranbi.com");
@@ -44,14 +42,12 @@ describe("EditFirmDialog", () => {
   });
 
   it("submits updated values", async () => {
-    const user = userEvent.setup();
     render(<EditFirmDialog firm={firm} portcoSlug="test-portco" />);
 
-    await user.click(screen.getByRole("button", { name: /edit/i }));
+    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
     const nameInput = screen.getByLabelText("Firm Name *");
-    await user.clear(nameInput);
-    await user.type(nameInput, "Updated Firm");
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    fireEvent.change(nameInput, { target: { value: "Updated Firm" } });
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => {
       expect(mockUpdateBrokerFirm).toHaveBeenCalledWith("firm-1", "test-portco", {
@@ -64,22 +60,20 @@ describe("EditFirmDialog", () => {
   });
 
   it("disables submit when name is cleared", async () => {
-    const user = userEvent.setup();
     render(<EditFirmDialog firm={firm} portcoSlug="test-portco" />);
 
-    await user.click(screen.getByRole("button", { name: /edit/i }));
+    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
     const nameInput = screen.getByLabelText("Firm Name *");
-    await user.clear(nameInput);
+    fireEvent.change(nameInput, { target: { value: "" } });
 
     expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
   });
 
   it("handles null optional fields", async () => {
-    const user = userEvent.setup();
     const nullFirm = { id: "firm-2", name: "Simple Firm", website: null, region: null, specialty: null };
     render(<EditFirmDialog firm={nullFirm} portcoSlug="test-portco" />);
 
-    await user.click(screen.getByRole("button", { name: /edit/i }));
+    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
 
     expect(screen.getByLabelText("Firm Name *")).toHaveValue("Simple Firm");
     expect(screen.getByLabelText("Website")).toHaveValue("");

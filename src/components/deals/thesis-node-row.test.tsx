@@ -3,8 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ThesisNodeRow } from "./thesis-node-row";
 import type { ThesisNode } from "./thesis-tree";
 
@@ -75,12 +74,11 @@ describe("ThesisNodeRow", () => {
   });
 
   it("enters edit mode when leaf node is clicked", async () => {
-    const user = userEvent.setup();
     render(
       <ThesisNodeRow node={buildNode()} depth={0} portcoSlug="test" dealId="deal-1" />
     );
 
-    await user.click(screen.getByText("Revenue Growth"));
+    fireEvent.click(screen.getByText("Revenue Growth"));
 
     expect(screen.getByPlaceholderText("Data point or finding...")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Additional notes...")).toBeInTheDocument();
@@ -89,16 +87,14 @@ describe("ThesisNodeRow", () => {
   });
 
   it("calls updateThesisNode on save", async () => {
-    const user = userEvent.setup();
     render(
       <ThesisNodeRow node={buildNode()} depth={0} portcoSlug="test" dealId="deal-1" />
     );
 
-    await user.click(screen.getByText("Revenue Growth"));
+    fireEvent.click(screen.getByText("Revenue Growth"));
     const valueInput = screen.getByPlaceholderText("Data point or finding...");
-    await user.clear(valueInput);
-    await user.type(valueInput, "20% YoY");
-    await user.click(screen.getByText("Save"));
+    fireEvent.change(valueInput, { target: { value: "20% YoY" } });
+    fireEvent.click(screen.getByText("Save"));
 
     await waitFor(() => {
       expect(mockUpdateThesisNode).toHaveBeenCalledWith("node-1", "test", "deal-1", {
@@ -111,13 +107,12 @@ describe("ThesisNodeRow", () => {
   });
 
   it("cancels edit without saving", async () => {
-    const user = userEvent.setup();
     render(
       <ThesisNodeRow node={buildNode()} depth={0} portcoSlug="test" dealId="deal-1" />
     );
 
-    await user.click(screen.getByText("Revenue Growth"));
-    await user.click(screen.getByText("Cancel"));
+    fireEvent.click(screen.getByText("Revenue Growth"));
+    fireEvent.click(screen.getByText("Cancel"));
 
     expect(mockUpdateThesisNode).not.toHaveBeenCalled();
     expect(screen.queryByPlaceholderText("Data point or finding...")).not.toBeInTheDocument();
@@ -141,7 +136,6 @@ describe("ThesisNodeRow", () => {
   });
 
   it("toggles expand/collapse on parent node click", async () => {
-    const user = userEvent.setup();
     const child = buildNode({ id: "c1", label: "Sub Item" });
     const parent = buildNode({ id: "parent", label: "Parent", children: [child], value: null });
 
@@ -153,11 +147,11 @@ describe("ThesisNodeRow", () => {
     expect(screen.getByText("Sub Item")).toBeInTheDocument();
 
     // Collapse
-    await user.click(screen.getByText("Parent"));
+    fireEvent.click(screen.getByText("Parent"));
     expect(screen.queryByText("Sub Item")).not.toBeInTheDocument();
 
     // Expand again
-    await user.click(screen.getByText("Parent"));
+    fireEvent.click(screen.getByText("Parent"));
     expect(screen.getByText("Sub Item")).toBeInTheDocument();
   });
 

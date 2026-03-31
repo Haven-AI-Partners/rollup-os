@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CreateBrokerFirmDialog } from "./create-firm-dialog";
 
@@ -24,32 +24,29 @@ describe("CreateBrokerFirmDialog", () => {
   });
 
   it("opens dialog on button click", async () => {
-    const user = userEvent.setup();
     render(<CreateBrokerFirmDialog portcoSlug="test-portco" />);
 
-    await user.click(screen.getByRole("button", { name: /add broker firm/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add broker firm/i }));
 
     expect(screen.getByRole("heading", { name: "Add Broker Firm" })).toBeInTheDocument();
     expect(screen.getByLabelText("Firm Name *")).toBeInTheDocument();
   });
 
   it("submit button is disabled when name is empty", async () => {
-    const user = userEvent.setup();
     render(<CreateBrokerFirmDialog portcoSlug="test-portco" />);
 
-    await user.click(screen.getByRole("button", { name: /add broker firm/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add broker firm/i }));
 
     expect(screen.getByRole("button", { name: /create firm/i })).toBeDisabled();
   });
 
   it("submits with trimmed values and closes dialog", async () => {
-    const user = userEvent.setup();
     render(<CreateBrokerFirmDialog portcoSlug="test-portco" />);
 
-    await user.click(screen.getByRole("button", { name: /add broker firm/i }));
-    await user.type(screen.getByLabelText("Firm Name *"), " TRANBI ");
-    await user.type(screen.getByLabelText("Website"), "https://tranbi.com");
-    await user.click(screen.getByRole("button", { name: /create firm/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add broker firm/i }));
+    fireEvent.change(screen.getByLabelText("Firm Name *"), { target: { value: " TRANBI " } });
+    fireEvent.change(screen.getByLabelText("Website"), { target: { value: "https://tranbi.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /create firm/i }));
 
     await waitFor(() => {
       expect(mockCreateBrokerFirm).toHaveBeenCalledWith("test-portco", {
@@ -67,12 +64,11 @@ describe("CreateBrokerFirmDialog", () => {
       () => new Promise<void>((resolve) => { resolveSubmit = resolve; })
     );
 
-    const user = userEvent.setup();
     render(<CreateBrokerFirmDialog portcoSlug="test-portco" />);
 
-    await user.click(screen.getByRole("button", { name: /add broker firm/i }));
-    await user.type(screen.getByLabelText("Firm Name *"), "Test Firm");
-    await user.click(screen.getByRole("button", { name: /create firm/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add broker firm/i }));
+    fireEvent.change(screen.getByLabelText("Firm Name *"), { target: { value: "Test Firm" } });
+    fireEvent.click(screen.getByRole("button", { name: /create firm/i }));
 
     expect(screen.getByRole("button", { name: /creating/i })).toBeDisabled();
 
