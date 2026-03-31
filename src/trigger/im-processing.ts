@@ -217,7 +217,7 @@ export const scheduledGdriveScanTask = schedules.task({
   queue: schedulingQueue,
   machine: "micro", // Only triggers child tasks — no heavy compute needed
   cron: {
-    pattern: "*/15 * * * *",
+    pattern: "0 9 * * *",
     timezone: "Asia/Tokyo",
   },
   maxDuration: 120, // Only needs to trigger child tasks, not do the scanning
@@ -249,7 +249,7 @@ export const scheduledGdriveScanTask = schedules.task({
           portcoId: portco.id,
         }, {
           idempotencyKey: `scan-${portco.id}`,
-          idempotencyKeyTTL: "14m", // Slightly less than 15-min cron interval
+          idempotencyKeyTTL: "23h", // Slightly less than 24-hour cron interval
         });
         triggered.push({ portcoId: portco.id, name: portco.name });
         logger.info(`Triggered scan for ${portco.name}`);
