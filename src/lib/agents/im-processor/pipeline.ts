@@ -1,4 +1,5 @@
 import { extractContent, MODEL_ID as EXTRACTOR_MODEL } from "@/lib/agents/content-extractor";
+import { type ContentExtractionResult } from "@/lib/agents/content-extractor/schema";
 import { translateContent, skipTranslation, MODEL_ID as TRANSLATOR_MODEL } from "@/lib/agents/translator";
 import { analyzeContent, MODEL_ID as ANALYZER_MODEL } from "./agents/analyzer";
 import { enrichExternally, MODEL_ID as ENRICHER_MODEL, type EnrichmentInput } from "@/lib/agents/external-enricher";
@@ -28,14 +29,23 @@ export async function runIMPipeline(
   const contentExtraction = await extractContent(pdfBuffer);
 
   // Agent 2: Translation
-  if (contentExtraction.metadata.documentLanguage === "en") {
+  // Use both the detected language AND a content check to decide whether to translate.
+  // The language detector can misclassify bilingual Japanese IMs (with English headings/charts)
+  // as "en", which would skip translation and pass Japanese text to the analyzer.
+  const needsTranslation = contentExtraction.metadata.documentLanguage !== "en"
+    || containsCJK(contentExtraction);
+
+  if (!needsTranslation) {
     progress("Document is in English — skipping translation...");
   } else {
-    progress(`Translating from ${contentExtraction.metadata.documentLanguage} to English...`);
+    const lang = contentExtraction.metadata.documentLanguage;
+    progress(lang === "en"
+      ? "Document detected as English but contains CJK text — translating..."
+      : `Translating from ${lang} to English...`);
   }
-  const translation = contentExtraction.metadata.documentLanguage === "en"
-    ? skipTranslation(contentExtraction)
-    : await translateContent(contentExtraction);
+  const translation = needsTranslation
+    ? await translateContent(contentExtraction)
+    : skipTranslation(contentExtraction);
 
   // Agent 3: Analysis (extraction + scoring with consensus)
   progress("Analyzing and scoring IM content...");
@@ -97,4 +107,19 @@ function buildLegacyAnalysis(
 /** Extract source attributions map from pipeline result */
 export function extractSourceAttributions(result: IMPipelineResult) {
   return collectSourceRefs(result.analyzerExtraction);
+}
+
+// CJK Unified Ideographs, Hiragana, Katakana, CJK Extension A, Hangul
+const CJK_REGEX = /[\u3000-\u9fff\uac00-\ud7af\uf900-\ufaff]/;
+const CJK_THRESHOLD = 0.05;
+
+/** Check if extracted content contains significant CJK text */
+function containsCJK(extraction: ContentExtractionResult): boolean {
+  const sample = extraction.pages
+    .slice(0, 5)
+    .map((p) => p.content)
+    .join("");
+  if (!sample) return false;
+  const cjkChars = (sample.match(new RegExp(CJK_REGEX.source, "g")) ?? []).length;
+  return cjkChars / sample.length > CJK_THRESHOLD;
 }

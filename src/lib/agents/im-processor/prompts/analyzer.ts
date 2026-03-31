@@ -28,7 +28,6 @@ Your task is ONLY to extract facts and tag each piece of data with its source pa
 4. Raw observations: for each topic area, extract ALL relevant facts, numbers, and direct quotes from the IM
 
 ## Important Guidelines
-- **All output text must be written in English.** Even if the source IM is in Japanese or another language, write all summaries, descriptions, observations, strengths, risks, and other free-text fields in English. The only exception is company and person names, which should be kept in their original form.
 - All monetary amounts should be plain numbers in the original currency. Set the currency field to the ISO code.
 - Keep company names in their original form (do not translate).
 - **Management team**: Include ALL named individuals. Infer reporting relationships from context.
@@ -84,8 +83,6 @@ When the extraction does NOT provide enough information to evaluate a dimension:
 ## Red Flag Definitions (use exact IDs)
 
 {{RED_FLAGS}}
-
-**IMPORTANT: All output text (rationale, evidence, notes) must be written in English.**
 
 Score the company based on the extraction data provided. Ground every score and flag in specific evidence from the extraction.`;
 
