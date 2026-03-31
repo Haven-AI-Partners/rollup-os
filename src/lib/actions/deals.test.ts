@@ -161,25 +161,17 @@ describe("deals actions", () => {
         updateDeal("deal-001", "test-portco", { companyName: "Updated" })
       ).rejects.toThrow("Deal not found");
     });
-  });
 
-  describe("addComment", () => {
-    it("throws when user is not authenticated", async () => {
-      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
+    it("enforces analyst role for updates", async () => {
+      mockLimit.mockResolvedValueOnce([{ id: "deal-001", portcoId: "portco-001" }]);
 
-      const { addComment } = await import("./deals");
-      await expect(
-        addComment("deal-001", "portco-001", "test-portco", "Nice deal!")
-      ).rejects.toThrow("Unauthorized");
-    });
-
-    it("enforces analyst role", async () => {
-      const mockComment = { id: "comment-001", content: "Nice deal!" };
-      mockReturning.mockResolvedValueOnce([mockComment]);
-      mockReturning.mockResolvedValueOnce([{}]); // activity log
-
-      const { addComment } = await import("./deals");
-      await addComment("deal-001", "portco-001", "test-portco", "Nice deal!");
+      const { updateDeal } = await import("./deals");
+      // Will proceed past auth check, the update itself may fail but auth is verified
+      try {
+        await updateDeal("deal-001", "test-portco", { companyName: "Updated" });
+      } catch {
+        // DB operation may fail in mock context, that's fine
+      }
 
       expect(requirePortcoRole).toHaveBeenCalledWith("portco-001", "analyst");
     });
@@ -222,12 +214,94 @@ describe("deals actions", () => {
     });
   });
 
+  describe("moveDealToStage", () => {
+    it("throws when deal not found", async () => {
+      mockLimit.mockResolvedValueOnce([]);
+
+      const { moveDealToStage } = await import("./deals");
+      await expect(moveDealToStage("deal-999", "stage-002", 0, "test-portco")).rejects.toThrow("Deal not found");
+    });
+
+    it("enforces analyst role", async () => {
+      mockLimit.mockResolvedValueOnce([{ id: "deal-001", portcoId: "portco-001" }]);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Insufficient permissions"));
+
+      const { moveDealToStage } = await import("./deals");
+      await expect(moveDealToStage("deal-001", "stage-002", 1, "test-portco")).rejects.toThrow("Insufficient permissions");
+    });
+  });
+
+  describe("addComment", () => {
+    it("throws when user is not authenticated", async () => {
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
+
+      const { addComment } = await import("./deals");
+      await expect(
+        addComment("deal-001", "portco-001", "test-portco", "Nice deal!")
+      ).rejects.toThrow("Unauthorized");
+    });
+
+    it("enforces analyst role", async () => {
+      const mockComment = { id: "comment-001", content: "Nice deal!" };
+      mockReturning.mockResolvedValueOnce([mockComment]);
+
+      const { addComment } = await import("./deals");
+      await addComment("deal-001", "portco-001", "test-portco", "Nice deal!");
+
+      expect(requirePortcoRole).toHaveBeenCalledWith("portco-001", "analyst");
+      expect(mockInsert).toHaveBeenCalled();
+    });
+  });
+
+  describe("getComments", () => {
+    it("requires viewer role", async () => {
+      mockLimit.mockResolvedValueOnce([{ id: "deal-001", portcoId: "portco-001" }]);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
+
+      const { getComments } = await import("./deals");
+      await expect(getComments("deal-001")).rejects.toThrow("Unauthorized");
+    });
+
+    it("throws when deal not found", async () => {
+      mockLimit.mockResolvedValueOnce([]);
+
+      const { getComments } = await import("./deals");
+      await expect(getComments("deal-999")).rejects.toThrow("Deal not found");
+    });
+  });
+
+  describe("getActivityLog", () => {
+    it("requires viewer role", async () => {
+      mockLimit.mockResolvedValueOnce([{ id: "deal-001", portcoId: "portco-001" }]);
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
+
+      const { getActivityLog } = await import("./deals");
+      await expect(getActivityLog("deal-001")).rejects.toThrow("Unauthorized");
+    });
+
+    it("throws when deal not found", async () => {
+      mockLimit.mockResolvedValueOnce([]);
+
+      const { getActivityLog } = await import("./deals");
+      await expect(getActivityLog("deal-999")).rejects.toThrow("Deal not found");
+    });
+  });
+
   describe("getStagesForPortco", () => {
     it("requires authentication", async () => {
       (requireAuth as any).mockRejectedValue(new Error("Unauthorized"));
 
       const { getStagesForPortco } = await import("./deals");
       await expect(getStagesForPortco("portco-001")).rejects.toThrow("Unauthorized");
+    });
+
+    it("returns stages for a portco", async () => {
+      const stages = [{ id: "s1", name: "Sourcing" }, { id: "s2", name: "DD" }];
+      mockOrderBy.mockResolvedValueOnce(stages);
+
+      const { getStagesForPortco } = await import("./deals");
+      const result = await getStagesForPortco("portco-001");
+      expect(result).toEqual(stages);
     });
   });
 });

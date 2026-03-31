@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockUser, mockSelect, mockInsert, mockUpdate, mockDelete, mockFrom, mockWhere, mockValues, mockReturning, mockOrderBy, mockGroupBy, mockInnerJoin } = vi.hoisted(() => ({
+const { mockUser, mockSelect, mockInsert, mockUpdate, mockDelete, mockFrom, mockWhere, mockValues, mockReturning, mockOrderBy, mockGroupBy, mockInnerJoin, mockSet, mockLimit } = vi.hoisted(() => ({
   mockUser: { id: "user-001", clerkId: "clerk-001", email: "test@example.com", fullName: "Test User" },
   mockSelect: vi.fn(),
   mockInsert: vi.fn(),
@@ -13,6 +13,8 @@ const { mockUser, mockSelect, mockInsert, mockUpdate, mockDelete, mockFrom, mock
   mockOrderBy: vi.fn(),
   mockGroupBy: vi.fn(),
   mockInnerJoin: vi.fn(),
+  mockSet: vi.fn(),
+  mockLimit: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -34,8 +36,10 @@ vi.mock("@/lib/db", () => {
     orderBy: mockOrderBy,
     groupBy: mockGroupBy,
     innerJoin: mockInnerJoin,
+    set: mockSet,
+    limit: mockLimit,
   });
-  for (const fn of [mockSelect, mockInsert, mockUpdate, mockDelete, mockFrom, mockWhere, mockValues, mockReturning, mockOrderBy, mockGroupBy, mockInnerJoin]) {
+  for (const fn of [mockSelect, mockInsert, mockUpdate, mockDelete, mockFrom, mockWhere, mockValues, mockReturning, mockOrderBy, mockGroupBy, mockInnerJoin, mockSet, mockLimit]) {
     fn.mockReturnValue(chain());
   }
   return { db: chain() };
@@ -174,6 +178,123 @@ describe("broker actions", () => {
       await expect(
         deleteBrokerContact("contact-001", "test-portco", "firm-001")
       ).rejects.toThrow("Unauthorized");
+    });
+  });
+
+  describe("getBrokerFirm", () => {
+    it("returns firm when found", async () => {
+      const firm = { id: "firm-001", name: "Test Firm" };
+      mockLimit.mockResolvedValueOnce([firm]);
+
+      const { getBrokerFirm } = await import("./brokers");
+      const result = await getBrokerFirm("firm-001");
+      expect(result).toEqual(firm);
+    });
+
+    it("returns null when firm not found", async () => {
+      mockLimit.mockResolvedValueOnce([]);
+
+      const { getBrokerFirm } = await import("./brokers");
+      const result = await getBrokerFirm("firm-999");
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("getContactsForFirm", () => {
+    it("returns contacts for a firm", async () => {
+      const contacts = [{ id: "c1", fullName: "John" }];
+      mockOrderBy.mockResolvedValueOnce(contacts);
+
+      const { getContactsForFirm } = await import("./brokers");
+      const result = await getContactsForFirm("firm-001");
+      expect(result).toEqual(contacts);
+    });
+  });
+
+  describe("updateBrokerFirm", () => {
+    it("throws when user is not authorized", async () => {
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
+
+      const { updateBrokerFirm } = await import("./brokers");
+      await expect(
+        updateBrokerFirm("firm-001", "test-portco", { name: "Updated" })
+      ).rejects.toThrow("Unauthorized");
+    });
+
+    it("updates a firm successfully", async () => {
+      const updated = { id: "firm-001", name: "Updated Firm" };
+      mockReturning.mockResolvedValueOnce([updated]);
+
+      const { updateBrokerFirm } = await import("./brokers");
+      const result = await updateBrokerFirm("firm-001", "test-portco", { name: "Updated Firm" });
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(result).toEqual(updated);
+    });
+  });
+
+  describe("createBrokerContact", () => {
+    it("throws when user is not authorized", async () => {
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
+
+      const { createBrokerContact } = await import("./brokers");
+      await expect(
+        createBrokerContact("firm-001", "test-portco", { fullName: "John" })
+      ).rejects.toThrow("Unauthorized");
+    });
+
+    it("creates a contact successfully", async () => {
+      const contact = { id: "c1", fullName: "John Doe" };
+      mockReturning.mockResolvedValueOnce([contact]);
+
+      const { createBrokerContact } = await import("./brokers");
+      const result = await createBrokerContact("firm-001", "test-portco", { fullName: "John Doe" });
+
+      expect(mockInsert).toHaveBeenCalled();
+      expect(result).toEqual(contact);
+    });
+  });
+
+  describe("updateBrokerContact", () => {
+    it("updates a contact successfully", async () => {
+      const updated = { id: "c1", fullName: "Jane Doe" };
+      mockReturning.mockResolvedValueOnce([updated]);
+
+      const { updateBrokerContact } = await import("./brokers");
+      const result = await updateBrokerContact("c1", "test-portco", "firm-001", { fullName: "Jane Doe" });
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(result).toEqual(updated);
+    });
+  });
+
+  describe("deleteBrokerContact", () => {
+    it("throws when user is not authorized", async () => {
+      (requirePortcoRole as any).mockRejectedValue(new Error("Unauthorized"));
+
+      const { deleteBrokerContact } = await import("./brokers");
+      await expect(
+        deleteBrokerContact("contact-001", "test-portco", "firm-001")
+      ).rejects.toThrow("Unauthorized");
+    });
+
+    it("deletes interactions then contact", async () => {
+      const { deleteBrokerContact } = await import("./brokers");
+      await deleteBrokerContact("contact-001", "test-portco", "firm-001");
+
+      expect(requirePortcoRole).toHaveBeenCalledWith("portco-001", "admin");
+      expect(mockDelete).toHaveBeenCalled();
+    });
+  });
+
+  describe("getInteractionsForFirm", () => {
+    it("returns interactions for a firm", async () => {
+      const interactions = [{ id: "i1", type: "call", contactName: "John" }];
+      mockOrderBy.mockResolvedValueOnce(interactions);
+
+      const { getInteractionsForFirm } = await import("./brokers");
+      const result = await getInteractionsForFirm("firm-001");
+      expect(result).toEqual(interactions);
     });
   });
 

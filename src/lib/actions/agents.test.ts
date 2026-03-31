@@ -64,7 +64,15 @@ vi.mock("drizzle-orm", () => ({
 }));
 
 import { requireAuth } from "@/lib/auth";
-import { getFileClassifierStats, getRecentClassifiedFiles } from "./agents";
+import {
+  getFileClassifierStats,
+  getRecentClassifiedFiles,
+  getAgentStats,
+  getRecentProcessedFiles,
+  getProcessedFilesForEval,
+  getRecentEvalRuns,
+  getAllPromptVersions,
+} from "./agents";
 
 describe("agents actions", () => {
   beforeEach(() => {
@@ -148,6 +156,104 @@ describe("agents actions", () => {
       expect(result).toHaveLength(1);
       expect(result[0].fileName).toBe("test.pdf");
       expect(result[0].fileType).toBe("im_pdf");
+    });
+  });
+
+  describe("getAgentStats", () => {
+    it("requires authentication", async () => {
+      (requireAuth as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Unauthorized"));
+      await expect(getAgentStats("portco-001")).rejects.toThrow("Unauthorized");
+    });
+
+    it("returns aggregated stats", async () => {
+      dbResolvedValues = [
+        [{ status: "completed", count: 5 }, { status: "failed", count: 2 }, { status: "processing", count: 1 }],
+        [{ avgScore: "78.5" }],
+      ];
+
+      const result = await getAgentStats("portco-001");
+
+      expect(result.completed).toBe(5);
+      expect(result.failed).toBe(2);
+      expect(result.inProgress).toBe(1);
+      expect(result.total).toBe(8);
+      expect(result.avgScore).toBe(78.5);
+    });
+
+    it("returns null avgScore when no scores", async () => {
+      dbResolvedValues = [
+        [],
+        [{ avgScore: null }],
+      ];
+
+      const result = await getAgentStats("portco-001");
+      expect(result.avgScore).toBeNull();
+      expect(result.total).toBe(0);
+    });
+  });
+
+  describe("getRecentProcessedFiles", () => {
+    it("requires authentication", async () => {
+      (requireAuth as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Unauthorized"));
+      await expect(getRecentProcessedFiles("portco-001")).rejects.toThrow("Unauthorized");
+    });
+
+    it("returns recent processed files", async () => {
+      const mockFiles = [
+        { fileId: "f1", fileName: "test.pdf", status: "completed", companyName: "Test Corp" },
+      ];
+      dbResolvedValues = [mockFiles];
+
+      const result = await getRecentProcessedFiles("portco-001");
+      expect(result).toHaveLength(1);
+      expect(result[0].fileName).toBe("test.pdf");
+    });
+  });
+
+  describe("getProcessedFilesForEval", () => {
+    it("requires authentication", async () => {
+      (requireAuth as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Unauthorized"));
+      await expect(getProcessedFilesForEval("portco-001")).rejects.toThrow("Unauthorized");
+    });
+
+    it("returns completed files", async () => {
+      dbResolvedValues = [[{ id: "f1", fileName: "test.pdf", dealId: "d1", companyName: "Corp" }]];
+      const result = await getProcessedFilesForEval("portco-001");
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe("getRecentEvalRuns", () => {
+    it("requires authentication", async () => {
+      (requireAuth as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Unauthorized"));
+      await expect(getRecentEvalRuns()).rejects.toThrow("Unauthorized");
+    });
+
+    it("returns eval runs", async () => {
+      const runs = [{ id: "run-1", status: "completed", iterations: 3 }];
+      dbResolvedValues = [runs];
+      const result = await getRecentEvalRuns();
+      expect(result).toHaveLength(1);
+      expect(result[0].status).toBe("completed");
+    });
+  });
+
+  describe("getAllPromptVersions", () => {
+    it("requires authentication", async () => {
+      (requireAuth as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Unauthorized"));
+      await expect(getAllPromptVersions()).rejects.toThrow("Unauthorized");
+    });
+
+    it("returns versions for all slugs", async () => {
+      const v1 = [{ id: "v1", version: 1, isActive: true }];
+      const v2 = [{ id: "v2", version: 1, isActive: true }];
+      const v3 = [{ id: "v3", version: 1, isActive: false }];
+      dbResolvedValues = [v1, v2, v3];
+
+      const result = await getAllPromptVersions();
+      expect(result.extractionVersions).toEqual(v1);
+      expect(result.scoringVersions).toEqual(v2);
+      expect(result.legacyVersions).toEqual(v3);
     });
   });
 });
