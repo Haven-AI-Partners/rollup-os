@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockGenerateAuthUrl = vi.fn();
 const mockGetToken = vi.fn();
 const mockSetCredentials = vi.fn();
+const mockGetAccessToken = vi.fn().mockResolvedValue({ token: "access-token" });
 
 vi.mock("googleapis/build/src/apis/drive", () => ({
   drive: vi.fn(() => ({ files: {}, about: {} })),
@@ -11,6 +12,7 @@ vi.mock("googleapis/build/src/apis/drive", () => ({
       generateAuthUrl = mockGenerateAuthUrl;
       getToken = mockGetToken;
       setCredentials = mockSetCredentials;
+      getAccessToken = mockGetAccessToken;
     },
   },
 }));
@@ -63,6 +65,12 @@ vi.mock("./crypto", () => ({
 
 vi.mock("./rate-limit", () => ({
   withRateLimit: vi.fn((fn: () => unknown) => fn()),
+  isAuthError: vi.fn((error: unknown) => {
+    if (!(error && typeof error === "object")) return false;
+    const message = (error as { message?: string }).message?.toLowerCase() ?? "";
+    return ["invalid_request", "invalid_grant", "invalid_client", "invalid_token"]
+      .some((msg) => message.includes(msg));
+  }),
 }));
 
 describe("gdrive client", () => {
@@ -120,6 +128,58 @@ describe("gdrive client", () => {
       expect(mockSetCredentials).toHaveBeenCalledWith({
         refresh_token: "decrypted-refresh-token",
       });
+    });
+
+    it("works without GOOGLE_REDIRECT_URI (not needed for refresh)", async () => {
+      delete process.env.GOOGLE_REDIRECT_URI;
+      mockLimit.mockResolvedValue([
+        { gdriveTokenEnc: "enc-token-123", gdriveFolderId: "folder-abc" },
+      ]);
+      mockDecrypt.mockReturnValue("decrypted-refresh-token");
+
+      const { getDriveClient } = await import("./client");
+      const result = await getDriveClient("portco-001");
+      expect(result).not.toBeNull();
+      expect(result).toHaveProperty("drive");
+    });
+
+    it("throws GDriveAuthError when token refresh fails", async () => {
+      mockLimit.mockResolvedValue([
+        { gdriveTokenEnc: "enc-token-123", gdriveFolderId: "folder-abc" },
+      ]);
+      mockDecrypt.mockReturnValue("decrypted-refresh-token");
+      mockGetAccessToken.mockRejectedValueOnce(new Error("invalid_grant"));
+
+      const { getDriveClient } = await import("./client");
+      await expect(getDriveClient("portco-001")).rejects.toThrow(
+        /OAuth token refresh failed for portco=portco-001/,
+      );
+    });
+
+    it("throws when GOOGLE_CLIENT_ID is missing", async () => {
+      delete process.env.GOOGLE_CLIENT_ID;
+      mockLimit.mockResolvedValue([
+        { gdriveTokenEnc: "enc-token-123", gdriveFolderId: "folder-abc" },
+      ]);
+      mockDecrypt.mockReturnValue("decrypted-refresh-token");
+
+      const { getDriveClient } = await import("./client");
+      await expect(getDriveClient("portco-001")).rejects.toThrow(
+        "Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET",
+      );
+    });
+
+    it("throws when GOOGLE_CLIENT_SECRET is missing", async () => {
+      delete process.env.GOOGLE_CLIENT_SECRET;
+      mockLimit.mockResolvedValue([
+        { gdriveTokenEnc: "enc-token-123", gdriveFolderId: "folder-abc" },
+      ]);
+      mockDecrypt.mockReturnValue("decrypted-refresh-token");
+
+      const { getDriveClient } = await import("./client");
+      await expect(getDriveClient("portco-001")).rejects.toThrow(
+        "Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET",
+      );
     });
   });
 });

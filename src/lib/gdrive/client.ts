@@ -3,14 +3,31 @@ import { db } from "@/lib/db";
 import { portcos } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { decrypt } from "./crypto";
-import { withRateLimit } from "./rate-limit";
+import { isAuthError, withRateLimit } from "./rate-limit";
+import { GDriveAuthError } from "./errors";
 
+/** OAuth client for the authorization flow (requires redirect URI). */
 function getOAuthClient() {
-  return new auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
-  );
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+  if (!clientId || !clientSecret) {
+    throw new Error("Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET environment variable");
+  }
+  if (!redirectUri) {
+    throw new Error("Missing GOOGLE_REDIRECT_URI environment variable");
+  }
+  return new auth.OAuth2(clientId, clientSecret, redirectUri);
+}
+
+/** OAuth client for token refresh only (redirect URI not needed). */
+function getOAuthClientForRefresh() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error("Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET environment variable");
+  }
+  return new auth.OAuth2(clientId, clientSecret);
 }
 
 /** Generate the OAuth authorization URL for a portco */
@@ -63,8 +80,22 @@ export async function getDriveClient(portcoId: string) {
   }
 
   const refreshToken = decrypt(portco.gdriveTokenEnc);
-  const client = getOAuthClient();
+  const client = getOAuthClientForRefresh();
   client.setCredentials({ refresh_token: refreshToken });
+
+  // Pre-flight check: verify the token is still valid before returning
+  try {
+    await client.getAccessToken();
+  } catch (error) {
+    if (isAuthError(error)) {
+      throw new GDriveAuthError(
+        `OAuth token refresh failed for portco=${portcoId}: ${error instanceof Error ? error.message : "unknown"}`,
+        error,
+        portcoId,
+      );
+    }
+    throw error;
+  }
 
   const driveClient = drive({ version: "v3", auth: client });
   return { drive: driveClient, folderId: portco.gdriveFolderId };
