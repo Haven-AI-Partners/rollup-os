@@ -2,7 +2,7 @@ import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { classificationSchema, type ClassificationResult } from "./schema";
 import { downloadFile } from "@/lib/gdrive/client";
-import { renderPdfPagesToImages } from "./pdf-renderer";
+import { renderPdfPagesToImages } from "@/lib/agents/shared/pdf-renderer";
 import { MODEL_ID } from "./constants";
 
 const MAX_PAGES = 3;

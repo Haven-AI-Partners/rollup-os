@@ -20,3 +20,12 @@ export const contentExtractionResultSchema = z.object({
 });
 
 export type ContentExtractionResult = z.infer<typeof contentExtractionResultSchema>;
+
+// ── Batch schema (pages only, no metadata — used for subsequent batches) ──
+
+export const contentExtractionBatchSchema = z.object({
+  pages: z.array(extractedPageSchema)
+    .describe("Pages from this batch of the PDF, in order. Each page's content is a faithful markdown transcription."),
+});
+
+export type ContentExtractionBatchResult = z.infer<typeof contentExtractionBatchSchema>;

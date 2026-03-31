@@ -17,7 +17,7 @@ vi.mock("@/lib/gdrive/client", () => ({
   downloadFile: mockDownloadFile,
 }));
 
-vi.mock("./pdf-renderer", () => ({
+vi.mock("@/lib/agents/shared/pdf-renderer", () => ({
   renderPdfPagesToImages: mockRenderPdfPages,
 }));
 
