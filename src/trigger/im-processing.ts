@@ -1,4 +1,4 @@
-import { task, logger, metadata, schedules, tasks } from "@trigger.dev/sdk";
+import { task, logger, metadata, schedules, tasks, queue } from "@trigger.dev/sdk";
 import { processIM, reprocessAllFiles, processSingleGdriveFile, MODEL_ID } from "@/lib/agents/im-processor";
 import { runEval } from "@/lib/agents/im-processor/eval";
 import { scanClassifyAndProcessIncremental } from "@/lib/agents/scan-orchestrator";
@@ -10,9 +10,39 @@ import { and, isNotNull } from "drizzle-orm";
 import type { FileType } from "@/lib/db/schema/files";
 import { registerGdriveErrorLogger, unregisterGdriveErrorLogger } from "@/lib/gdrive/error-logger";
 
+// ---------------------------------------------------------------------------
+// Queue definitions – partition concurrency so task types don't starve each other.
+// Free tier allows 20 concurrent slots (burst to 40 across queues).
+// ---------------------------------------------------------------------------
+
+/** Lightweight fan-out only (scheduled scan trigger) */
+const schedulingQueue = queue({
+  name: "scheduling",
+  concurrencyLimit: 2,
+});
+
+/** GDrive folder scanning */
+const scanQueue = queue({
+  name: "gdrive-scanning",
+  concurrencyLimit: 3,
+});
+
+/** Core IM / GDrive file / DD / thesis processing */
+const processingQueue = queue({
+  name: "file-processing",
+  concurrencyLimit: 10,
+});
+
+/** Long-running bulk ops: reprocess-all, evals */
+const bulkQueue = queue({
+  name: "bulk-operations",
+  concurrencyLimit: 2,
+});
+
 /** Generate DD thesis tree for a deal (runs after IM processing) */
 export const generateThesisTreeTask = task({
   id: "generate-thesis-tree",
+  queue: processingQueue,
   maxDuration: 300, // 5 minutes
   retry: {
     maxAttempts: 2,
@@ -33,6 +63,7 @@ export const generateThesisTreeTask = task({
 /** Process a single IM file */
 export const processIMTask = task({
   id: "process-im",
+  queue: processingQueue,
   maxDuration: 600, // 10 minutes
   retry: {
     maxAttempts: 2,
@@ -65,6 +96,7 @@ const INCREMENTAL_SCAN_BUDGET_MS = 480_000;
 /** Scan GDrive folder incrementally and process new IMs */
 export const scanFolderTask = task({
   id: "scan-gdrive-folder",
+  queue: scanQueue,
   maxDuration: 600, // 10 minutes for batch
   retry: {
     maxAttempts: 1,
@@ -99,6 +131,7 @@ export const scanFolderTask = task({
 /** Process a single GDrive file: create deal, import, analyze */
 export const processGdriveFileTask = task({
   id: "process-gdrive-file",
+  queue: processingQueue,
   maxDuration: 600, // 10 minutes
   retry: {
     maxAttempts: 2,
@@ -154,6 +187,7 @@ export const processGdriveFileTask = task({
 /** Reprocess all previously completed IM files (e.g. after rubric/red flag changes) */
 export const reprocessAllTask = task({
   id: "reprocess-all-ims",
+  queue: bulkQueue,
   maxDuration: 900, // 15 minutes
   retry: {
     maxAttempts: 1,
@@ -180,6 +214,8 @@ export const reprocessAllTask = task({
  */
 export const scheduledGdriveScanTask = schedules.task({
   id: "scheduled-gdrive-scan",
+  queue: schedulingQueue,
+  machine: "micro", // Only triggers child tasks — no heavy compute needed
   cron: {
     pattern: "*/15 * * * *",
     timezone: "Asia/Tokyo",
@@ -211,6 +247,9 @@ export const scheduledGdriveScanTask = schedules.task({
       try {
         await tasks.trigger<typeof scanFolderTask>("scan-gdrive-folder", {
           portcoId: portco.id,
+        }, {
+          idempotencyKey: `scan-${portco.id}`,
+          idempotencyKeyTTL: "14m", // Slightly less than 15-min cron interval
         });
         triggered.push({ portcoId: portco.id, name: portco.name });
         logger.info(`Triggered scan for ${portco.name}`);
@@ -228,6 +267,7 @@ export const scheduledGdriveScanTask = schedules.task({
 /** Process a DD document and enrich thesis tree */
 export const processDDDocumentTask = task({
   id: "process-dd-document",
+  queue: processingQueue,
   maxDuration: 600,
   retry: {
     maxAttempts: 2,
@@ -265,6 +305,7 @@ export const processDDDocumentTask = task({
 /** Run consistency eval: process the same file N times and compare results */
 export const runEvalTask = task({
   id: "run-im-eval",
+  queue: bulkQueue,
   maxDuration: 1800, // 30 minutes (N iterations)
   retry: {
     maxAttempts: 1,
