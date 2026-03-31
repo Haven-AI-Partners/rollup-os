@@ -14,7 +14,7 @@ import { GoogleIcon } from "@/components/icons/google";
 import { useState, useEffect } from "react";
 
 export default function SignInPage() {
-  const { signIn } = useSignIn();
+  const { signIn, isLoaded } = useSignIn();
   const { isSignedIn } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -26,14 +26,16 @@ export default function SignInPage() {
   }, [isSignedIn, router]);
 
   const handleGoogleSignIn = async () => {
+    if (!isLoaded || !signIn) return;
     setIsLoading(true);
-    const { error } = await signIn.sso({
-      strategy: "oauth_google",
-      redirectUrl: "/",
-      redirectCallbackUrl: "/sso-callback",
-    });
-    if (error) {
-      console.error("Sign-in error:", error);
+    try {
+      await signIn.sso({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectCallbackUrl: "/",
+      });
+    } catch (err) {
+      console.error("Sign-in error:", err);
       setIsLoading(false);
     }
   };
@@ -52,7 +54,7 @@ export default function SignInPage() {
           size="lg"
           className="w-full h-12 text-base font-medium"
           onClick={handleGoogleSignIn}
-          disabled={isLoading}
+          disabled={!isLoaded || isLoading}
         >
           <GoogleIcon className="size-5" />
           {isLoading ? "Redirecting..." : "Continue with Google"}
