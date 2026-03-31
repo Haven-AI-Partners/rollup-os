@@ -62,6 +62,7 @@ async function extractFromPdf(pdfBuffer: Buffer): Promise<ContentExtractionResul
   try {
     const { object } = await generateObject({
       model: google(MODEL_ID),
+      mode: "json",
       schema: contentExtractionResultSchema,
       system: await buildContentExtractionPrompt(),
       messages: [
@@ -178,6 +179,7 @@ async function extractPageRange(
   try {
     const { object } = await generateObject({
       model: google(MODEL_ID),
+      mode: "json",
       schema,
       system: systemPrompt,
       messages: [
