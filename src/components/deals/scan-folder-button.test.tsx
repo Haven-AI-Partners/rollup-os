@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("@/components/ui/button", () => ({
   Button: (props: any) => <button {...props} />,
@@ -37,10 +37,12 @@ describe("ScanFolderButton", () => {
     expect(screen.getByText("Scan Folder & Process IMs")).toBeInTheDocument();
   });
 
-  it("handles click", () => {
+  it("handles click", async () => {
     mockScanGdriveFolder.mockResolvedValue({ runId: "run-1" });
     render(<ScanFolderButton portcoSlug="test-portco" />);
-    fireEvent.click(screen.getByText("Scan Folder & Process IMs"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Scan Folder & Process IMs"));
+    });
     expect(mockScanGdriveFolder).toHaveBeenCalledWith("test-portco");
   });
 });

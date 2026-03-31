@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -58,6 +59,9 @@ export function CreateBrokerFirmDialog({ portcoSlug }: CreateBrokerFirmDialogPro
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Broker Firm</DialogTitle>
+          <DialogDescription className="sr-only">
+            Fill in the details to add a new broker firm
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
