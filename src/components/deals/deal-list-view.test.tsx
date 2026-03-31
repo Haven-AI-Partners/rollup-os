@@ -3,8 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { DealListView } from "./deal-list-view";
 
 const mockPush = vi.fn();
@@ -76,10 +75,9 @@ describe("DealListView", () => {
   });
 
   it("filters deals by search query across fields", async () => {
-    const user = userEvent.setup();
     render(<DealListView deals={deals} stages={stages} portcoSlug="test" />);
 
-    await user.type(screen.getByPlaceholderText("Search deals..."), "Healthcare");
+    fireEvent.change(screen.getByPlaceholderText("Search deals..."), { target: { value: "Healthcare" } });
 
     expect(screen.getAllByText("Beta LLC").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("Acme Corp")).not.toBeInTheDocument();
@@ -87,20 +85,18 @@ describe("DealListView", () => {
   });
 
   it("filters by location in search", async () => {
-    const user = userEvent.setup();
     render(<DealListView deals={deals} stages={stages} portcoSlug="test" />);
 
-    await user.type(screen.getByPlaceholderText("Search deals..."), "Osaka");
+    fireEvent.change(screen.getByPlaceholderText("Search deals..."), { target: { value: "Osaka" } });
 
     expect(screen.getAllByText("Beta LLC").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("Acme Corp")).not.toBeInTheDocument();
   });
 
   it("shows empty state when no deals match filters", async () => {
-    const user = userEvent.setup();
     render(<DealListView deals={deals} stages={stages} portcoSlug="test" />);
 
-    await user.type(screen.getByPlaceholderText("Search deals..."), "nonexistent");
+    fireEvent.change(screen.getByPlaceholderText("Search deals..."), { target: { value: "nonexistent" } });
 
     expect(screen.getAllByText("No deals match your filters.").length).toBeGreaterThan(0);
   });
@@ -150,13 +146,12 @@ describe("DealListView", () => {
     expect(screen.queryByTestId("delete-Acme Corp")).not.toBeInTheDocument();
   });
 
-  it("navigates to deal on row click", async () => {
-    const user = userEvent.setup();
+  it("navigates to deal on row click", () => {
     render(<DealListView deals={[buildDeal()]} stages={stages} portcoSlug="my-portco" />);
 
     // Click the first instance (desktop table row)
     const dealElements = screen.getAllByText("Acme Corp");
-    await user.click(dealElements[0]);
+    fireEvent.click(dealElements[0]);
 
     expect(mockPush).toHaveBeenCalledWith("/my-portco/pipeline/deal-1/overview");
   });
