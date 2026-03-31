@@ -1,7 +1,6 @@
 "use client";
 
 import { useSignIn, useAuth, useClerk } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,25 +13,25 @@ import { GoogleIcon } from "@/components/icons/google";
 import { useState, useEffect, useRef } from "react";
 
 export default function SignInPage() {
-  const { signIn, isLoaded } = useSignIn();
-  const { isSignedIn, isLoaded: isAuthLoaded } = useAuth();
+  const { signIn, fetchStatus } = useSignIn();
+  const { isSignedIn } = useAuth();
   const { signOut } = useClerk();
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const signOutAttempted = useRef(false);
 
   // If Clerk thinks the user is signed in but they landed on /sign-in,
   // the server-side session is likely stale. Sign out to clear client state.
   useEffect(() => {
-    if (!isAuthLoaded) return;
     if (isSignedIn && !signOutAttempted.current) {
       signOutAttempted.current = true;
       signOut();
     }
-  }, [isSignedIn, isAuthLoaded, signOut]);
+  }, [isSignedIn, signOut]);
+
+  const isFetching = fetchStatus === "fetching";
 
   const handleGoogleSignIn = async () => {
-    if (!isLoaded || !signIn) return;
+    if (isFetching) return;
     setIsLoading(true);
     try {
       await signIn.sso({
@@ -60,7 +59,7 @@ export default function SignInPage() {
           size="lg"
           className="w-full h-12 text-base font-medium"
           onClick={handleGoogleSignIn}
-          disabled={!isLoaded || isLoading}
+          disabled={isFetching || isLoading}
         >
           <GoogleIcon className="size-5" />
           {isLoading ? "Redirecting..." : "Continue with Google"}
