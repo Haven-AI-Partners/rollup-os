@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -69,6 +70,9 @@ export function CreateDealDialog({ portcoId, portcoSlug, stages }: CreateDealDia
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Create New Deal</DialogTitle>
+          <DialogDescription className="sr-only">
+            Fill in the details to create a new deal
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

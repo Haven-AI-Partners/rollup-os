@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CreateDealDialog } from "./create-deal-dialog";
 
@@ -74,7 +74,7 @@ describe("CreateDealDialog", () => {
 
     expect(screen.getByRole("button", { name: /creating/i })).toBeDisabled();
 
-    resolveSubmit!();
+    await act(async () => { resolveSubmit!(); });
   });
 
   it("closes dialog on cancel", async () => {
