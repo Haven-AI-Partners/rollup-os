@@ -21,10 +21,20 @@ import { getPdfPageCount, renderPdfPagesToImages } from "@/lib/agents/shared/pdf
  */
 export const MODEL_ID = "gemini-2.5-flash";
 
-/** Maximum pages per extraction batch to stay within model output token limits */
-const BATCH_SIZE = 15;
+/**
+ * Maximum pages per extraction batch.
+ * Dense Japanese IMs can produce ~1000+ output tokens per page, and Gemini's
+ * output limit is 65 536 tokens. 5 pages keeps us well within budget even for
+ * the heaviest documents while still benefiting from batching.
+ */
+const BATCH_SIZE = 5;
 
-/** Maximum output tokens for generateObject calls (Gemini 2.5 Flash max) */
+/**
+ * Maximum output tokens for generateObject calls.
+ * Gemini 2.5 Flash supports up to 65 536 output tokens, but the default is
+ * much lower (~8 192). The original code had no maxTokens set, which was the
+ * primary cause of truncation — the model hit the default limit mid-response.
+ */
 const MAX_OUTPUT_TOKENS = 65536;
 
 export async function extractContent(pdfBuffer: Buffer): Promise<ContentExtractionResult> {
