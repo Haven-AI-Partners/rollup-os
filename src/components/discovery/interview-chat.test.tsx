@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { InterviewChat } from "./interview-chat";
 
 // Mock fetch globally to prevent actual API calls
@@ -43,19 +43,25 @@ describe("InterviewChat", () => {
     employeeName: "Tanaka",
   };
 
-  it("renders chat interface with header", () => {
-    render(<InterviewChat {...baseProps} />);
+  it("renders chat interface with header", async () => {
+    await act(async () => {
+      render(<InterviewChat {...baseProps} />);
+    });
     expect(screen.getByText(/Tanakaさん/)).toBeInTheDocument();
   });
 
-  it("renders message input", () => {
-    render(<InterviewChat {...baseProps} />);
+  it("renders message input", async () => {
+    await act(async () => {
+      render(<InterviewChat {...baseProps} />);
+    });
     const input = screen.getByPlaceholderText("メッセージを入力...");
     expect(input).toBeInTheDocument();
   });
 
-  it("renders pause button", () => {
-    render(<InterviewChat {...baseProps} />);
+  it("renders pause button", async () => {
+    await act(async () => {
+      render(<InterviewChat {...baseProps} />);
+    });
     expect(screen.getByText("一時停止")).toBeInTheDocument();
   });
 });

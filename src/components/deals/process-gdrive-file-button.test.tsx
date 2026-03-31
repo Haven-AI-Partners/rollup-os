@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("@/components/ui/button", () => ({
   Button: (props: any) => <button {...props} />,
@@ -50,10 +50,12 @@ describe("ProcessGdriveFileButton", () => {
     expect(screen.getByText("Import & Reprocess")).toBeInTheDocument();
   });
 
-  it("handles click", () => {
+  it("handles click", async () => {
     mockProcessSingleFile.mockResolvedValue({ runId: "run-1" });
     render(<ProcessGdriveFileButton {...defaultProps} />);
-    fireEvent.click(screen.getByText("Import & Process"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Import & Process"));
+    });
     expect(mockProcessSingleFile).toHaveBeenCalled();
   });
 });

@@ -58,6 +58,7 @@ describe("GET /api/auth/gdrive/callback", () => {
   });
 
   it("redirects to error page on handleCallback failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     mockHandleCallback.mockRejectedValue(new Error("Token exchange failed"));
 
     const { GET } = await import("./route");

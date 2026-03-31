@@ -3,7 +3,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { CreateBrokerFirmDialog } from "./create-firm-dialog";
 
 const mockCreateBrokerFirm = vi.fn().mockResolvedValue(undefined);
@@ -71,6 +72,6 @@ describe("CreateBrokerFirmDialog", () => {
 
     expect(screen.getByRole("button", { name: /creating/i })).toBeDisabled();
 
-    resolveSubmit!();
+    await act(async () => { resolveSubmit!(); });
   });
 });
