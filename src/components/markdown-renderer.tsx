@@ -11,7 +11,45 @@ interface MarkdownRendererProps {
   wrapTables?: boolean;
 }
 
+/**
+ * Fix malformed markdown table alignment rows.
+ * When the header row has N columns but the alignment row has fewer separators,
+ * pad the alignment row to match. e.g.:
+ *   | A | B |   →  kept
+ *   |---|       →  |---|---|
+ *   | 1 | 2 |  →  kept
+ */
+function fixTableAlignmentRows(markdown: string): string {
+  const lines = markdown.split("\n");
+  const result: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Check if this line is an alignment row (contains only |, -, :, and spaces)
+    if (/^\|[\s:|-]+\|$/.test(trimmed) && i > 0) {
+      const headerLine = lines[i - 1].trim();
+      const headerCols = headerLine.split("|").filter(Boolean).length;
+      const alignCols = trimmed.split("|").filter(Boolean).length;
+
+      if (alignCols < headerCols) {
+        // Pad the alignment row to match header column count
+        const alignCells = Array(headerCols).fill("---");
+        result.push(`| ${alignCells.join(" | ")} |`);
+        continue;
+      }
+    }
+
+    result.push(line);
+  }
+
+  return result.join("\n");
+}
+
 export function MarkdownRenderer({ content, className, wrapTables }: MarkdownRendererProps) {
+  const fixedContent = fixTableAlignmentRows(content);
+
   return (
     <div className={cn(
       "prose prose-sm max-w-none dark:prose-invert",
@@ -29,7 +67,7 @@ export function MarkdownRenderer({ content, className, wrapTables }: MarkdownRen
           ),
         } : undefined}
       >
-        {content}
+        {fixedContent}
       </ReactMarkdown>
     </div>
   );
