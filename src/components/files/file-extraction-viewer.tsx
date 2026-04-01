@@ -90,16 +90,13 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
     const container = contentRef.current;
     if (!container) return;
 
-    const scrollEl = container.querySelector("[data-radix-scroll-area-viewport]");
-    if (!scrollEl) return;
-
     const handleScroll = () => {
       const pages = contentExtraction.pages;
       for (let i = pages.length - 1; i >= 0; i--) {
         const el = document.getElementById(`page-${pages[i].pageNumber}`);
         if (el) {
           const rect = el.getBoundingClientRect();
-          const containerRect = scrollEl.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
           if (rect.top <= containerRect.top + 100) {
             setActivePage(pages[i].pageNumber);
             break;
@@ -108,8 +105,8 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
       }
     };
 
-    scrollEl.addEventListener("scroll", handleScroll, { passive: true });
-    return () => scrollEl.removeEventListener("scroll", handleScroll);
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
   }, [open, contentExtraction]);
 
   const pages = contentExtraction?.pages ?? [];
@@ -209,37 +206,35 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
             )}
 
             {/* Main content */}
-            <div className="flex-1 min-w-0 min-h-0 overflow-hidden" ref={contentRef}>
-              <ScrollArea className="h-full">
-                {loading ? (
-                  <div className="flex items-center justify-center h-64">
-                    <p className="text-sm text-muted-foreground">Loading extraction...</p>
-                  </div>
-                ) : !contentExtraction ? (
-                  <div className="flex items-center justify-center h-64">
-                    <p className="text-sm text-muted-foreground">No extraction data found.</p>
-                  </div>
-                ) : (
-                  <div className="p-6">
-                    {pages.map((page, index) => (
-                      <div key={page.pageNumber}>
-                        <div id={`page-${page.pageNumber}`} className="scroll-mt-4">
-                          {index > 0 && (
-                            <div className="flex items-center gap-3 my-6">
-                              <Separator className="flex-1" />
-                              <Badge variant="outline" className="text-[10px] shrink-0">
-                                Page {page.pageNumber}
-                              </Badge>
-                              <Separator className="flex-1" />
-                            </div>
-                          )}
-                          <MarkdownRenderer content={getPageContent(page.pageNumber)} className="[&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1" wrapTables />
-                        </div>
+            <div className="flex-1 min-w-0 min-h-0 overflow-auto" ref={contentRef}>
+              {loading ? (
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-sm text-muted-foreground">Loading extraction...</p>
+                </div>
+              ) : !contentExtraction ? (
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-sm text-muted-foreground">No extraction data found.</p>
+                </div>
+              ) : (
+                <div className="p-6">
+                  {pages.map((page, index) => (
+                    <div key={page.pageNumber}>
+                      <div id={`page-${page.pageNumber}`} className="scroll-mt-4">
+                        {index > 0 && (
+                          <div className="flex items-center gap-3 my-6">
+                            <Separator className="flex-1" />
+                            <Badge variant="outline" className="text-[10px] shrink-0">
+                              Page {page.pageNumber}
+                            </Badge>
+                            <Separator className="flex-1" />
+                          </div>
+                        )}
+                        <MarkdownRenderer content={getPageContent(page.pageNumber)} className="[&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1" wrapTables />
                       </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
