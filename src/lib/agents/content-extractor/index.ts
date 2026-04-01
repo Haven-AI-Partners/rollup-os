@@ -16,45 +16,38 @@ import { buildContentExtractionPrompt } from "./prompt";
  *
  * Uses Gemini multimodal to handle both text-based and scanned/image PDFs.
  * If a single-pass extraction fails (output truncation on large/dense PDFs),
- * automatically retries by asking the model to transcribe page ranges in batches.
+ * automatically retries by extracting one page at a time.
  */
 export const MODEL_ID = "gemini-2.5-flash";
 
-/**
- * Maximum pages per extraction batch when falling back to chunked extraction.
- * Dense Japanese IMs can produce ~1000+ output tokens per page. 5 pages keeps
- * each call well within the 65 536 output token budget.
- */
-const BATCH_SIZE = 5;
-
-/**
- * Maximum output tokens for generateObject calls.
- * Gemini 2.5 Flash supports up to 65 536 output tokens, but the default is
- * much lower (~8 192). The original code had no maxOutputTokens set, which was
- * the primary cause of truncation — the model hit the default limit mid-response.
- */
-const MAX_OUTPUT_TOKENS = 65536;
+/** Max output tokens for per-page extraction (generous for single dense page) */
+const MAX_OUTPUT_TOKENS = 8192;
 
 export async function extractContent(pdfBuffer: Buffer): Promise<ContentExtractionResult> {
   try {
     return await extractFromPdf(pdfBuffer);
   } catch (error) {
-    // If single-pass failed due to output truncation (parse error), retry in batches
-    if (isOutputTruncationError(error)) {
-      console.warn("Single-pass extraction failed (likely output truncation), retrying in batches...");
-      return extractInBatches(pdfBuffer);
+    // If single-pass failed due to output truncation or schema constraint, retry page-by-page
+    if (isRetryableError(error)) {
+      console.warn("Single-pass extraction failed, retrying page-by-page...");
+      return extractPageByPage(pdfBuffer);
     }
     throw error;
   }
 }
 
-/** Check if the error indicates the model's output was truncated mid-JSON */
-function isOutputTruncationError(error: unknown): boolean {
+/**
+ * Check if the error is retryable via page-by-page extraction.
+ * Covers output truncation (model hit token limit mid-JSON) and Gemini
+ * schema constraint limits ("too many states for serving").
+ */
+function isRetryableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const msg = error.message.toLowerCase();
   return msg.includes("no object generated")
     || msg.includes("could not parse")
-    || msg.includes("json parsing failed");
+    || msg.includes("json parsing failed")
+    || msg.includes("too many states");
 }
 
 /** Extract content from a PDF in a single pass (send full PDF buffer directly) */
@@ -82,10 +75,6 @@ async function extractFromPdf(pdfBuffer: Buffer): Promise<ContentExtractionResul
       ],
       temperature: 0,
       seed: 42,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      providerOptions: {
-        google: { structuredOutputs: false },
-      },
     });
 
     return object;
@@ -98,85 +87,66 @@ async function extractFromPdf(pdfBuffer: Buffer): Promise<ContentExtractionResul
 }
 
 /**
- * Extract content by asking the model to transcribe page ranges in batches.
- * Re-sends the full PDF each time but instructs the model to only output
- * specific pages. This avoids pdfjs-dist (which requires DOM APIs unavailable
- * in Trigger.dev's Node.js runtime) while still working around output truncation.
+ * Extract content one page at a time, then merge.
+ *
+ * First extracts page 1 with the full schema to get metadata (totalPages,
+ * documentLanguage, documentTitle). Then extracts remaining pages in parallel
+ * using the pages-only batch schema.
+ *
+ * Each per-page call sends the full PDF but instructs the model to only
+ * transcribe a single page, keeping output well within token limits.
  */
-async function extractInBatches(pdfBuffer: Buffer): Promise<ContentExtractionResult> {
+async function extractPageByPage(pdfBuffer: Buffer): Promise<ContentExtractionResult> {
   const systemPrompt = await buildContentExtractionPrompt();
 
-  // First batch: extract pages 1–BATCH_SIZE with metadata
-  const firstResult = await extractPageRange(
-    pdfBuffer,
-    1,
-    BATCH_SIZE,
-    systemPrompt,
-    true,
-  ) as ContentExtractionResult;
-
+  // Page 1: use full schema to get metadata
+  const firstResult = await extractSinglePage(pdfBuffer, 1, systemPrompt, true) as ContentExtractionResult;
   const totalPages = firstResult.metadata.totalPages;
 
-  // If the document fits in one batch, we're done
-  if (totalPages <= BATCH_SIZE) {
+  if (totalPages <= 1) {
     return firstResult;
   }
 
-  // Remaining batches: extract subsequent page ranges in parallel
-  const batchStarts: number[] = [];
-  for (let start = BATCH_SIZE + 1; start <= totalPages; start += BATCH_SIZE) {
-    batchStarts.push(start);
-  }
+  // Remaining pages: extract in parallel with pages-only schema
+  const pageNumbers = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
 
   const remainingResults = await Promise.all(
-    batchStarts.map((start) => {
-      const end = Math.min(start + BATCH_SIZE - 1, totalPages);
-      return extractPageRange(pdfBuffer, start, end, systemPrompt, false);
-    }),
+    pageNumbers.map((page) =>
+      extractSinglePage(pdfBuffer, page, systemPrompt, false),
+    ),
   );
 
-  // Merge all pages
-  const allPages = [
-    ...firstResult.pages,
-    ...remainingResults.flatMap((r) => r.pages),
-  ];
-
   return {
-    pages: allPages,
+    pages: [
+      ...firstResult.pages,
+      ...remainingResults.flatMap((r) => r.pages),
+    ],
     metadata: firstResult.metadata,
   };
 }
 
-/**
- * Extract a specific page range from the PDF.
- * Sends the full PDF but instructs the model to only transcribe the given range.
- */
-async function extractPageRange(
+/** Extract a single page from the PDF */
+async function extractSinglePage(
   pdfBuffer: Buffer,
-  startPage: number,
-  endPage: number,
+  pageNumber: number,
   systemPrompt: string,
   includeMetadata: true,
 ): Promise<ContentExtractionResult>;
-async function extractPageRange(
+async function extractSinglePage(
   pdfBuffer: Buffer,
-  startPage: number,
-  endPage: number,
+  pageNumber: number,
   systemPrompt: string,
   includeMetadata: false,
 ): Promise<{ pages: ContentExtractionResult["pages"] }>;
-async function extractPageRange(
+async function extractSinglePage(
   pdfBuffer: Buffer,
-  startPage: number,
-  endPage: number,
+  pageNumber: number,
   systemPrompt: string,
   includeMetadata: boolean,
 ): Promise<ContentExtractionResult | { pages: ContentExtractionResult["pages"] }> {
   const schema = includeMetadata
     ? contentExtractionResultSchema
     : contentExtractionBatchSchema;
-
-  const rangeInstruction = `Transcribe ONLY pages ${startPage} through ${endPage} of this document into markdown. Output exactly what you see — do not interpret, summarize, or translate. Skip all pages outside this range.`;
 
   try {
     const { object } = await generateObject({
@@ -194,7 +164,7 @@ async function extractPageRange(
             },
             {
               type: "text",
-              text: rangeInstruction,
+              text: `Transcribe ONLY page ${pageNumber} of this document into markdown. Output exactly what you see — do not interpret, summarize, or translate. Skip all other pages.`,
             },
           ],
         },
@@ -202,16 +172,13 @@ async function extractPageRange(
       temperature: 0,
       seed: 42,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
-      providerOptions: {
-        google: { structuredOutputs: false },
-      },
     });
 
     return object;
   } catch (error) {
-    console.error(`Content extraction failed (pages ${startPage}–${endPage}):`, error);
+    console.error(`Content extraction failed (page ${pageNumber}):`, error);
     throw new Error(
-      `Content extraction failed (pages ${startPage}–${endPage}): ${error instanceof Error ? error.message : "Unknown error"}`,
+      `Content extraction failed (page ${pageNumber}): ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
