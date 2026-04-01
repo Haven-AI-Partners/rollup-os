@@ -209,7 +209,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
             )}
 
             {/* Main content */}
-            <div className="flex-1 min-w-0" ref={contentRef}>
+            <div className="flex-1 min-w-0 min-h-0 overflow-hidden" ref={contentRef}>
               <ScrollArea className="h-full">
                 {loading ? (
                   <div className="flex items-center justify-center h-64">
@@ -220,7 +220,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
                     <p className="text-sm text-muted-foreground">No extraction data found.</p>
                   </div>
                 ) : (
-                  <div className="p-6 overflow-x-auto">
+                  <div className="p-6 overflow-x-auto break-words">
                     {pages.map((page, index) => (
                       <div key={page.pageNumber}>
                         <div id={`page-${page.pageNumber}`} className="scroll-mt-4">
