@@ -33,7 +33,7 @@ interface ContentExtraction {
   metadata: {
     totalPages: number;
     documentLanguage: string;
-    documentTitle: string | null;
+    documentTitle: string;
   };
 }
 

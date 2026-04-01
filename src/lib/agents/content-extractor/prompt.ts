@@ -21,7 +21,7 @@ export const CONTENT_EXTRACTION_TEMPLATE = `You are a document transcription sys
 4. **Do NOT translate.** Output text in the original language of the document.
 5. **Do NOT add commentary, analysis, or interpretation.**
 6. **Detect the primary language** of the document and report it as an ISO 639-1 code.
-7. **Report the document title** if one appears on a cover page or header. Otherwise set to null.
+7. **Report the document title** if one appears on a cover page or header. Otherwise set to empty string "".
 
 Transcribe all pages of the document provided.`;
 

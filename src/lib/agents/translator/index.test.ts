@@ -55,7 +55,7 @@ describe("skipTranslation", () => {
       metadata: {
         totalPages: 0,
         documentLanguage: "en",
-        documentTitle: null,
+        documentTitle: "",
       },
     };
 

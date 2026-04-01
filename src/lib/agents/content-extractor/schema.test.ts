@@ -6,7 +6,6 @@ describe("contentExtractionResultSchema", () => {
     const result = contentExtractionResultSchema.safeParse({
       pages: [
         { pageNumber: 1, content: "# Company Overview\n\nTest Company Inc." },
-        { pageNumber: 2, content: "## Financial Summary\n\nRevenue: ¥250M" },
       ],
       metadata: {
         totalPages: 2,
@@ -17,7 +16,19 @@ describe("contentExtractionResultSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("allows null document title", () => {
+  it("allows empty document title", () => {
+    const result = contentExtractionResultSchema.safeParse({
+      pages: [{ pageNumber: 1, content: "Page content" }],
+      metadata: {
+        totalPages: 1,
+        documentLanguage: "en",
+        documentTitle: "",
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects null document title", () => {
     const result = contentExtractionResultSchema.safeParse({
       pages: [{ pageNumber: 1, content: "Page content" }],
       metadata: {
@@ -26,7 +37,7 @@ describe("contentExtractionResultSchema", () => {
         documentTitle: null,
       },
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it("allows empty pages array", () => {
@@ -35,10 +46,25 @@ describe("contentExtractionResultSchema", () => {
       metadata: {
         totalPages: 0,
         documentLanguage: "ja",
-        documentTitle: null,
+        documentTitle: "",
       },
     });
     expect(result.success).toBe(true);
+  });
+
+  it("rejects more than 1 page (per-page extraction)", () => {
+    const result = contentExtractionResultSchema.safeParse({
+      pages: [
+        { pageNumber: 1, content: "Page 1" },
+        { pageNumber: 2, content: "Page 2" },
+      ],
+      metadata: {
+        totalPages: 2,
+        documentLanguage: "ja",
+        documentTitle: "",
+      },
+    });
+    expect(result.success).toBe(false);
   });
 
   it("rejects missing metadata", () => {
@@ -50,14 +76,23 @@ describe("contentExtractionResultSchema", () => {
 });
 
 describe("contentExtractionBatchSchema", () => {
-  it("validates batch with pages only", () => {
+  it("validates batch with single page", () => {
+    const result = contentExtractionBatchSchema.safeParse({
+      pages: [
+        { pageNumber: 16, content: "# Page 16 content" },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects more than 1 page", () => {
     const result = contentExtractionBatchSchema.safeParse({
       pages: [
         { pageNumber: 16, content: "# Page 16 content" },
         { pageNumber: 17, content: "# Page 17 content" },
       ],
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it("allows empty pages array", () => {

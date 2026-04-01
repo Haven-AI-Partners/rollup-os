@@ -14,11 +14,11 @@ export const extractedPageSchema = z.object({
 export type ExtractedPage = z.infer<typeof extractedPageSchema>;
 
 export const contentExtractionResultSchema = z.object({
-  pages: z.array(extractedPageSchema),
+  pages: z.array(extractedPageSchema).max(1),
   metadata: z.object({
     totalPages: z.number(),
     documentLanguage: z.string(),
-    documentTitle: z.string().nullable(),
+    documentTitle: z.string(),
   }),
 });
 
@@ -27,7 +27,7 @@ export type ContentExtractionResult = z.infer<typeof contentExtractionResultSche
 // ── Batch schema (pages only, no metadata — used for per-page extraction) ──
 
 export const contentExtractionBatchSchema = z.object({
-  pages: z.array(extractedPageSchema),
+  pages: z.array(extractedPageSchema).max(1),
 });
 
 export type ContentExtractionBatchResult = z.infer<typeof contentExtractionBatchSchema>;
