@@ -13,7 +13,7 @@ interface MarkdownRendererProps {
 
 export function MarkdownRenderer({ content, className, wrapTables }: MarkdownRendererProps) {
   return (
-    <div className={cn("prose prose-sm max-w-none dark:prose-invert", className)}>
+    <div className={cn("prose prose-sm max-w-none dark:prose-invert overflow-hidden break-words [&_pre]:overflow-x-auto [&_img]:max-w-full", className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={wrapTables ? {

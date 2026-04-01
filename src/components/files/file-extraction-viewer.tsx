@@ -138,7 +138,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="h-[90vh] !max-w-[90vw] flex flex-col gap-0 p-0"
+          className="h-[90dvh] !max-w-[90vw] flex flex-col gap-0 p-0 overflow-hidden"
           showCloseButton
         >
           {/* Header */}
@@ -220,7 +220,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
                     <p className="text-sm text-muted-foreground">No extraction data found.</p>
                   </div>
                 ) : (
-                  <div className="p-6 overflow-x-auto break-words">
+                  <div className="p-6">
                     {pages.map((page, index) => (
                       <div key={page.pageNumber}>
                         <div id={`page-${page.pageNumber}`} className="scroll-mt-4">
