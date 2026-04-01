@@ -3,97 +3,98 @@ import { imSourceRefSchema, type IMSourceRef } from "@/lib/agents/shared/source-
 
 // ── Agent 3: Analyzer schemas ──
 // Evolved from the original schema.ts with added source attribution.
+// Field descriptions are intentionally omitted to keep the JSON Schema
+// small enough for Gemini's constrained decoding state limit.
 
 // ── Sourced field helper: value + source reference ──
 
-function sourcedString(description: string) {
+function sourcedString() {
   return z.object({
-    value: z.string().nullable().describe(description),
-    sourceRef: imSourceRefSchema.describe("Where in the IM this data was found"),
+    value: z.string().nullable(),
+    sourceRef: imSourceRefSchema,
   });
 }
 
-function sourcedNumber(description: string) {
+function sourcedNumber() {
   return z.object({
-    value: z.number().nullable().describe(description),
-    sourceRef: imSourceRefSchema.describe("Where in the IM this data was found"),
+    value: z.number().nullable(),
+    sourceRef: imSourceRefSchema,
   });
 }
 
 // ── Sub-pass 1: Structured extraction (with source attribution) ──
 
 const sourcedCompanyProfileSchema = z.object({
-  companyName: sourcedString("The company's official name as stated in the IM"),
-  summary: sourcedString("2-3 paragraph executive summary of the company"),
-  businessModel: sourcedString("Description of how the company makes money, service mix, and value chain position"),
-  marketPosition: sourcedString("Competitive position, market share, differentiation"),
-  industryTrends: sourcedString("Relevant industry trends and how the company is positioned"),
+  companyName: sourcedString(),
+  summary: sourcedString(),
+  businessModel: sourcedString(),
+  marketPosition: sourcedString(),
+  industryTrends: sourcedString(),
   strengths: z.array(z.object({
     value: z.string(),
     sourceRef: imSourceRefSchema,
-  })).describe("Top 5-8 key strengths with source references"),
+  })),
   keyRisks: z.array(z.object({
     value: z.string(),
     sourceRef: imSourceRefSchema,
-  })).describe("Top 5-8 key risks with source references"),
-  location: sourcedString("Company headquarters location (city, prefecture), or null if not mentioned"),
-  industry: sourcedString("Primary industry or sector, or null if not mentioned"),
-  askingPrice: sourcedString("Asking price or valuation if mentioned, or null if not mentioned"),
+  })),
+  location: sourcedString(),
+  industry: sourcedString(),
+  askingPrice: sourcedString(),
 });
 
 const sourcedFinancialHighlightsSchema = z.object({
-  revenue: sourcedString("Most recent annual revenue as a plain number string in the original currency"),
-  ebitda: sourcedString("Most recent annual EBITDA as a plain number string in the original currency"),
-  currency: sourcedString("The currency used in the IM (e.g. 'JPY', 'EUR', 'USD')"),
-  revenueGrowth: sourcedString("Revenue growth trend (e.g. 'CAGR 12% over 3 years')"),
-  operatingMargin: sourcedString("Operating margin percentage"),
-  ebitdaMargin: sourcedString("EBITDA margin percentage"),
-  recurringRevenue: sourcedString("Recurring revenue percentage or description"),
-  employeeCount: sourcedNumber("Total number of employees (full-time + contractors combined)"),
-  fullTimeCount: sourcedNumber("Number of full-time employees"),
-  contractorCount: sourcedNumber("Number of contractors/contract workers"),
-  topClientConcentration: sourcedString("Top client as % of revenue"),
-  debtLevel: sourcedString("Debt-to-equity or debt-to-EBITDA ratio"),
+  revenue: sourcedString(),
+  ebitda: sourcedString(),
+  currency: sourcedString(),
+  revenueGrowth: sourcedString(),
+  operatingMargin: sourcedString(),
+  ebitdaMargin: sourcedString(),
+  recurringRevenue: sourcedString(),
+  employeeCount: sourcedNumber(),
+  fullTimeCount: sourcedNumber(),
+  contractorCount: sourcedNumber(),
+  topClientConcentration: sourcedString(),
+  debtLevel: sourcedString(),
 });
 
 const sourcedManagementTeamMemberSchema = z.object({
-  name: z.string().describe("Person's full name"),
-  title: z.string().describe("Job title or role"),
-  department: z.string().nullable().describe("Department or division if mentioned"),
+  name: z.string(),
+  title: z.string(),
+  department: z.string().nullable(),
   role: z.enum(["executive", "management", "staff", "board", "advisor", "contractor"]),
-  reportsTo: z.string().nullable().describe("Name of the person this person reports to"),
-  sourceRef: imSourceRefSchema.describe("Where in the IM this person was mentioned"),
+  reportsTo: z.string().nullable(),
+  sourceRef: imSourceRefSchema,
 });
 
 const sourcedRawObservationsSchema = z.object({
-  clientInfo: sourcedString("Everything the IM says about clients"),
-  debtInfo: sourcedString("Everything about debt, leverage, liabilities"),
-  technologyInfo: sourcedString("Everything about tech stack, cloud, R&D, IP"),
-  orgStructureInfo: sourcedString("Legal entities, subsidiaries, related-party transactions"),
-  aiDigitalInfo: sourcedString("AI initiatives, digital transformation"),
-  serviceModelInfo: sourcedString("SES vs product vs consulting breakdown"),
-  integrationInfo: sourcedString("Founder plans, culture indicators, retention"),
-  legalComplianceInfo: sourcedString("Litigation, regulatory, labor law, compliance"),
-  laborPracticesInfo: sourcedString("Overtime practices, subcontracting, worker classification"),
+  clientInfo: sourcedString(),
+  debtInfo: sourcedString(),
+  technologyInfo: sourcedString(),
+  orgStructureInfo: sourcedString(),
+  aiDigitalInfo: sourcedString(),
+  serviceModelInfo: sourcedString(),
+  integrationInfo: sourcedString(),
+  legalComplianceInfo: sourcedString(),
+  laborPracticesInfo: sourcedString(),
 });
 
 export const analyzerExtractionSchema = z.object({
   companyProfile: sourcedCompanyProfileSchema,
   financialHighlights: sourcedFinancialHighlightsSchema,
-  managementTeam: z.array(sourcedManagementTeamMemberSchema)
-    .describe("ALL named personnel mentioned in the IM"),
+  managementTeam: z.array(sourcedManagementTeamMemberSchema),
   rawObservations: sourcedRawObservationsSchema,
 });
 
 export type AnalyzerExtractionResult = z.infer<typeof analyzerExtractionSchema>;
 
-// ── Sub-pass 2: Scoring (unchanged from original, operates on extraction output) ──
+// ── Sub-pass 2: Scoring (operates on extraction output) ──
 
 const scoreDimensionSchema = z.object({
-  score: z.number().min(1).max(5).describe("Score 1-5"),
-  rationale: z.string().describe("Brief justification for this score"),
-  evidence: z.string().describe("Specific numbers or quotes from the IM that support this score"),
-  dataAvailable: z.boolean().describe("true if the IM contains sufficient data to score this dimension confidently"),
+  score: z.number().min(1).max(5),
+  rationale: z.string(),
+  evidence: z.string(),
+  dataAvailable: z.boolean(),
 });
 
 export const analyzerScoringSchema = z.object({
@@ -109,14 +110,14 @@ export const analyzerScoringSchema = z.object({
   }),
   redFlags: z.array(
     z.object({
-      flagId: z.string().describe("The red flag ID from the predefined list"),
-      notes: z.string().describe("Specific evidence supporting this flag"),
+      flagId: z.string(),
+      notes: z.string(),
     })
   ),
   infoGaps: z.array(
     z.object({
-      flagId: z.string().describe("The info gap flag ID"),
-      notes: z.string().describe("What information is missing and why it matters"),
+      flagId: z.string(),
+      notes: z.string(),
     })
   ),
 });
