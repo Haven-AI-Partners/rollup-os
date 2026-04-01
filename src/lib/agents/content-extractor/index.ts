@@ -92,6 +92,7 @@ async function extractSinglePage(
   try {
     const { object } = await generateObject({
       model: google(MODEL_ID),
+      mode: "json",
       schema,
       system: systemPrompt,
       messages: [
