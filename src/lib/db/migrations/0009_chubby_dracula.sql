@@ -1,22 +1,22 @@
-CREATE INDEX "idx_deals_assigned_to" ON "deals" USING btree ("assigned_to");--> statement-breakpoint
-CREATE INDEX "idx_deals_broker_firm" ON "deals" USING btree ("broker_firm_id");--> statement-breakpoint
-CREATE INDEX "idx_deals_broker_contact" ON "deals" USING btree ("broker_contact_id");--> statement-breakpoint
-CREATE INDEX "idx_activity_user" ON "deal_activity_log" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "idx_tasks_assigned_to" ON "deal_tasks" USING btree ("assigned_to");--> statement-breakpoint
-CREATE INDEX "idx_tasks_parent" ON "deal_tasks" USING btree ("parent_task_id");--> statement-breakpoint
-CREATE INDEX "idx_red_flags_flagged_by" ON "deal_red_flags" USING btree ("flagged_by");--> statement-breakpoint
-CREATE INDEX "idx_red_flags_resolved_by" ON "deal_red_flags" USING btree ("resolved_by");--> statement-breakpoint
-CREATE INDEX "idx_broker_interactions_deal" ON "broker_interactions" USING btree ("deal_id");--> statement-breakpoint
-CREATE INDEX "idx_broker_interactions_contact" ON "broker_interactions" USING btree ("broker_contact_id");--> statement-breakpoint
-CREATE INDEX "idx_broker_metrics_contact" ON "broker_metrics" USING btree ("broker_contact_id");--> statement-breakpoint
-CREATE INDEX "idx_files_deal" ON "files" USING btree ("deal_id");--> statement-breakpoint
-CREATE INDEX "idx_files_uploaded_by" ON "files" USING btree ("uploaded_by");--> statement-breakpoint
-CREATE INDEX "idx_agent_runs_deal" ON "agent_runs" USING btree ("deal_id");--> statement-breakpoint
-CREATE INDEX "idx_prompt_versions_created_by" ON "prompt_versions" USING btree ("created_by");--> statement-breakpoint
-CREATE INDEX "idx_kpi_values_deal" ON "kpi_values" USING btree ("deal_id");--> statement-breakpoint
-CREATE INDEX "idx_kpi_values_agent_run" ON "kpi_values" USING btree ("agent_run_id");--> statement-breakpoint
-CREATE INDEX "idx_notifications_user" ON "notifications" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "idx_org_chart_nodes_parent" ON "org_chart_nodes" USING btree ("parent_id");--> statement-breakpoint
-CREATE INDEX "idx_org_chart_versions_created_by" ON "org_chart_versions" USING btree ("created_by");--> statement-breakpoint
-CREATE INDEX "idx_eval_runs_created_by" ON "eval_runs" USING btree ("created_by");--> statement-breakpoint
-CREATE INDEX "idx_discovery_campaigns_created_by" ON "discovery_campaigns" USING btree ("created_by");
+CREATE INDEX IF NOT EXISTS "idx_deals_assigned_to" ON "deals" USING btree ("assigned_to");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_deals_broker_firm" ON "deals" USING btree ("broker_firm_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_deals_broker_contact" ON "deals" USING btree ("broker_contact_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_activity_user" ON "deal_activity_log" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_tasks_assigned_to" ON "deal_tasks" USING btree ("assigned_to");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_tasks_parent" ON "deal_tasks" USING btree ("parent_task_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_red_flags_flagged_by" ON "deal_red_flags" USING btree ("flagged_by");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_red_flags_resolved_by" ON "deal_red_flags" USING btree ("resolved_by");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_broker_interactions_deal" ON "broker_interactions" USING btree ("deal_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_broker_interactions_contact" ON "broker_interactions" USING btree ("broker_contact_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_broker_metrics_contact" ON "broker_metrics" USING btree ("broker_contact_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_files_deal" ON "files" USING btree ("deal_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_files_uploaded_by" ON "files" USING btree ("uploaded_by");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_agent_runs_deal" ON "agent_runs" USING btree ("deal_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_prompt_versions_created_by" ON "prompt_versions" USING btree ("created_by");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_kpi_values_deal" ON "kpi_values" USING btree ("deal_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_kpi_values_agent_run" ON "kpi_values" USING btree ("agent_run_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_notifications_user" ON "notifications" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_org_chart_nodes_parent" ON "org_chart_nodes" USING btree ("parent_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_org_chart_versions_created_by" ON "org_chart_versions" USING btree ("created_by");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_eval_runs_created_by" ON "eval_runs" USING btree ("created_by");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_discovery_campaigns_created_by" ON "discovery_campaigns" USING btree ("created_by");
