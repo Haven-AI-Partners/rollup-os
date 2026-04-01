@@ -15,8 +15,8 @@ import { buildContentExtractionPrompt } from "./prompt";
  * No interpretation, no translation, no analysis.
  *
  * Uses Gemini multimodal to handle both text-based and scanned/image PDFs.
- * If a single-pass extraction fails (output truncation on large/dense PDFs),
- * automatically retries by extracting one page at a time.
+ * Always processes page-by-page to avoid output truncation and schema constraint
+ * errors on large/dense PDFs.
  */
 export const MODEL_ID = "gemini-2.5-flash";
 
@@ -24,66 +24,7 @@ export const MODEL_ID = "gemini-2.5-flash";
 const MAX_OUTPUT_TOKENS = 8192;
 
 export async function extractContent(pdfBuffer: Buffer): Promise<ContentExtractionResult> {
-  try {
-    return await extractFromPdf(pdfBuffer);
-  } catch (error) {
-    // If single-pass failed due to output truncation or schema constraint, retry page-by-page
-    if (isRetryableError(error)) {
-      console.warn("Single-pass extraction failed, retrying page-by-page...");
-      return extractPageByPage(pdfBuffer);
-    }
-    throw error;
-  }
-}
-
-/**
- * Check if the error is retryable via page-by-page extraction.
- * Covers output truncation (model hit token limit mid-JSON) and Gemini
- * schema constraint limits ("too many states for serving").
- */
-function isRetryableError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const msg = error.message.toLowerCase();
-  return msg.includes("no object generated")
-    || msg.includes("could not parse")
-    || msg.includes("json parsing failed")
-    || msg.includes("too many states");
-}
-
-/** Extract content from a PDF in a single pass (send full PDF buffer directly) */
-async function extractFromPdf(pdfBuffer: Buffer): Promise<ContentExtractionResult> {
-  try {
-    const { object } = await generateObject({
-      model: google(MODEL_ID),
-      schema: contentExtractionResultSchema,
-      system: await buildContentExtractionPrompt(),
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "file",
-              data: pdfBuffer,
-              mediaType: "application/pdf",
-            },
-            {
-              type: "text",
-              text: "Transcribe every page of this document into markdown. Output exactly what you see — do not interpret, summarize, or translate.",
-            },
-          ],
-        },
-      ],
-      temperature: 0,
-      seed: 42,
-    });
-
-    return object;
-  } catch (error) {
-    console.error("Content extraction failed:", error);
-    throw new Error(
-      `Content extraction failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-    );
-  }
+  return extractPageByPage(pdfBuffer);
 }
 
 /**
