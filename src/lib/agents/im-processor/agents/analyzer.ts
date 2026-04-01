@@ -2,7 +2,8 @@ import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { type TranslationResult, type TranslatedPage } from "@/lib/agents/translator/schema";
 import {
-  analyzerExtractionSchema,
+  analyzerExtractionPartASchema,
+  analyzerExtractionPartBSchema,
   analyzerScoringSchema,
   flattenSourcedExtraction,
   type AnalyzerExtractionResult,
@@ -34,22 +35,39 @@ export async function extractStructured(
     .map((p: TranslatedPage) => `--- Page ${p.pageNumber} ---\n${p.translatedContent}`)
     .join("\n\n");
 
-  try {
-    const { object } = await generateObject({
-      model: google(MODEL_ID),
-      schema: analyzerExtractionSchema,
-      system: await buildAnalyzerExtractionPrompt(),
-      messages: [
-        {
-          role: "user",
-          content: `Extract all structured information from these IM pages. For every data point, cite the page number and quote.\n\n${pagesText}`,
-        },
-      ],
-      temperature: 0,
-      seed: 42,
-    });
+  const systemPrompt = await buildAnalyzerExtractionPrompt();
+  const userContent = `Extract all structured information from these IM pages. For every data point, cite the page number and quote.\n\n${pagesText}`;
 
-    return object;
+  // Split into two calls to stay under Gemini's constrained decoding state limit.
+  // Part A: company profile + financial highlights
+  // Part B: management team + raw observations
+
+  try {
+    const [partA, partB] = await Promise.all([
+      generateObject({
+        model: google(MODEL_ID),
+        schema: analyzerExtractionPartASchema,
+        system: systemPrompt,
+        messages: [{ role: "user" as const, content: userContent }],
+        temperature: 0,
+        seed: 42,
+      }),
+      generateObject({
+        model: google(MODEL_ID),
+        schema: analyzerExtractionPartBSchema,
+        system: systemPrompt,
+        messages: [{ role: "user" as const, content: userContent }],
+        temperature: 0,
+        seed: 42,
+      }),
+    ]);
+
+    return {
+      companyProfile: partA.object.companyProfile,
+      financialHighlights: partA.object.financialHighlights,
+      managementTeam: partB.object.managementTeam,
+      rawObservations: partB.object.rawObservations,
+    };
   } catch (error) {
     console.error("Structured extraction failed:", error);
     throw new Error(

@@ -138,7 +138,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="h-[90vh] max-w-6xl flex flex-col gap-0 p-0"
+          className="h-[90vh] !max-w-[70vw] flex flex-col gap-0 p-0"
           showCloseButton
         >
           {/* Header */}
@@ -186,7 +186,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
           <div className="flex flex-1 min-h-0">
             {/* Page sidebar */}
             {contentExtraction && pages.length > 1 && (
-              <div className="w-20 shrink-0 border-r">
+              <div className="w-28 shrink-0 border-r">
                 <ScrollArea className="h-full">
                   <div className="flex flex-col gap-0.5 p-2">
                     {pages.map((page) => (
@@ -233,7 +233,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
                               <Separator className="flex-1" />
                             </div>
                           )}
-                          <MarkdownRenderer content={getPageContent(page.pageNumber)} />
+                          <MarkdownRenderer content={getPageContent(page.pageNumber)} className="[&_table]:text-xs [&_table]:w-auto [&_table]:max-w-full [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1" />
                         </div>
                       </div>
                     ))}

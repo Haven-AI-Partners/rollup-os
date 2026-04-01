@@ -72,7 +72,7 @@ export const processIMTask = task({
     maxTimeoutInMs: 30000,
     factor: 2,
   },
-  run: async (payload: { fileId: string; dealId: string; portcoId: string }) => {
+  run: async (payload: { fileId: string; dealId: string | null; portcoId: string }) => {
     logger.info("Processing IM file", { fileId: payload.fileId, dealId: payload.dealId });
 
     const result = await processIM(payload);

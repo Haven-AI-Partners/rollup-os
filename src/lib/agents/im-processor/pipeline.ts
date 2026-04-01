@@ -6,6 +6,10 @@ import { enrichExternally, MODEL_ID as ENRICHER_MODEL, type EnrichmentInput } fr
 import { flattenSourcedExtraction, collectSourceRefs, type AnalyzerExtractionResult } from "./schemas/analyzer";
 import { type IMPipelineResult } from "./schemas/pipeline-result";
 import { type IMAnalysisResult } from "./schema";
+import { db } from "@/lib/db";
+import { fileExtractions } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { type TranslationResult } from "@/lib/agents/translator/schema";
 
 /**
  * Run the full 4-agent IM processing pipeline:
@@ -21,31 +25,76 @@ import { type IMAnalysisResult } from "./schema";
 export async function runIMPipeline(
   pdfBuffer: Buffer,
   onProgress?: (step: string) => void,
+  fileId?: string,
 ): Promise<IMPipelineResult> {
   const progress = onProgress ?? (() => {});
 
-  // Agent 1: Content Extraction
-  progress("Extracting content from PDF...");
-  const contentExtraction = await extractContent(pdfBuffer);
+  let contentExtraction: ContentExtractionResult;
+  let translation: TranslationResult;
 
-  // Agent 2: Translation
-  // Use both the detected language AND a content check to decide whether to translate.
-  // The language detector can misclassify bilingual Japanese IMs (with English headings/charts)
-  // as "en", which would skip translation and pass Japanese text to the analyzer.
-  const needsTranslation = contentExtraction.metadata.documentLanguage !== "en"
-    || containsCJK(contentExtraction);
+  // Check for cached extraction from a previous run (skip Agents 1+2 on retry)
+  const cached = fileId
+    ? await db
+        .select({ contentExtraction: fileExtractions.contentExtraction, translation: fileExtractions.translation })
+        .from(fileExtractions)
+        .where(eq(fileExtractions.fileId, fileId))
+        .limit(1)
+        .then((r) => r[0] ?? null)
+    : null;
 
-  if (!needsTranslation) {
-    progress("Document is in English — skipping translation...");
+  if (cached?.contentExtraction && cached?.translation) {
+    progress("Using cached extraction and translation from previous run...");
+    contentExtraction = cached.contentExtraction as ContentExtractionResult;
+    translation = cached.translation as TranslationResult;
   } else {
-    const lang = contentExtraction.metadata.documentLanguage;
-    progress(lang === "en"
-      ? "Document detected as English but contains CJK text — translating..."
-      : `Translating from ${lang} to English...`);
+    // Agent 1: Content Extraction
+    progress("Extracting content from PDF...");
+    contentExtraction = await extractContent(pdfBuffer);
+
+    // Agent 2: Translation
+    // Use both the detected language AND a content check to decide whether to translate.
+    // The language detector can misclassify bilingual Japanese IMs (with English headings/charts)
+    // as "en", which would skip translation and pass Japanese text to the analyzer.
+    const needsTranslation = contentExtraction.metadata.documentLanguage !== "en"
+      || containsCJK(contentExtraction);
+
+    if (!needsTranslation) {
+      progress("Document is in English — skipping translation...");
+    } else {
+      const lang = contentExtraction.metadata.documentLanguage;
+      progress(lang === "en"
+        ? "Document detected as English but contains CJK text — translating..."
+        : `Translating from ${lang} to English...`);
+    }
+    translation = needsTranslation
+      ? await translateContent(contentExtraction)
+      : skipTranslation(contentExtraction);
+
+    // Persist extraction + translation early so retries skip Agents 1+2
+    if (fileId) {
+      await db
+        .insert(fileExtractions)
+        .values({
+          fileId,
+          contentExtraction,
+          translation,
+          extractionModel: EXTRACTOR_MODEL,
+          translationModel: TRANSLATOR_MODEL,
+          pipelineVersion: "v2",
+        })
+        .onConflictDoUpdate({
+          target: fileExtractions.fileId,
+          set: {
+            contentExtraction,
+            translation,
+            extractionModel: EXTRACTOR_MODEL,
+            translationModel: TRANSLATOR_MODEL,
+            pipelineVersion: "v2",
+            extractedAt: new Date(),
+          },
+        });
+    }
   }
-  const translation = needsTranslation
-    ? await translateContent(contentExtraction)
-    : skipTranslation(contentExtraction);
 
   // Agent 3: Analysis (extraction + scoring with consensus)
   progress("Analyzing and scoring IM content...");

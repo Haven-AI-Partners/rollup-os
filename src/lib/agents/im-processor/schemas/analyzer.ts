@@ -79,6 +79,7 @@ const sourcedRawObservationsSchema = z.object({
   laborPracticesInfo: sourcedString(),
 });
 
+// Full combined type (not used as a single schema for Gemini — too many states)
 export const analyzerExtractionSchema = z.object({
   companyProfile: sourcedCompanyProfileSchema,
   financialHighlights: sourcedFinancialHighlightsSchema,
@@ -87,6 +88,22 @@ export const analyzerExtractionSchema = z.object({
 });
 
 export type AnalyzerExtractionResult = z.infer<typeof analyzerExtractionSchema>;
+
+// Split schemas for Gemini constrained decoding (each half fits within state limit)
+
+export const analyzerExtractionPartASchema = z.object({
+  companyProfile: sourcedCompanyProfileSchema,
+  financialHighlights: sourcedFinancialHighlightsSchema,
+});
+
+export type AnalyzerExtractionPartAResult = z.infer<typeof analyzerExtractionPartASchema>;
+
+export const analyzerExtractionPartBSchema = z.object({
+  managementTeam: z.array(sourcedManagementTeamMemberSchema),
+  rawObservations: sourcedRawObservationsSchema,
+});
+
+export type AnalyzerExtractionPartBResult = z.infer<typeof analyzerExtractionPartBSchema>;
 
 // ── Sub-pass 2: Scoring (operates on extraction output) ──
 

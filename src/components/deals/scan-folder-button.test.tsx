@@ -29,6 +29,10 @@ vi.mock("@/hooks/use-run-status", () => ({
   }),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
+
 import { ScanFolderButton } from "./scan-folder-button";
 
 describe("ScanFolderButton", () => {

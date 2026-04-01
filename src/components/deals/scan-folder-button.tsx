@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2, FolderSearch, CheckCircle, XCircle } from "lucide-react";
 import { scanGdriveFolder } from "@/lib/actions/im-processing";
@@ -14,6 +15,14 @@ export function ScanFolderButton({ portcoSlug }: ScanFolderButtonProps) {
   const [runId, setRunId] = useState<string | null>(null);
   const [triggerError, setTriggerError] = useState<string | null>(null);
   const { state, output, error: runError } = useRunStatus(runId);
+  const router = useRouter();
+
+  // Refresh page data when scan completes so new deals appear
+  useEffect(() => {
+    if (state === "completed") {
+      router.refresh();
+    }
+  }, [state, router]);
 
   async function handleScan() {
     setRunId(null);
