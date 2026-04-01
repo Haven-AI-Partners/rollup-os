@@ -91,7 +91,7 @@ export type AnalyzerExtractionResult = z.infer<typeof analyzerExtractionSchema>;
 // ── Sub-pass 2: Scoring (operates on extraction output) ──
 
 const scoreDimensionSchema = z.object({
-  score: z.number(),
+  score: z.number().min(1).max(5),
   rationale: z.string(),
   evidence: z.string(),
   dataAvailable: z.boolean(),
