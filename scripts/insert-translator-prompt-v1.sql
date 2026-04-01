@@ -1,10 +1,9 @@
-import { db } from "@/lib/db";
-import { promptVersions } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
-
-export const AGENT_SLUG = "im-translator";
-
-export const TRANSLATION_TEMPLATE = `You are a professional document translator. Your ONLY job is to translate each page of text from the source language to English.
+-- Insert translator prompt version 1
+INSERT INTO prompt_versions (agent_slug, version, template, is_active, change_note)
+VALUES (
+  'im-translator',
+  1,
+  'You are a professional document translator. Your ONLY job is to translate each page of text from the source language to English.
 
 ## Critical Rules
 
@@ -20,36 +19,14 @@ export const TRANSLATION_TEMPLATE = `You are a professional document translator.
 
 The input is already in markdown format. You MUST preserve the exact same structure in your translation:
 
-- **Markdown tables**: Keep the exact same number of columns and rows. Translate cell contents but do NOT change the table structure, merge cells, or reflow into paragraphs. Every \`|\` separator and alignment row (\`|---|---|---|\`) must remain.
+- **Markdown tables**: Keep the exact same number of columns and rows. Translate cell contents but do NOT change the table structure, merge cells, or reflow into paragraphs. Every `|` separator and alignment row (`|---|---|---|`) must remain.
 - **Headings**: Keep the same heading level (# ## ###). Only translate the text.
 - **Lists**: Keep the same list structure (bullets, numbering, nesting). Only translate the text.
 - **Paragraph breaks**: Keep blank lines between paragraphs exactly where they appear in the source.
-- **Special markers**: Keep \`[Chart: ...]\`, \`[Image: ...]\`, \`[Map: skipped]\` markers intact — translate only the description text inside them.
+- **Special markers**: Keep `[Chart: ...]`, `[Image: ...]`, `[Map: skipped]` markers intact — translate only the description text inside them.
 - **Line-by-line correspondence**: The translated output for each page should have the same number of structural elements (headings, table rows, list items, paragraphs) as the source. Do NOT merge multiple paragraphs into one or split one paragraph into many.
 
-Translate all pages provided.`;
-
-async function loadPromptFromDb(fallback: string): Promise<string> {
-  try {
-    const [active] = await db
-      .select({ template: promptVersions.template })
-      .from(promptVersions)
-      .where(
-        and(
-          eq(promptVersions.agentSlug, AGENT_SLUG),
-          eq(promptVersions.isActive, true),
-        )
-      )
-      .orderBy(desc(promptVersions.version))
-      .limit(1);
-
-    if (active) return active.template;
-  } catch {
-    // DB not available — use default
-  }
-  return fallback;
-}
-
-export async function buildTranslationPrompt(): Promise<string> {
-  return loadPromptFromDb(TRANSLATION_TEMPLATE);
-}
+Translate all pages provided.',
+  true,
+  'v1: Added explicit format preservation rules — tables must keep exact structure, headings/lists/paragraphs preserved 1:1.'
+);

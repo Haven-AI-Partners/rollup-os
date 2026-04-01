@@ -296,7 +296,7 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
         const buffer = await downloadFile(portcoId, file.gdriveFileId);
         if (!buffer) throw new Error("Download failed");
 
-        const pipelineResult = await runIMPipeline(buffer, undefined, file.id);
+        const pipelineResult = await runIMPipeline(buffer, undefined, file.id, true);
         await storePipelineResults(fileDealId, portcoId, pipelineResult, file.id);
         await updateDealFromPipelineResult(fileDealId, pipelineResult, file.gdriveFileId);
 
@@ -393,7 +393,7 @@ export async function processSingleGdriveFile(
 
     // Run 4-agent pipeline (with progress forwarding)
     progress(`Running IM analysis pipeline (${(buffer.length / 1024 / 1024).toFixed(1)} MB PDF)...`);
-    const pipelineResult = await runIMPipeline(buffer, progress, existingFile?.id);
+    const pipelineResult = await runIMPipeline(buffer, progress, existingFile?.id, input.force);
     const analysis = pipelineResult.legacyAnalysis;
 
     let dealId: string;
@@ -502,8 +502,8 @@ export async function processIM(input: ProcessIMInput): Promise<ProcessIMResult>
       return { success: false, error: "Failed to download file from Google Drive" };
     }
 
-    // Run 4-agent pipeline
-    const pipelineResult = await runIMPipeline(buffer, undefined, fileId);
+    // Run 4-agent pipeline (force re-extraction on reprocess)
+    const pipelineResult = await runIMPipeline(buffer, undefined, fileId, true);
     const analysis = pipelineResult.legacyAnalysis;
 
     // Create deal if one doesn't exist (e.g. scan orchestrator couldn't match)

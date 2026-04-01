@@ -138,7 +138,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="h-[90vh] !max-w-[70vw] flex flex-col gap-0 p-0"
+          className="h-[90vh] !max-w-[90vw] flex flex-col gap-0 p-0"
           showCloseButton
         >
           {/* Header */}
@@ -220,7 +220,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
                     <p className="text-sm text-muted-foreground">No extraction data found.</p>
                   </div>
                 ) : (
-                  <div className="p-6">
+                  <div className="p-6 overflow-x-auto">
                     {pages.map((page, index) => (
                       <div key={page.pageNumber}>
                         <div id={`page-${page.pageNumber}`} className="scroll-mt-4">
@@ -233,7 +233,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
                               <Separator className="flex-1" />
                             </div>
                           )}
-                          <MarkdownRenderer content={getPageContent(page.pageNumber)} className="[&_table]:text-xs [&_table]:w-auto [&_table]:max-w-full [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1" />
+                          <MarkdownRenderer content={getPageContent(page.pageNumber)} className="[&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1" wrapTables />
                         </div>
                       </div>
                     ))}

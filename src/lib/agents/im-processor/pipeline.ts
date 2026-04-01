@@ -26,6 +26,7 @@ export async function runIMPipeline(
   pdfBuffer: Buffer,
   onProgress?: (step: string) => void,
   fileId?: string,
+  forceExtract?: boolean,
 ): Promise<IMPipelineResult> {
   const progress = onProgress ?? (() => {});
 
@@ -33,7 +34,7 @@ export async function runIMPipeline(
   let translation: TranslationResult;
 
   // Check for cached extraction from a previous run (skip Agents 1+2 on retry)
-  const cached = fileId
+  const cached = fileId && !forceExtract
     ? await db
         .select({ contentExtraction: fileExtractions.contentExtraction, translation: fileExtractions.translation })
         .from(fileExtractions)
