@@ -16,7 +16,13 @@ import { runCommand, findFiles, today, writeReport, buildReport, countFindings, 
 // --- 1. Dependency audit ---
 function checkDependencies() {
   try {
-    const output = runCommand("pnpm audit --json 2>/dev/null", { ignoreError: true });
+    // Read ignored CVEs/GHSAs from package.json for prod-reachable-but-unexploitable deps
+    const pkg = JSON.parse(readFileSync(`${ROOT}/package.json`, "utf-8"));
+    const ignoredIds = pkg.pnpm?.auditConfig?.ignoreCves ?? [];
+    const ignoreFlags = ignoredIds.map((id) => `--ignore ${id}`).join(" ");
+
+    // --prod: only audit production dependencies (skip devDependency-only vulns)
+    const output = runCommand(`pnpm audit --json --prod ${ignoreFlags} 2>/dev/null`, { ignoreError: true });
 
     let audit;
     try {
