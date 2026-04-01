@@ -2,51 +2,53 @@ import { z } from "zod";
 import { externalSourceRefSchema } from "@/lib/agents/shared/source-attribution";
 
 // ── Agent 4: External Enricher output schema ──
+// Field descriptions are intentionally omitted to keep the JSON Schema
+// small enough for Gemini's constrained decoding state limit.
 
 export const externalNewsItemSchema = z.object({
-  headline: z.string().describe("News headline or title"),
-  summary: z.string().describe("Brief summary of the article"),
-  sourceUrl: z.string().describe("URL of the source article"),
-  date: z.string().nullable().describe("Publication date if available, ISO format"),
+  headline: z.string(),
+  summary: z.string(),
+  sourceUrl: z.string(),
+  date: z.string().nullable(),
 });
 
 export const externalCompanyInfoSchema = z.object({
-  websiteUrl: z.string().nullable().describe("Company's official website URL"),
-  foundedYear: z.string().nullable().describe("Year the company was founded"),
-  employeeCountExternal: z.string().nullable().describe("Employee count from external sources (for cross-reference)"),
-  headquartersInfo: z.string().nullable().describe("Headquarters location from external sources"),
-  recentNews: z.array(externalNewsItemSchema).describe("Recent news articles about the company"),
+  websiteUrl: z.string().nullable(),
+  foundedYear: z.string().nullable(),
+  employeeCountExternal: z.string().nullable(),
+  headquartersInfo: z.string().nullable(),
+  recentNews: z.array(externalNewsItemSchema),
   keyExecutives: z.array(z.object({
     name: z.string(),
     title: z.string(),
     sourceUrl: z.string(),
-  })).describe("Key executives found in external sources (for cross-reference with IM data)"),
+  })),
 });
 
 export const externalMarketContextSchema = z.object({
-  marketSize: z.string().nullable().describe("Estimated market size for the company's primary market"),
-  growthRate: z.string().nullable().describe("Market growth rate"),
-  keyCompetitors: z.array(z.string()).describe("Known competitors in the same space"),
-  regulatoryNotes: z.string().nullable().describe("Relevant regulatory environment notes"),
-  industryTrends: z.string().nullable().describe("Current industry trends from external sources"),
+  marketSize: z.string().nullable(),
+  growthRate: z.string().nullable(),
+  keyCompetitors: z.array(z.string()),
+  regulatoryNotes: z.string().nullable(),
+  industryTrends: z.string().nullable(),
 });
 
 export const externalRiskIndicatorSchema = z.object({
-  finding: z.string().describe("Description of the risk indicator found"),
+  finding: z.string(),
   sourceRef: externalSourceRefSchema,
-  relevance: z.enum(["high", "medium", "low"]).describe("Relevance to the M&A evaluation"),
+  relevance: z.enum(["high", "medium", "low"]),
 });
 
 export const externalEnrichmentResultSchema = z.object({
-  companyInfo: externalCompanyInfoSchema.nullable().describe("External company information, null if company not found online"),
-  marketContext: externalMarketContextSchema.nullable().describe("Market context, null if insufficient data found"),
-  riskIndicators: z.array(externalRiskIndicatorSchema).describe("External risk indicators (litigation, negative press, etc.)"),
+  companyInfo: externalCompanyInfoSchema.nullable(),
+  marketContext: externalMarketContextSchema.nullable(),
+  riskIndicators: z.array(externalRiskIndicatorSchema),
   sources: z.array(z.object({
     url: z.string(),
     title: z.string(),
-    retrievedAt: z.string().describe("ISO 8601 timestamp"),
-  })).describe("All external sources consulted"),
-  searchQueries: z.array(z.string()).describe("The search queries used to find this information"),
+    retrievedAt: z.string(),
+  })),
+  searchQueries: z.array(z.string()),
 });
 
 export type ExternalEnrichmentResult = z.infer<typeof externalEnrichmentResultSchema>;
