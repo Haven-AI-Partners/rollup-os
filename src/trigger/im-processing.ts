@@ -9,6 +9,7 @@ import { portcos } from "@/lib/db/schema";
 import { and, isNotNull } from "drizzle-orm";
 import type { FileType } from "@/lib/db/schema/files";
 import { registerGdriveErrorLogger, unregisterGdriveErrorLogger } from "@/lib/gdrive/error-logger";
+import { GDriveAuthError } from "@/lib/gdrive/errors";
 
 // ---------------------------------------------------------------------------
 // Queue definitions – partition concurrency so task types don't starve each other.
@@ -71,7 +72,7 @@ export const processIMTask = task({
     maxTimeoutInMs: 30000,
     factor: 2,
   },
-  run: async (payload: { fileId: string; dealId: string; portcoId: string }) => {
+  run: async (payload: { fileId: string; dealId: string | null; portcoId: string }) => {
     logger.info("Processing IM file", { fileId: payload.fileId, dealId: payload.dealId });
 
     const result = await processIM(payload);
@@ -122,6 +123,14 @@ export const scanFolderTask = task({
       });
 
       return result;
+    } catch (error) {
+      if (error instanceof GDriveAuthError) {
+        logger.error("GDrive authentication failed — token may be expired or revoked", {
+          portcoId: payload.portcoId,
+          error: error.message,
+        });
+      }
+      throw error;
     } finally {
       unregisterGdriveErrorLogger();
     }
@@ -217,7 +226,7 @@ export const scheduledGdriveScanTask = schedules.task({
   queue: schedulingQueue,
   machine: "micro", // Only triggers child tasks — no heavy compute needed
   cron: {
-    pattern: "*/15 * * * *",
+    pattern: "0 9 * * *",
     timezone: "Asia/Tokyo",
   },
   maxDuration: 120, // Only needs to trigger child tasks, not do the scanning
@@ -249,7 +258,7 @@ export const scheduledGdriveScanTask = schedules.task({
           portcoId: portco.id,
         }, {
           idempotencyKey: `scan-${portco.id}`,
-          idempotencyKeyTTL: "14m", // Slightly less than 15-min cron interval
+          idempotencyKeyTTL: "23h", // Slightly less than 24-hour cron interval
         });
         triggered.push({ portcoId: portco.id, name: portco.name });
         logger.info(`Triggered scan for ${portco.name}`);

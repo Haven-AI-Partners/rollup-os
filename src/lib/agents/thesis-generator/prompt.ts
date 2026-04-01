@@ -74,7 +74,7 @@ function applyContext(template: string, ctx: PromptContext): string {
     .replace(/\{\{MARKET_POSITION\}\}/g, ctx.marketPosition ?? "Unknown")
     .replace(/\{\{STRENGTHS\}\}/g, ctx.strengths.length > 0 ? ctx.strengths.join(", ") : "Unknown")
     .replace(/\{\{KEY_RISKS\}\}/g, ctx.keyRisks.length > 0 ? ctx.keyRisks.join(", ") : "Unknown")
-    .replace(/\{\{INVESTMENT_THESIS\}\}/g, ctx.investmentThesis ?? "5年以内に経営管理料で投資回収 (Recover investment within 5 years)")
+    .replace(/\{\{INVESTMENT_THESIS\}\}/g, ctx.investmentThesis ?? "Recover investment within 5 years through management fees")
     .replace(/\{\{TEMPLATE_NODES\}\}/g, getTemplateNodesSummary())
     .replace(/\{\{RAW_OBSERVATIONS\}\}/g, observations);
 }
@@ -82,15 +82,15 @@ function applyContext(template: string, ctx: PromptContext): string {
 /** Substitute placeholders with example values for preview */
 export function renderTemplate(template: string): string {
   return template
-    .replace(/\{\{COMPANY_NAME\}\}/g, "サンプル株式会社")
-    .replace(/\{\{INDUSTRY\}\}/g, "ITセキュリティ")
-    .replace(/\{\{BUSINESS_MODEL\}\}/g, "SaaS + マネージドサービス")
-    .replace(/\{\{MARKET_POSITION\}\}/g, "公共・医療セクターでシェア上位")
-    .replace(/\{\{STRENGTHS\}\}/g, "高い顧客リテンション, 規制対応力")
-    .replace(/\{\{KEY_RISKS\}\}/g, "キーマン依存, 単一プロダクト")
-    .replace(/\{\{INVESTMENT_THESIS\}\}/g, "5年以内に経営管理料で投資回収")
+    .replace(/\{\{COMPANY_NAME\}\}/g, "Sample Corp")
+    .replace(/\{\{INDUSTRY\}\}/g, "IT Security")
+    .replace(/\{\{BUSINESS_MODEL\}\}/g, "SaaS + Managed Services")
+    .replace(/\{\{MARKET_POSITION\}\}/g, "Top market share in public and healthcare sectors")
+    .replace(/\{\{STRENGTHS\}\}/g, "High customer retention, Strong regulatory compliance")
+    .replace(/\{\{KEY_RISKS\}\}/g, "Key-man dependency, Single product reliance")
+    .replace(/\{\{INVESTMENT_THESIS\}\}/g, "Recover investment within 5 years through management fees")
     .replace(/\{\{TEMPLATE_NODES\}\}/g, getTemplateNodesSummary())
-    .replace(/\{\{RAW_OBSERVATIONS\}\}/g, "### clientInfo\n公共セクター顧客が売上の60%を占める...");
+    .replace(/\{\{RAW_OBSERVATIONS\}\}/g, "### clientInfo\nPublic sector clients account for 60% of revenue...");
 }
 
 /** Build the thesis generation prompt, checking DB for active version first */

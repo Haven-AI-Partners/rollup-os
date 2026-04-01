@@ -1,6 +1,9 @@
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
-import { contentExtractionResultSchema, type ContentExtractionResult } from "./schema";
+import {
+  contentExtractionResultSchema,
+  type ContentExtractionResult,
+} from "./schema";
 import { buildContentExtractionPrompt } from "./prompt";
 
 /**
@@ -11,15 +14,18 @@ import { buildContentExtractionPrompt } from "./prompt";
  * No interpretation, no translation, no analysis.
  *
  * Uses Gemini multimodal to handle both text-based and scanned/image PDFs.
+ * Sends the full PDF in a single call — Gemini handles pagination internally.
  */
 export const MODEL_ID = "gemini-2.5-flash";
 
 export async function extractContent(pdfBuffer: Buffer): Promise<ContentExtractionResult> {
+  const systemPrompt = await buildContentExtractionPrompt();
+
   try {
     const { object } = await generateObject({
       model: google(MODEL_ID),
       schema: contentExtractionResultSchema,
-      system: await buildContentExtractionPrompt(),
+      system: systemPrompt,
       messages: [
         {
           role: "user",
@@ -31,7 +37,7 @@ export async function extractContent(pdfBuffer: Buffer): Promise<ContentExtracti
             },
             {
               type: "text",
-              text: "Transcribe every page of this document into markdown. Output exactly what you see — do not interpret, summarize, or translate.",
+              text: "Transcribe this entire document into markdown, page by page. Output exactly what you see — do not interpret, summarize, or translate.",
             },
           ],
         },

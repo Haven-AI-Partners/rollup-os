@@ -1,11 +1,13 @@
 import { z } from "zod";
 
 // ── Source attribution for IM-derived data ──
+// Field descriptions are intentionally omitted to keep JSON Schemas
+// small enough for Gemini's constrained decoding state limit.
 
 export const imSourceRefSchema = z.object({
   type: z.literal("im_document"),
-  pageNumbers: z.array(z.number()).describe("Page numbers in the original PDF where this data was found"),
-  quote: z.string().describe("Direct quote or close paraphrase from the IM supporting this data"),
+  pageNumbers: z.array(z.number()),
+  quote: z.string(),
 });
 
 export type IMSourceRef = z.infer<typeof imSourceRefSchema>;
@@ -14,9 +16,9 @@ export type IMSourceRef = z.infer<typeof imSourceRefSchema>;
 
 export const externalSourceRefSchema = z.object({
   type: z.literal("external"),
-  url: z.string().describe("URL of the external source"),
-  sourceName: z.string().describe("Name of the source (e.g. 'Google Search', 'Company Website')"),
-  retrievedAt: z.string().describe("ISO 8601 timestamp when the data was retrieved"),
+  url: z.string(),
+  sourceName: z.string(),
+  retrievedAt: z.string(),
 });
 
 export type ExternalSourceRef = z.infer<typeof externalSourceRefSchema>;

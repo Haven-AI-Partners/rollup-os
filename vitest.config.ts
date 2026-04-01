@@ -11,7 +11,19 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html", "lcov"],
       include: ["src/lib/**", "src/app/api/**", "src/components/**"],
-      exclude: ["src/lib/db/migrations/**"],
+      exclude: [
+        "src/lib/db/migrations/**",
+        "src/lib/db/*.ts",
+        "src/lib/agents/*/prompt.ts",
+        "src/lib/agents/im-processor/prompt.ts",
+        "src/lib/agents/im-processor/prompts/**",
+        "src/components/ui/**",
+      ],
+      thresholds: {
+        lines: 50,
+        functions: 50,
+        branches: 50,
+      },
     },
   },
   resolve: {

@@ -7,12 +7,25 @@ import { cn } from "@/lib/utils";
 interface MarkdownRendererProps {
   content: string;
   className?: string;
+  /** Wrap tables in a horizontally scrollable container */
+  wrapTables?: boolean;
 }
 
-export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className, wrapTables }: MarkdownRendererProps) {
   return (
     <div className={cn("prose prose-sm max-w-none dark:prose-invert", className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={wrapTables ? {
+          table: ({ children, ...props }) => (
+            <div className="overflow-x-auto -mx-1 px-1">
+              <table {...props}>{children}</table>
+            </div>
+          ),
+        } : undefined}
+      >
+        {content}
+      </ReactMarkdown>
     </div>
   );
 }

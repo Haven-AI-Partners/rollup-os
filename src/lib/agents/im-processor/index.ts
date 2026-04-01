@@ -19,7 +19,7 @@ export { MODEL_ID } from "./agents/analyzer";
 
 interface ProcessIMInput {
   fileId: string;
-  dealId: string;
+  dealId: string | null;
   portcoId: string;
 }
 
@@ -296,7 +296,7 @@ export async function reprocessAllFiles(portcoId: string): Promise<ReprocessResu
         const buffer = await downloadFile(portcoId, file.gdriveFileId);
         if (!buffer) throw new Error("Download failed");
 
-        const pipelineResult = await runIMPipeline(buffer);
+        const pipelineResult = await runIMPipeline(buffer, undefined, file.id, true);
         await storePipelineResults(fileDealId, portcoId, pipelineResult, file.id);
         await updateDealFromPipelineResult(fileDealId, pipelineResult, file.gdriveFileId);
 
@@ -393,7 +393,7 @@ export async function processSingleGdriveFile(
 
     // Run 4-agent pipeline (with progress forwarding)
     progress(`Running IM analysis pipeline (${(buffer.length / 1024 / 1024).toFixed(1)} MB PDF)...`);
-    const pipelineResult = await runIMPipeline(buffer, progress);
+    const pipelineResult = await runIMPipeline(buffer, progress, existingFile?.id, input.force);
     const analysis = pipelineResult.legacyAnalysis;
 
     let dealId: string;
@@ -502,11 +502,22 @@ export async function processIM(input: ProcessIMInput): Promise<ProcessIMResult>
       return { success: false, error: "Failed to download file from Google Drive" };
     }
 
-    // Run 4-agent pipeline
-    const pipelineResult = await runIMPipeline(buffer);
+    // Run 4-agent pipeline (force re-extraction on reprocess)
+    const pipelineResult = await runIMPipeline(buffer, undefined, fileId, true);
     const analysis = pipelineResult.legacyAnalysis;
 
-    const profileId = await storePipelineResults(dealId, portcoId, pipelineResult, fileId);
+    // Create deal if one doesn't exist (e.g. scan orchestrator couldn't match)
+    let resolvedDealId = dealId;
+    if (!resolvedDealId) {
+      const stageId = await getDefaultStageId(portcoId);
+      resolvedDealId = await createDealFromPipelineResult(portcoId, stageId, pipelineResult, file.gdriveFileId, null);
+      await db
+        .update(files)
+        .set({ dealId: resolvedDealId, updatedAt: new Date() })
+        .where(eq(files.id, fileId));
+    }
+
+    const profileId = await storePipelineResults(resolvedDealId, portcoId, pipelineResult, fileId);
 
     await db
       .update(files)

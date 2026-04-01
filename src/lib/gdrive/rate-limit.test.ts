@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { withRateLimit, setOnRateLimitError } from "./rate-limit";
+import { withRateLimit, setOnRateLimitError, isAuthError } from "./rate-limit";
+import { GDriveAuthError } from "./errors";
 
 function make429Error(message = "Rate limited") {
   const error = new Error(message) as Error & { response: { status: number } };
@@ -158,5 +159,71 @@ describe("withRateLimit", () => {
 
     const lastCall = callback.mock.calls[callback.mock.calls.length - 1];
     expect(lastCall).toEqual(["exhaust-test", 429, expect.any(Number), true]);
+  });
+
+  it("throws GDriveAuthError on auth errors without retrying", async () => {
+    let calls = 0;
+    const fn = () => {
+      calls++;
+      return Promise.reject(new Error("invalid_request"));
+    };
+
+    const promise = withRateLimit(fn, "auth-test").catch((e) => e);
+    await vi.runAllTimersAsync();
+    const error = await promise;
+    expect(error).toBeInstanceOf(GDriveAuthError);
+    expect((error as GDriveAuthError).message).toContain("invalid_request");
+    expect((error as GDriveAuthError).originalError).toBeInstanceOf(Error);
+    expect(calls).toBe(1);
+  });
+
+  it("throws GDriveAuthError on HTTP 401 without retrying", async () => {
+    let calls = 0;
+    const fn = () => {
+      calls++;
+      return Promise.reject(makeError(401, "Unauthorized"));
+    };
+
+    const promise = withRateLimit(fn, "401-test").catch((e) => e);
+    await vi.runAllTimersAsync();
+    const error = await promise;
+    expect(error).toBeInstanceOf(GDriveAuthError);
+    expect(calls).toBe(1);
+  });
+});
+
+describe("isAuthError", () => {
+  it("detects invalid_request error message", () => {
+    expect(isAuthError(new Error("invalid_request"))).toBe(true);
+  });
+
+  it("detects invalid_grant error message", () => {
+    expect(isAuthError(new Error("invalid_grant"))).toBe(true);
+  });
+
+  it("detects invalid_client error message", () => {
+    expect(isAuthError(new Error("invalid_client"))).toBe(true);
+  });
+
+  it("detects HTTP 401 response status", () => {
+    const error = makeError(401, "Unauthorized");
+    expect(isAuthError(error)).toBe(true);
+  });
+
+  it("detects error.code 401 (string)", () => {
+    const error = Object.assign(new Error("Auth failed"), { code: "401" });
+    expect(isAuthError(error)).toBe(true);
+  });
+
+  it("detects error.code 401 (number)", () => {
+    const error = Object.assign(new Error("Auth failed"), { code: 401 });
+    expect(isAuthError(error)).toBe(true);
+  });
+
+  it("returns false for non-auth errors", () => {
+    expect(isAuthError(new Error("File not found"))).toBe(false);
+    expect(isAuthError(makeError(404, "Not found"))).toBe(false);
+    expect(isAuthError(null)).toBe(false);
+    expect(isAuthError(undefined)).toBe(false);
   });
 });

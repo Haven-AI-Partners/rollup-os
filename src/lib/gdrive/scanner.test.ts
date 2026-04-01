@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { GDriveAuthError } from "./errors";
+
 // Bypass rate-limit delays in tests
 vi.mock("./rate-limit", () => ({
   withRateLimit: (fn: () => Promise<unknown>) => fn(),
@@ -409,6 +411,38 @@ describe("scanner", () => {
       expect(result.scanComplete).toBe(false);
       // Should not delete stale files when scan is incomplete
       expect(mockDelete).not.toHaveBeenCalled();
+    });
+
+    it("throws GDriveAuthError immediately instead of skipping", async () => {
+      const drive = {
+        files: {
+          list: vi.fn().mockRejectedValue(new GDriveAuthError("OAuth/auth failure: invalid_request")),
+        },
+      };
+
+      mockGetDriveClient.mockResolvedValue({ drive, folderId: "root-folder" });
+
+      let selectCallCount = 0;
+      mockSelect.mockImplementation(() => {
+        selectCallCount++;
+        const n = selectCallCount;
+        const chain: Record<string, unknown> = {};
+        chain.from = () => chain;
+        chain.where = () => chain;
+        chain.orderBy = () => chain;
+        chain.then = (resolve: (v: unknown) => void) => {
+          if (n === 1) return resolve([{ gdriveScanGeneration: 0 }]);
+          if (n === 2) return resolve([{ cnt: 0 }]);
+          if (n === 3) return resolve([
+            { id: "row-1", gdriveFolderId: "root-folder", parentPath: "", depth: 0 },
+            { id: "row-2", gdriveFolderId: "subfolder-1", parentPath: "Sub", depth: 1 },
+          ]);
+          return resolve([]);
+        };
+        return chain;
+      });
+
+      await expect(crawlFoldersIncremental("portco-1", 480_000)).rejects.toThrow(GDriveAuthError);
     });
 
     it("does not increment generation when previous pass is incomplete", async () => {

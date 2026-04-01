@@ -3,8 +3,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ThesisTree } from "./thesis-tree";
 import type { ThesisNode } from "./thesis-tree";
 
@@ -86,45 +85,41 @@ describe("ThesisTree", () => {
   });
 
   it("toggles to list view", async () => {
-    const user = userEvent.setup();
     render(<ThesisTree roots={[buildNode()]} {...defaultProps} />);
 
-    await user.click(screen.getByTitle("List view"));
+    fireEvent.click(screen.getByTitle("List view"));
 
     expect(screen.getByTestId("node-node-1")).toBeInTheDocument();
     expect(screen.queryByTestId("thesis-graph")).not.toBeInTheDocument();
   });
 
   it("toggles back to graph view", async () => {
-    const user = userEvent.setup();
     render(<ThesisTree roots={[buildNode()]} {...defaultProps} />);
 
-    await user.click(screen.getByTitle("List view"));
-    await user.click(screen.getByTitle("Graph view"));
+    fireEvent.click(screen.getByTitle("List view"));
+    fireEvent.click(screen.getByTitle("Graph view"));
 
     expect(screen.getByTestId("thesis-graph")).toBeInTheDocument();
   });
 
   it("shows download button only in graph view", async () => {
-    const user = userEvent.setup();
     render(<ThesisTree roots={[buildNode()]} {...defaultProps} />);
 
     expect(screen.getByTitle("Download as SVG")).toBeInTheDocument();
 
-    await user.click(screen.getByTitle("List view"));
+    fireEvent.click(screen.getByTitle("List view"));
 
     expect(screen.queryByTitle("Download as SVG")).not.toBeInTheDocument();
   });
 
   it("renders multiple root nodes in list view", async () => {
-    const user = userEvent.setup();
     const roots = [
       buildNode({ id: "n1", label: "Financial" }),
       buildNode({ id: "n2", label: "Operational" }),
     ];
     render(<ThesisTree roots={roots} {...defaultProps} />);
 
-    await user.click(screen.getByTitle("List view"));
+    fireEvent.click(screen.getByTitle("List view"));
 
     expect(screen.getByTestId("node-n1")).toBeInTheDocument();
     expect(screen.getByTestId("node-n2")).toBeInTheDocument();

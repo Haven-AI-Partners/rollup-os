@@ -59,6 +59,7 @@ describe("GET /api/gdrive/files", () => {
   });
 
   it("returns 500 when GDrive errors", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     mockListFiles.mockRejectedValue(new Error("GDrive auth failed"));
 
     const { GET } = await import("./route");

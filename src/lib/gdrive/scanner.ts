@@ -1,5 +1,6 @@
 import { getDriveClient } from "./client";
 import { withRateLimit } from "./rate-limit";
+import { GDriveAuthError } from "./errors";
 import { db } from "@/lib/db";
 import { gdriveFileCache, gdriveScanFolders, portcos } from "@/lib/db/schema";
 import { eq, sql, and, lt, asc, count } from "drizzle-orm";
@@ -357,6 +358,15 @@ export async function crawlFoldersIncremental(
 
       foldersScanned++;
     } catch (error) {
+      // Auth/OAuth errors are fatal — stop scanning immediately
+      if (error instanceof GDriveAuthError) {
+        console.error(
+          `GDrive auth failed for portco=${portcoId}, aborting scan: ${error.message}`,
+        );
+        throw error;
+      }
+
+      // Non-auth errors: skip this folder, continue with next
       foldersErrored++;
       const msg = error instanceof Error ? error.message : "Unknown error";
       console.warn(

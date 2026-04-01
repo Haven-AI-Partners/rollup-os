@@ -30,7 +30,8 @@
       "Bash(brew --prefix libpq)",
       "Bash(brew list:*)",
       "Read",
-      "Bash(source *)"
+      "Bash(source *)",
+      "Bash(wc:*)"
     ]
   }
 }

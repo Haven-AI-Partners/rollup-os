@@ -3,8 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { RedFlagsPanel } from "./red-flags-panel";
 
 const mockAddRedFlag = vi.fn().mockResolvedValue(undefined);
@@ -104,45 +103,41 @@ describe("RedFlagsPanel", () => {
   });
 
   it("calls resolveRedFlag when check button is clicked", async () => {
-    const user = userEvent.setup();
     const flags = [
       { id: "r1", flagId: "crit_1", severity: "critical", category: "financial", notes: null, resolved: false },
     ];
     render(<RedFlagsPanel {...baseProps} initialFlags={flags} />);
 
-    await user.click(screen.getByTitle("Mark resolved"));
+    fireEvent.click(screen.getByTitle("Mark resolved"));
 
     expect(mockResolveRedFlag).toHaveBeenCalledWith("r1", "test-portco", "deal-1");
   });
 
   it("calls removeRedFlag when X button is clicked", async () => {
-    const user = userEvent.setup();
     const flags = [
       { id: "r1", flagId: "crit_1", severity: "critical", category: "financial", notes: null, resolved: false },
     ];
     render(<RedFlagsPanel {...baseProps} initialFlags={flags} />);
 
-    await user.click(screen.getByTitle("Remove"));
+    fireEvent.click(screen.getByTitle("Remove"));
 
     expect(mockRemoveRedFlag).toHaveBeenCalledWith("r1", "test-portco", "deal-1");
   });
 
   it("shows add flag form when button clicked", async () => {
-    const user = userEvent.setup();
     render(<RedFlagsPanel {...baseProps} initialFlags={[]} />);
 
-    await user.click(screen.getByText(/flag red flag/i));
+    fireEvent.click(screen.getByText(/flag red flag/i));
 
     expect(screen.getByText("Add")).toBeInTheDocument();
     expect(screen.getByText("Cancel")).toBeInTheDocument();
   });
 
   it("hides add flag form on cancel", async () => {
-    const user = userEvent.setup();
     render(<RedFlagsPanel {...baseProps} initialFlags={[]} />);
 
-    await user.click(screen.getByText(/flag red flag/i));
-    await user.click(screen.getByText("Cancel"));
+    fireEvent.click(screen.getByText(/flag red flag/i));
+    fireEvent.click(screen.getByText("Cancel"));
 
     expect(screen.getByText(/flag red flag/i)).toBeInTheDocument();
   });
@@ -159,15 +154,14 @@ describe("RedFlagsPanel", () => {
   });
 
   it("calls unresolveRedFlag for resolved flags", async () => {
-    const user = userEvent.setup();
     const flags = [
       { id: "r1", flagId: "crit_1", severity: "critical", category: "financial", notes: null, resolved: true },
     ];
     render(<RedFlagsPanel {...baseProps} initialFlags={flags} />);
 
     // Open the resolved section
-    await user.click(screen.getByText("1 resolved flag"));
-    await user.click(screen.getByTitle("Reopen"));
+    fireEvent.click(screen.getByText("1 resolved flag"));
+    fireEvent.click(screen.getByTitle("Reopen"));
 
     expect(mockUnresolveRedFlag).toHaveBeenCalledWith("r1", "test-portco", "deal-1");
   });
