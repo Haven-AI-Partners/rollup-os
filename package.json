@@ -9,7 +9,20 @@
       "sharp",
       "unrs-resolver"
     ],
-    "auditIgnoreNotes": "13 transitive vulns in trigger.dev and drizzle-kit are not exploitable in our context (dev tools, build tooling, no user input). Will resolve naturally when those packages update."
+    "auditConfig": {
+      "ignoreCves": [
+        "CVE-2024-47764",
+        "CVE-2025-68154",
+        "CVE-2026-26280",
+        "CVE-2026-26318"
+      ],
+      "ignoreNotes": {
+        "CVE-2024-47764": "cookie: no bounds validation — transitive via @trigger.dev/sdk > socket.io, not user-facing",
+        "CVE-2025-68154": "systeminformation: cmd injection on Windows — transitive via @trigger.dev/sdk, runs in worker not Next.js",
+        "CVE-2026-26280": "systeminformation: cmd injection on Windows — transitive via @trigger.dev/sdk, runs in worker not Next.js",
+        "CVE-2026-26318": "systeminformation: cmd injection on Windows — transitive via @trigger.dev/sdk, runs in worker not Next.js"
+      }
+    }
   },
   "scripts": {
     "dev": "next dev",
