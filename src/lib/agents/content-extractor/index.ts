@@ -83,6 +83,9 @@ async function extractFromPdf(pdfBuffer: Buffer): Promise<ContentExtractionResul
       temperature: 0,
       seed: 42,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
+      providerOptions: {
+        google: { structuredOutputs: false },
+      },
     });
 
     return object;
@@ -199,6 +202,9 @@ async function extractPageRange(
       temperature: 0,
       seed: 42,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
+      providerOptions: {
+        google: { structuredOutputs: false },
+      },
     });
 
     return object;
