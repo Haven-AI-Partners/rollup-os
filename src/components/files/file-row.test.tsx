@@ -107,6 +107,27 @@ describe("FileRowContent", () => {
     expect(screen.getByTestId("translate-btn")).toBeInTheDocument();
   });
 
+  it("shows correct mime labels for different file types", () => {
+    const mimeTests = [
+      { mimeType: "application/vnd.google-apps.folder", label: "Folder" },
+      { mimeType: "application/vnd.google-apps.presentation", label: "Slides" },
+      { mimeType: "application/vnd.google-apps.document", label: "Doc" },
+      { mimeType: "image/png", label: "Image" },
+    ];
+    for (const { mimeType, label } of mimeTests) {
+      const { unmount } = render(
+        <FileRowContent
+          file={{ ...baseFile, mimeType }}
+          processed={undefined}
+          portcoSlug="test-co"
+          isAdmin={false}
+        />,
+      );
+      expect(screen.getByText(label)).toBeInTheDocument();
+      unmount();
+    }
+  });
+
   it("shows Sheets mime label for spreadsheet files", () => {
     render(
       <FileRowContent
