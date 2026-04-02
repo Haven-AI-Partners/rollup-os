@@ -35,46 +35,39 @@ export function ExtractFileButton({ portcoSlug, fileId }: ExtractFileButtonProps
     }
   }
 
-  if (state === "running") {
-    return (
-      <Button variant="outline" size="sm" disabled className="gap-1.5 h-7 text-xs">
-        <Loader2 className="size-3 animate-spin" />
-        Extracting...
-      </Button>
-    );
-  }
-
-  if (state === "completed") {
-    return (
-      <div className="flex items-center gap-1.5 text-xs text-green-700">
-        <CheckCircle className="size-3.5" />
-        Extracted
-      </div>
-    );
-  }
-
-  if (state === "failed" || triggerError) {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-red-600 truncate max-w-[120px]">{runError ?? triggerError}</span>
-        <Button variant="outline" size="sm" onClick={handleExtract} className="gap-1 h-7 text-xs">
-          <FileSearch className="size-3" />
-          Retry
-        </Button>
-      </div>
-    );
-  }
+  const isRunning = state === "running";
+  const isDone = state === "completed";
+  const isFailed = state === "failed" || !!triggerError;
+  const errorMsg = runError ?? triggerError;
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handleExtract}
-      className="gap-1 h-7 text-xs"
-      title="Extract and translate document content"
-    >
-      <FileSearch className="size-3" />
-      Extract
-    </Button>
+    <div className="flex items-center gap-2">
+      {isDone && (
+        <span className="flex items-center gap-1.5 text-xs text-green-700">
+          <CheckCircle className="size-3.5" />
+          Extracted
+        </span>
+      )}
+      {isFailed && (
+        <span className="text-xs text-red-600 truncate max-w-[120px]">{errorMsg}</span>
+      )}
+      {!isDone && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExtract}
+          disabled={isRunning}
+          className="gap-1 h-7 text-xs"
+          title="Extract and translate document content"
+        >
+          {isRunning ? (
+            <Loader2 className="size-3 animate-spin" />
+          ) : (
+            <FileSearch className="size-3" />
+          )}
+          {isRunning ? "Extracting..." : isFailed ? "Retry" : "Extract"}
+        </Button>
+      )}
+    </div>
   );
 }
