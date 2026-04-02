@@ -27,6 +27,7 @@ export interface GDriveFile {
 }
 
 export interface ProcessedInfo {
+  fileId: string;
   status: string;
   dealId: string | null;
   fileType: string | null;

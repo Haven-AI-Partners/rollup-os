@@ -13,6 +13,7 @@ import { FILE_TYPE_LABELS, MIME_TYPE_ICONS } from "@/lib/constants";
 import { formatBytes, formatDateWithYear } from "@/lib/format";
 import { ProcessGdriveFileButton } from "@/components/deals/process-gdrive-file-button";
 import { TranslateExcelButton } from "@/components/files/translate-excel-button";
+import { SpreadsheetViewer } from "@/components/files/spreadsheet-viewer";
 import type { GDriveFile, ProcessedInfo } from "./virtual-files-list";
 
 const EXCEL_MIME_TYPES = new Set([
@@ -101,6 +102,7 @@ export function FileRowContent({
           <Badge className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="mr-1 size-3" /> Translated
           </Badge>
+          <SpreadsheetViewer fileId={processed.fileId} fileName={file.name} />
           {isAdmin && (
             <TranslateExcelButton
               portcoSlug={portcoSlug}
