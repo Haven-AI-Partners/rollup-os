@@ -515,6 +515,9 @@ export async function processIM(input: ProcessIMInput): Promise<ProcessIMResult>
         .update(files)
         .set({ dealId: resolvedDealId, updatedAt: new Date() })
         .where(eq(files.id, fileId));
+    } else {
+      // Update existing deal with latest extraction results
+      await updateDealFromPipelineResult(resolvedDealId, pipelineResult, file.gdriveFileId);
     }
 
     const profileId = await storePipelineResults(resolvedDealId, portcoId, pipelineResult, fileId);
