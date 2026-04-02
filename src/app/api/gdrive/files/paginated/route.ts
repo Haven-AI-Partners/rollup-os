@@ -99,6 +99,7 @@ export async function GET(req: NextRequest) {
       gdriveIds.length > 0
         ? await db
             .select({
+              id: filesTable.id,
               gdriveFileId: filesTable.gdriveFileId,
               processingStatus: filesTable.processingStatus,
               dealId: filesTable.dealId,
@@ -111,14 +112,14 @@ export async function GET(req: NextRequest) {
         : [];
 
     // Build map preferring "completed" status when duplicates exist
-    const processedMap: Record<string, { status: string; dealId: string | null; fileType: string | null; classificationConfidence: string | null; classifiedBy: string | null }> = {};
+    const processedMap: Record<string, { fileId: string; status: string; dealId: string | null; fileType: string | null; classificationConfidence: string | null; classifiedBy: string | null }> = {};
     for (const f of processedFiles) {
       const key = f.gdriveFileId;
       if (!key) continue;
       const existing = processedMap[key];
       // Keep the completed record if one exists, otherwise take the latest
       if (!existing || f.processingStatus === "completed") {
-        processedMap[key] = { status: f.processingStatus, dealId: f.dealId, fileType: f.fileType, classificationConfidence: f.classificationConfidence, classifiedBy: f.classifiedBy };
+        processedMap[key] = { fileId: f.id, status: f.processingStatus, dealId: f.dealId, fileType: f.fileType, classificationConfidence: f.classificationConfidence, classifiedBy: f.classifiedBy };
       }
     }
 

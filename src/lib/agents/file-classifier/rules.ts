@@ -125,6 +125,14 @@ const KEYWORD_RULES: KeywordRule[] = [
       "pmi report", "integration report", "integration progress", "統合報告",
     ],
   },
+  {
+    fileType: "excel_data",
+    folderKeywords: ["data", "データ", "財務", "決算", "資料"],
+    filenameKeywords: [
+      ".xlsx", "データ", "一覧", "spreadsheet", "data",
+      "明細", "台帳", "管理表", "集計",
+    ],
+  },
 ];
 
 /**

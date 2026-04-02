@@ -10,6 +10,7 @@ import {
   MessageSquare,
   FileText,
   FileOutput,
+  FileSpreadsheet,
   Languages,
   Globe,
   Users,
@@ -48,6 +49,7 @@ export default async function AgentsPage({
     classifierAutoCount,
     classifierTotalCount,
     classifierConfidence,
+    excelTranslatedCount,
   ] = await Promise.all([
     // IM Processor stats
     db
@@ -140,6 +142,18 @@ export default async function AgentsPage({
           isNotNull(files.classificationConfidence),
         ),
       ),
+
+    // Excel Translator stats
+    db
+      .select({ count: count(files.id) })
+      .from(files)
+      .where(
+        and(
+          eq(files.portcoId, portco.id),
+          eq(files.fileType, "excel_data"),
+          eq(files.processingStatus, "completed"),
+        ),
+      ),
   ]);
 
   // IM Processor summary
@@ -168,6 +182,9 @@ export default async function AgentsPage({
   const fcAvgConfidence = classifierConfidence[0]?.avg
     ? Number(classifierConfidence[0].avg)
     : null;
+
+  // Excel Translator summary
+  const excelTranslated = Number(excelTranslatedCount[0]?.count ?? 0);
 
   return (
     <div className="space-y-6">
@@ -438,6 +455,39 @@ export default async function AgentsPage({
               <div className="mt-3 flex items-center gap-2">
                 <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
                 <Badge variant="outline" className="text-muted-foreground">Pipeline Agent</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Excel Translator Card */}
+        <Link href={`/${portcoSlug}/agents/excel-translator`}>
+          <Card className="h-full transition-colors hover:border-primary/50 hover:bg-muted/30 cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-teal-100 p-2.5">
+                    <FileSpreadsheet className="size-5 text-teal-700" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Excel Translator</CardTitle>
+                    <CardDescription className="line-clamp-2">
+                      Translates Japanese Excel spreadsheets to English in-place, preserving formatting and formulas
+                    </CardDescription>
+                  </div>
+                </div>
+                <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <FileSpreadsheet className="size-3" />
+                  {excelTranslated} files translated
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
               </div>
             </CardContent>
           </Card>

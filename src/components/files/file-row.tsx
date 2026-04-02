@@ -12,7 +12,14 @@ import Link from "next/link";
 import { FILE_TYPE_LABELS, MIME_TYPE_ICONS } from "@/lib/constants";
 import { formatBytes, formatDateWithYear } from "@/lib/format";
 import { ProcessGdriveFileButton } from "@/components/deals/process-gdrive-file-button";
+import { TranslateExcelButton } from "@/components/files/translate-excel-button";
+import { SpreadsheetViewer } from "@/components/files/spreadsheet-viewer";
 import type { GDriveFile, ProcessedInfo } from "./virtual-files-list";
+
+const EXCEL_MIME_TYPES = new Set([
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.google-apps.spreadsheet",
+]);
 
 function getMimeLabel(mimeType: string) {
   if (mimeType.includes("pdf")) return "PDF";
@@ -90,7 +97,24 @@ export function FileRowContent({
           </Badge>
         )
       )}
-      {processed?.status === "completed" ? (
+      {processed?.status === "completed" && processed.fileType === "excel_data" ? (
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="mr-1 size-3" /> Translated
+          </Badge>
+          <SpreadsheetViewer fileId={processed.fileId} fileName={file.name} />
+          {isAdmin && (
+            <TranslateExcelButton
+              portcoSlug={portcoSlug}
+              gdriveFileId={file.id}
+              fileName={file.name}
+              mimeType={file.mimeType}
+              sizeBytes={file.size ? Number(file.size) : null}
+              webViewLink={file.webViewLink}
+            />
+          )}
+        </div>
+      ) : processed?.status === "completed" ? (
         <div className="flex items-center gap-2 shrink-0">
           <Link href={`/${portcoSlug}/pipeline/${processed.dealId}`}>
             <Badge className="bg-green-100 text-green-800 border-green-200">
@@ -119,6 +143,15 @@ export function FileRowContent({
           sizeBytes={file.size ? Number(file.size) : null}
           webViewLink={file.webViewLink}
           gdriveModifiedTime={file.modifiedTime}
+        />
+      ) : isAdmin && EXCEL_MIME_TYPES.has(file.mimeType) ? (
+        <TranslateExcelButton
+          portcoSlug={portcoSlug}
+          gdriveFileId={file.id}
+          fileName={file.name}
+          mimeType={file.mimeType}
+          sizeBytes={file.size ? Number(file.size) : null}
+          webViewLink={file.webViewLink}
         />
       ) : null}
       {file.webViewLink && (

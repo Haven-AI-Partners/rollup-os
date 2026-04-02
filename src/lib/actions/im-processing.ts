@@ -226,6 +226,61 @@ export async function processSingleFile(
 }
 
 /**
+ * Translate a Japanese Excel file to English as a background job via Trigger.dev.
+ * Returns the triggered run handle immediately.
+ */
+export async function translateExcel(
+  portcoSlug: string,
+  gdriveFileId: string,
+  fileName: string,
+  mimeType: string,
+  sizeBytes: number | null,
+  webViewLink: string | null,
+) {
+  const portco = await getPortcoBySlug(portcoSlug);
+  if (!portco) throw new Error("PortCo not found");
+  await requireAdmin(portco.id);
+
+  // Upsert a file record for tracking
+  const existing = await db.query.files.findFirst({
+    where: and(
+      eq(files.portcoId, portco.id),
+      eq(files.gdriveFileId, gdriveFileId),
+    ),
+  });
+
+  let fileId: string;
+  if (existing) {
+    fileId = existing.id;
+  } else {
+    const [newFile] = await db
+      .insert(files)
+      .values({
+        portcoId: portco.id,
+        fileName,
+        fileType: "excel_data",
+        mimeType,
+        gdriveFileId,
+        gdriveUrl: webViewLink,
+        sizeBytes,
+        classifiedBy: "manual",
+        processingStatus: "pending",
+      })
+      .returning({ id: files.id });
+    fileId = newFile.id;
+  }
+
+  const handle = await triggerTask("translate-excel", {
+    fileId,
+    portcoId: portco.id,
+    gdriveFileId,
+  });
+
+  revalidatePath(`/${portcoSlug}/files`);
+  return { triggered: true, runId: handle.id };
+}
+
+/**
  * Run a consistency eval on a processed file.
  * Processes the same IM N times and compares results.
  */

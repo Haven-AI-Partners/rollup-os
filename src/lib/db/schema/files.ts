@@ -18,6 +18,7 @@ export type FileType =
   | "purchase_agreement"
   | "pmi_plan"
   | "pmi_report"
+  | "excel_data"
   | "other";
 
 export const files = pgTable("files", {

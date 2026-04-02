@@ -35,6 +35,7 @@ let mockCacheRows: Array<{
 }> = [];
 let mockTotalCount = 0;
 let mockProcessedFiles: Array<{
+  id: string;
   gdriveFileId: string;
   processingStatus: string;
   dealId: string | null;
@@ -275,7 +276,7 @@ describe("GET /api/gdrive/files/paginated", () => {
     mockCacheRows = makeCacheRows(2);
     mockTotalCount = 2;
     mockProcessedFiles = [
-      { gdriveFileId: "file-0", processingStatus: "completed", dealId: "deal-1", fileType: "im_pdf", classificationConfidence: "0.95", classifiedBy: "auto" },
+      { id: "db-file-0", gdriveFileId: "file-0", processingStatus: "completed", dealId: "deal-1", fileType: "im_pdf", classificationConfidence: "0.95", classifiedBy: "auto" },
     ];
 
     const { GET } = await import("./route");
@@ -286,6 +287,7 @@ describe("GET /api/gdrive/files/paginated", () => {
     const res = await GET(req);
     const body = await res.json();
     expect(body.processedMap["file-0"]).toEqual({
+      fileId: "db-file-0",
       status: "completed",
       dealId: "deal-1",
       fileType: "im_pdf",

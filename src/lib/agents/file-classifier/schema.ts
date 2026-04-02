@@ -15,6 +15,7 @@ export const FILE_TYPE_VALUES = [
   "purchase_agreement",
   "pmi_plan",
   "pmi_report",
+  "excel_data",
   "other",
 ] as const;
 

@@ -4,10 +4,11 @@ import { extractFileContent } from "@/lib/agents/extract-file";
 import { runEval } from "@/lib/agents/im-processor/eval";
 import { scanClassifyAndProcessIncremental } from "@/lib/agents/scan-orchestrator";
 import { processDDDocument } from "@/lib/agents/dd-processor";
+import { translateExcelFile } from "@/lib/agents/excel-translator";
 import { createThesisTreeForDeal } from "@/lib/thesis/create-tree";
 import { db } from "@/lib/db";
-import { portcos } from "@/lib/db/schema";
-import { and, isNotNull } from "drizzle-orm";
+import { files, portcos } from "@/lib/db/schema";
+import { and, eq, isNotNull } from "drizzle-orm";
 import type { FileType } from "@/lib/db/schema/files";
 import { registerGdriveErrorLogger, unregisterGdriveErrorLogger } from "@/lib/gdrive/error-logger";
 import { GDriveAuthError } from "@/lib/gdrive/errors";
@@ -372,5 +373,69 @@ export const runEvalTask = task({
     }
 
     return result;
+  },
+});
+
+/** Translate a Japanese Excel file to English */
+export const translateExcelTask = task({
+  id: "translate-excel",
+  queue: processingQueue,
+  maxDuration: 600, // 10 minutes
+  retry: {
+    maxAttempts: 2,
+    minTimeoutInMs: 5000,
+    maxTimeoutInMs: 30000,
+    factor: 2,
+  },
+  run: async (payload: {
+    fileId: string;
+    portcoId: string;
+    gdriveFileId: string;
+  }) => {
+    logger.info("Translating Excel file", { fileId: payload.fileId });
+
+    // Update file status to processing
+    await db
+      .update(files)
+      .set({ processingStatus: "processing" })
+      .where(eq(files.id, payload.fileId));
+
+    try {
+      const result = await translateExcelFile(
+        payload.portcoId,
+        payload.fileId,
+        payload.gdriveFileId,
+      );
+
+      // Update file status and store translated file URL
+      await db
+        .update(files)
+        .set({
+          processingStatus: "completed",
+          processedAt: new Date(),
+          metadata: { translatedFileUrl: result.translatedFileUrl },
+        })
+        .where(eq(files.id, payload.fileId));
+
+      logger.info("Excel translation completed", {
+        fileId: payload.fileId,
+        sheetsProcessed: result.sheetsProcessed,
+        cellsTranslated: result.cellsTranslated,
+      });
+
+      return result;
+    } catch (error) {
+      await db
+        .update(files)
+        .set({ processingStatus: "failed" })
+        .where(eq(files.id, payload.fileId));
+
+      logger.error("Excel translation failed", {
+        fileId: payload.fileId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      throw error;
+    }
   },
 });

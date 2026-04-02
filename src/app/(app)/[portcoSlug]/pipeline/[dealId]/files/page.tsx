@@ -10,6 +10,7 @@ import { ImportGdriveDialog } from "@/components/deals/import-gdrive-dialog";
 import { FileTypeBadge } from "@/components/files/file-type-badge";
 import { FileExtractionViewer } from "@/components/files/file-extraction-viewer";
 import { ExtractFileButton } from "@/components/files/extract-file-button";
+import { SpreadsheetViewer } from "@/components/files/spreadsheet-viewer";
 import { getDeal } from "@/lib/db/cached-queries";
 import { FILE_TYPE_LABELS, FILE_TYPE_BADGE_COLORS } from "@/lib/constants";
 import { formatBytes, formatDateShort } from "@/lib/format";
@@ -25,6 +26,7 @@ const FILE_GROUPS: FileGroup[] = [
   { label: "Due Diligence", types: ["dd_financial", "dd_legal", "dd_operational", "dd_tax", "dd_hr", "dd_it"] },
   { label: "Deal Documents", types: ["nda", "loi", "purchase_agreement"] },
   { label: "PMI", types: ["pmi_plan", "pmi_report"] },
+  { label: "Data Files", types: ["excel_data"] },
   { label: "Other", types: ["report", "attachment", "other"] },
 ];
 
@@ -160,6 +162,12 @@ export default async function FilesPage({
                       </Badge>
                       {extractedFileIds.has(file.id) && (
                         <FileExtractionViewer
+                          fileId={file.id}
+                          fileName={file.fileName}
+                        />
+                      )}
+                      {file.fileType === "excel_data" && (
+                        <SpreadsheetViewer
                           fileId={file.id}
                           fileName={file.fileName}
                         />

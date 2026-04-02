@@ -58,6 +58,8 @@ vi.mock("@/lib/db", () => {
             return chain;
           };
         }
+        // db.query.files.findFirst — "query" and its children are property accesses
+        if (prop === "query" || prop === "files") return chain;
         return () => chain;
       },
     }
@@ -232,6 +234,57 @@ describe("im-processing actions", () => {
       );
 
       expect(result).toEqual({ triggered: true, runId: "run-001" });
+    });
+  });
+
+  describe("translateExcel", () => {
+    it("throws when portco not found", async () => {
+      mockGetPortcoBySlug.mockResolvedValue(null);
+
+      const { translateExcel } = await import("./im-processing");
+      await expect(
+        translateExcel("bad-slug", "gdrive-1", "test.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", null, null),
+      ).rejects.toThrow("PortCo not found");
+    });
+
+    it("creates a new file record and triggers task when file does not exist", async () => {
+      // db.query.files.findFirst → null (no existing file)
+      dbResults.push(null);
+      // db.insert.returning → new file record
+      dbResults.push([{ id: "new-file-001" }]);
+
+      const { translateExcel } = await import("./im-processing");
+      const result = await translateExcel(
+        "test-portco", "gdrive-1", "data.xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        5000, "https://drive.google.com/file/1",
+      );
+
+      expect(result).toEqual({ triggered: true, runId: "run-001" });
+      expect(mockTasksTrigger).toHaveBeenCalledWith("translate-excel", {
+        fileId: "new-file-001",
+        portcoId: "portco-001",
+        gdriveFileId: "gdrive-1",
+      });
+    });
+
+    it("reuses existing file record when file already exists", async () => {
+      // db.query.files.findFirst → existing file
+      dbResults.push({ id: "existing-file-001" });
+
+      const { translateExcel } = await import("./im-processing");
+      const result = await translateExcel(
+        "test-portco", "gdrive-1", "data.xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        null, null,
+      );
+
+      expect(result).toEqual({ triggered: true, runId: "run-001" });
+      expect(mockTasksTrigger).toHaveBeenCalledWith("translate-excel", {
+        fileId: "existing-file-001",
+        portcoId: "portco-001",
+        gdriveFileId: "gdrive-1",
+      });
     });
   });
 
