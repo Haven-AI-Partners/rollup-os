@@ -35,10 +35,22 @@ export async function extractFileContent(
   if (!file) return { success: false, error: "File not found" };
   if (!file.gdriveFileId) return { success: false, error: "File has no Google Drive ID" };
 
+  // Mark as processing
+  await db
+    .update(files)
+    .set({ processingStatus: "processing", updatedAt: new Date() })
+    .where(eq(files.id, fileId));
+
   try {
     // Download PDF
     const buffer = await downloadFile(portcoId, file.gdriveFileId);
-    if (!buffer) return { success: false, error: "Failed to download from Google Drive" };
+    if (!buffer) {
+      await db
+        .update(files)
+        .set({ processingStatus: "failed", updatedAt: new Date() })
+        .where(eq(files.id, fileId));
+      return { success: false, error: "Failed to download from Google Drive" };
+    }
 
     // Agent 1: Content Extraction
     const contentExtraction = await extractContent(buffer);
@@ -74,9 +86,22 @@ export async function extractFileContent(
         },
       });
 
+    // Mark as completed
+    await db
+      .update(files)
+      .set({ processingStatus: "completed", processedAt: new Date(), updatedAt: new Date() })
+      .where(eq(files.id, fileId));
+
     return { success: true };
   } catch (error) {
     console.error("File extraction error:", error);
+
+    await db
+      .update(files)
+      .set({ processingStatus: "failed", updatedAt: new Date() })
+      .where(eq(files.id, fileId))
+      .catch(() => {});
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

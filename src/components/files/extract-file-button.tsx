@@ -3,16 +3,17 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2, FileSearch, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, FileSearch, CheckCircle, RefreshCw } from "lucide-react";
 import { extractFile } from "@/lib/actions/im-processing";
 import { useRunStatus } from "@/hooks/use-run-status";
 
 interface ExtractFileButtonProps {
   portcoSlug: string;
   fileId: string;
+  hasExtraction?: boolean;
 }
 
-export function ExtractFileButton({ portcoSlug, fileId }: ExtractFileButtonProps) {
+export function ExtractFileButton({ portcoSlug, fileId, hasExtraction }: ExtractFileButtonProps) {
   const [runId, setRunId] = useState<string | null>(null);
   const [triggerError, setTriggerError] = useState<string | null>(null);
   const { state, error: runError } = useRunStatus(runId);
@@ -51,21 +52,25 @@ export function ExtractFileButton({ portcoSlug, fileId }: ExtractFileButtonProps
       {isFailed && (
         <span className="text-xs text-red-600 truncate max-w-[120px]">{errorMsg}</span>
       )}
-      {!isDone && (
+      {isRunning ? (
+        <Button variant="outline" size="sm" disabled className="gap-1 h-7 text-xs">
+          <Loader2 className="size-3 animate-spin" />
+          Extracting...
+        </Button>
+      ) : !isDone && (
         <Button
           variant="outline"
           size="sm"
           onClick={handleExtract}
-          disabled={isRunning}
           className="gap-1 h-7 text-xs"
-          title="Extract and translate document content"
+          title={hasExtraction ? "Re-extract and translate document content" : "Extract and translate document content"}
         >
-          {isRunning ? (
-            <Loader2 className="size-3 animate-spin" />
+          {hasExtraction ? (
+            <RefreshCw className="size-3" />
           ) : (
             <FileSearch className="size-3" />
           )}
-          {isRunning ? "Extracting..." : isFailed ? "Retry" : "Extract"}
+          {isFailed ? "Retry" : hasExtraction ? "Re-extract" : "Extract"}
         </Button>
       )}
     </div>

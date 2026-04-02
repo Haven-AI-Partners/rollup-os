@@ -171,10 +171,11 @@ export default async function FilesPage({
                           processingStatus={file.processingStatus}
                         />
                       )}
-                      {isPdf && isAdmin && file.fileType !== "im_pdf" && !extractedFileIds.has(file.id) && (
+                      {isPdf && isAdmin && file.fileType !== "im_pdf" && (
                         <ExtractFileButton
                           portcoSlug={portcoSlug}
                           fileId={file.id}
+                          hasExtraction={extractedFileIds.has(file.id)}
                         />
                       )}
                       {file.gdriveUrl && (
