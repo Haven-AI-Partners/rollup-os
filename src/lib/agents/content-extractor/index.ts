@@ -68,7 +68,7 @@ export async function extractContent(pdfBuffer: Buffer): Promise<ContentExtracti
  * Extract a brief description from a page's content by looking for
  * [Chart: ...], [Image: ...], or Mermaid code blocks.
  */
-function extractDiagramDescription(content: string): string {
+export function extractDiagramDescription(content: string): string {
   const chartMatch = content.match(/\[Chart:\s*([^\]]+)\]/);
   if (chartMatch) return chartMatch[1].trim();
 
@@ -85,7 +85,7 @@ function extractDiagramDescription(content: string): string {
  * Render PDF pages flagged as containing diagrams into PNG images.
  * Uses the existing pdf-renderer to convert specific pages.
  */
-async function renderDiagramPages(
+export async function renderDiagramPages(
   pdfBuffer: Buffer,
   extraction: ContentExtractionResult,
 ): Promise<DiagramImage[]> {
