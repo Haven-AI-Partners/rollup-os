@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
         },
         {
           key: "Content-Security-Policy",
-          value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://*.clerk.accounts.dev https://clerk.rollup-os.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.clerk.com https://*.googleusercontent.com https://clerk.rollup-os.com; font-src 'self' data:; connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk.rollup-os.com https://accounts.google.com https://*.googleapis.com https://*.google.com https://*.langfuse.com https://*.vercel-insights.com https://vitals.vercel-insights.com; frame-src 'self' https://accounts.google.com https://*.clerk.accounts.dev https://clerk.rollup-os.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
+          value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://*.clerk.accounts.dev https://clerk.rollup-os.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.clerk.com https://*.googleusercontent.com https://clerk.rollup-os.com; font-src 'self' data:; connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk.rollup-os.com https://accounts.google.com https://*.googleapis.com https://*.google.com https://*.langfuse.com https://*.vercel-insights.com https://vitals.vercel-insights.com; frame-src 'self' https://accounts.google.com https://*.clerk.accounts.dev https://clerk.rollup-os.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
         },
       ],
     },
