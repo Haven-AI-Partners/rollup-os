@@ -1,0 +1,1 @@
+ALTER TABLE "file_extractions" ADD COLUMN "diagram_images" jsonb;

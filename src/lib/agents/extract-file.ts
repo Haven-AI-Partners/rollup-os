@@ -6,12 +6,12 @@ import { eq } from "drizzle-orm";
 import { downloadFile } from "@/lib/gdrive/client";
 import { extractContent, MODEL_ID as EXTRACTOR_MODEL } from "@/lib/agents/content-extractor";
 import { translateContent, skipTranslation, MODEL_ID as TRANSLATOR_MODEL } from "@/lib/agents/translator";
-import { type ContentExtractionResult } from "@/lib/agents/content-extractor/schema";
+import { type ContentExtractionWithImages } from "@/lib/agents/content-extractor/schema";
 
 const CJK_REGEX = /[\u3000-\u9fff\uac00-\ud7af\uf900-\ufaff]/;
 const CJK_THRESHOLD = 0.05;
 
-function containsCJK(extraction: ContentExtractionResult): boolean {
+function containsCJK(extraction: ContentExtractionWithImages): boolean {
   const sample = extraction.pages.slice(0, 5).map((p) => p.content).join("");
   if (!sample) return false;
   const cjkChars = (sample.match(new RegExp(CJK_REGEX.source, "g")) ?? []).length;
@@ -63,13 +63,17 @@ export async function extractFileContent(
       ? await translateContent(contentExtraction)
       : skipTranslation(contentExtraction);
 
+    // Separate diagram images from the content extraction for storage
+    const { diagramImages, ...extractionWithoutImages } = contentExtraction;
+
     // Persist extraction
     await db
       .insert(fileExtractions)
       .values({
         fileId,
-        contentExtraction,
+        contentExtraction: extractionWithoutImages,
         translation,
+        diagramImages: diagramImages.length > 0 ? diagramImages : null,
         extractionModel: EXTRACTOR_MODEL,
         translationModel: TRANSLATOR_MODEL,
         pipelineVersion: "v2",
@@ -77,8 +81,9 @@ export async function extractFileContent(
       .onConflictDoUpdate({
         target: fileExtractions.fileId,
         set: {
-          contentExtraction,
+          contentExtraction: extractionWithoutImages,
           translation,
+          diagramImages: diagramImages.length > 0 ? diagramImages : null,
           extractionModel: EXTRACTOR_MODEL,
           translationModel: TRANSLATOR_MODEL,
           pipelineVersion: "v2",

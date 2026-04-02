@@ -1,5 +1,5 @@
 import { extractContent, MODEL_ID as EXTRACTOR_MODEL } from "@/lib/agents/content-extractor";
-import { type ContentExtractionResult } from "@/lib/agents/content-extractor/schema";
+import { type ContentExtractionWithImages } from "@/lib/agents/content-extractor/schema";
 import { translateContent, skipTranslation, MODEL_ID as TRANSLATOR_MODEL } from "@/lib/agents/translator";
 import { analyzeContent, MODEL_ID as ANALYZER_MODEL } from "./agents/analyzer";
 import { enrichExternally, MODEL_ID as ENRICHER_MODEL, type EnrichmentInput } from "@/lib/agents/external-enricher";
@@ -30,13 +30,17 @@ export async function runIMPipeline(
 ): Promise<IMPipelineResult> {
   const progress = onProgress ?? (() => {});
 
-  let contentExtraction: ContentExtractionResult;
+  let contentExtraction: ContentExtractionWithImages;
   let translation: TranslationResult;
 
   // Check for cached extraction from a previous run (skip Agents 1+2 on retry)
   const cached = fileId && !forceExtract
     ? await db
-        .select({ contentExtraction: fileExtractions.contentExtraction, translation: fileExtractions.translation })
+        .select({
+          contentExtraction: fileExtractions.contentExtraction,
+          translation: fileExtractions.translation,
+          diagramImages: fileExtractions.diagramImages,
+        })
         .from(fileExtractions)
         .where(eq(fileExtractions.fileId, fileId))
         .limit(1)
@@ -45,7 +49,11 @@ export async function runIMPipeline(
 
   if (cached?.contentExtraction && cached?.translation) {
     progress("Using cached extraction and translation from previous run...");
-    contentExtraction = cached.contentExtraction as ContentExtractionResult;
+    const base = cached.contentExtraction as ContentExtractionWithImages;
+    contentExtraction = {
+      ...base,
+      diagramImages: (cached.diagramImages as ContentExtractionWithImages["diagramImages"]) ?? base.diagramImages ?? [],
+    };
     translation = cached.translation as TranslationResult;
   } else {
     // Agent 1: Content Extraction
@@ -73,12 +81,16 @@ export async function runIMPipeline(
 
     // Persist extraction + translation early so retries skip Agents 1+2
     if (fileId) {
+      // Separate diagram images from the content extraction for storage
+      const { diagramImages, ...extractionWithoutImages } = contentExtraction;
+
       await db
         .insert(fileExtractions)
         .values({
           fileId,
-          contentExtraction,
+          contentExtraction: extractionWithoutImages,
           translation,
+          diagramImages: diagramImages.length > 0 ? diagramImages : null,
           extractionModel: EXTRACTOR_MODEL,
           translationModel: TRANSLATOR_MODEL,
           pipelineVersion: "v2",
@@ -86,8 +98,9 @@ export async function runIMPipeline(
         .onConflictDoUpdate({
           target: fileExtractions.fileId,
           set: {
-            contentExtraction,
+            contentExtraction: extractionWithoutImages,
             translation,
+            diagramImages: diagramImages.length > 0 ? diagramImages : null,
             extractionModel: EXTRACTOR_MODEL,
             translationModel: TRANSLATOR_MODEL,
             pipelineVersion: "v2",
@@ -164,7 +177,7 @@ const CJK_REGEX = /[\u3000-\u9fff\uac00-\ud7af\uf900-\ufaff]/;
 const CJK_THRESHOLD = 0.05;
 
 /** Check if extracted content contains significant CJK text */
-function containsCJK(extraction: ContentExtractionResult): boolean {
+function containsCJK(extraction: ContentExtractionWithImages): boolean {
   const sample = extraction.pages
     .slice(0, 5)
     .map((p) => p.content)

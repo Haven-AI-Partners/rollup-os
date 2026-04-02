@@ -13,13 +13,21 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
-import { Eye } from "lucide-react";
+import { Eye, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getFileExtraction } from "@/lib/actions/file-extractions";
 
 interface ExtractedPage {
   pageNumber: number;
   content: string;
+  hasDiagram?: boolean;
+}
+
+interface DiagramImage {
+  pageNumber: number;
+  base64: string;
+  mimeType: string;
+  description: string;
 }
 
 interface TranslatedPage {
@@ -59,7 +67,9 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
   const [loading, setLoading] = useState(false);
   const [contentExtraction, setContentExtraction] = useState<ContentExtraction | null>(null);
   const [translation, setTranslation] = useState<Translation | null>(null);
+  const [diagramImages, setDiagramImages] = useState<DiagramImage[]>([]);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [showDiagramImages, setShowDiagramImages] = useState(true);
   const [activePage, setActivePage] = useState(1);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -75,6 +85,7 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
       if (extraction) {
         setContentExtraction(extraction.contentExtraction as ContentExtraction);
         setTranslation(extraction.translation as Translation | null);
+        setDiagramImages((extraction.diagramImages as DiagramImage[]) ?? []);
       }
     } finally {
       setLoading(false);
@@ -91,6 +102,12 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
     const extractedPage = pages.find((p) => p.pageNumber === pageNumber);
     return extractedPage?.content ?? "";
   }, [isTranslated, showOriginal, translation, pages]);
+
+  const getDiagramImage = useCallback((pageNumber: number): DiagramImage | undefined => {
+    return diagramImages.find((d) => d.pageNumber === pageNumber);
+  }, [diagramImages]);
+
+  const hasDiagramImages = diagramImages.length > 0;
 
   // Build page labels from first heading
   const pageLabels = useMemo(() => {
@@ -171,26 +188,40 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
                   )}
                 </DialogDescription>
               </div>
-              {isTranslated && (
-                <div className="flex items-center gap-1 rounded-lg border p-1 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
+                {hasDiagramImages && (
                   <Button
-                    variant={showOriginal ? "ghost" : "secondary"}
+                    variant={showDiagramImages ? "secondary" : "ghost"}
                     size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => setShowOriginal(false)}
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setShowDiagramImages(!showDiagramImages)}
+                    title={showDiagramImages ? "Hide page images for diagrams" : "Show page images for diagrams"}
                   >
-                    Translated
+                    <ImageIcon className="size-3" />
+                    Diagrams
                   </Button>
-                  <Button
-                    variant={showOriginal ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => setShowOriginal(true)}
-                  >
-                    Original
-                  </Button>
-                </div>
-              )}
+                )}
+                {isTranslated && (
+                  <div className="flex items-center gap-1 rounded-lg border p-1">
+                    <Button
+                      variant={showOriginal ? "ghost" : "secondary"}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setShowOriginal(false)}
+                    >
+                      Translated
+                    </Button>
+                    <Button
+                      variant={showOriginal ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setShowOriginal(true)}
+                    >
+                      Original
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </DialogHeader>
 
@@ -239,26 +270,43 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
                 </div>
               ) : (
                 <div className="p-6">
-                  {pages.map((page, index) => (
-                    <div key={page.pageNumber}>
-                      <div id={`page-${page.pageNumber}`} className="scroll-mt-4">
-                        {index > 0 && (
-                          <div className="flex items-center gap-3 my-6">
-                            <Separator className="flex-1" />
-                            <Badge variant="outline" className="text-[10px] shrink-0">
-                              Page {page.pageNumber}
-                            </Badge>
-                            <Separator className="flex-1" />
-                          </div>
-                        )}
-                        <MarkdownRenderer
-                          content={getPageContent(page.pageNumber)}
-                          className="[&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1"
-                          wrapTables
-                        />
+                  {pages.map((page, index) => {
+                    const diagramImage = getDiagramImage(page.pageNumber);
+                    return (
+                      <div key={page.pageNumber}>
+                        <div id={`page-${page.pageNumber}`} className="scroll-mt-4">
+                          {index > 0 && (
+                            <div className="flex items-center gap-3 my-6">
+                              <Separator className="flex-1" />
+                              <Badge variant="outline" className="text-[10px] shrink-0">
+                                Page {page.pageNumber}
+                              </Badge>
+                              <Separator className="flex-1" />
+                            </div>
+                          )}
+                          {showDiagramImages && diagramImage && (
+                            <div className="mb-4 rounded-lg border bg-muted/30 p-3">
+                              <p className="mb-2 text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                                <ImageIcon className="size-3" />
+                                {diagramImage.description}
+                              </p>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={`data:${diagramImage.mimeType};base64,${diagramImage.base64}`}
+                                alt={diagramImage.description}
+                                className="max-w-full rounded border"
+                              />
+                            </div>
+                          )}
+                          <MarkdownRenderer
+                            content={getPageContent(page.pageNumber)}
+                            className="[&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1"
+                            wrapTables
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
