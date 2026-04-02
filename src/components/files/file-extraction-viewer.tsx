@@ -127,7 +127,10 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
     }
   }, []);
 
-  // Track active page on scroll
+  // Track active page on scroll (throttled to avoid excessive re-renders)
+  const activePageRef = useRef(1);
+  const rafRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!open || !contentExtraction) return;
 
@@ -135,22 +138,33 @@ export function FileExtractionViewer({ fileId, fileName }: FileExtractionViewerP
     if (!scrollEl) return;
 
     const handleScroll = () => {
-      const pages = contentExtraction.pages;
-      for (let i = pages.length - 1; i >= 0; i--) {
-        const el = document.getElementById(`page-${pages[i].pageNumber}`);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          const containerRect = scrollEl.getBoundingClientRect();
-          if (rect.top <= containerRect.top + 100) {
-            setActivePage(pages[i].pageNumber);
-            break;
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        const pages = contentExtraction.pages;
+        for (let i = pages.length - 1; i >= 0; i--) {
+          const el = document.getElementById(`page-${pages[i].pageNumber}`);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            const containerRect = scrollEl.getBoundingClientRect();
+            if (rect.top <= containerRect.top + 100) {
+              const newPage = pages[i].pageNumber;
+              if (activePageRef.current !== newPage) {
+                activePageRef.current = newPage;
+                setActivePage(newPage);
+              }
+              break;
+            }
           }
         }
-      }
+      });
     };
 
     scrollEl.addEventListener("scroll", handleScroll, { passive: true });
-    return () => scrollEl.removeEventListener("scroll", handleScroll);
+    return () => {
+      scrollEl.removeEventListener("scroll", handleScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, [open, contentExtraction]);
 
   return (

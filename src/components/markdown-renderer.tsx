@@ -3,7 +3,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
-import { MermaidDiagram } from "@/components/mermaid-diagram";
 
 interface MarkdownRendererProps {
   content: string;
@@ -17,7 +16,12 @@ interface MarkdownRendererProps {
  * When the header row has N columns but the alignment row has fewer separators,
  * pad the alignment row to match.
  */
-function fixTableAlignmentRows(markdown: string): string {
+/**
+ * Fix common markdown table issues:
+ * 1. Alignment rows with fewer columns than the header
+ * 2. Missing blank line before table header (required for markdown parsing)
+ */
+function fixTables(markdown: string): string {
   const lines = markdown.split("\n");
   const result: string[] = [];
 
@@ -25,6 +29,20 @@ function fixTableAlignmentRows(markdown: string): string {
     const line = lines[i];
     const trimmed = line.trim();
 
+    // Check if this is a table header row (starts with |, has content, followed by alignment row)
+    if (
+      trimmed.startsWith("|") &&
+      i + 1 < lines.length &&
+      /^\|[\s:|-]+\|$/.test(lines[i + 1].trim()) &&
+      i > 0 &&
+      result.length > 0 &&
+      result[result.length - 1].trim() !== ""
+    ) {
+      // Insert blank line before table if missing
+      result.push("");
+    }
+
+    // Fix alignment rows with fewer columns than header
     if (/^\|[\s:|-]+\|$/.test(trimmed) && i > 0) {
       const headerLine = lines[i - 1].trim();
       const headerCols = headerLine.split("|").filter(Boolean).length;
@@ -44,7 +62,7 @@ function fixTableAlignmentRows(markdown: string): string {
 }
 
 export function MarkdownRenderer({ content, className, wrapTables }: MarkdownRendererProps) {
-  const fixedContent = fixTableAlignmentRows(content);
+  const fixedContent = fixTables(content);
 
   return (
     <div className={cn(
@@ -55,34 +73,13 @@ export function MarkdownRenderer({ content, className, wrapTables }: MarkdownRen
     )}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        components={{
-          ...(wrapTables ? {
-            table: ({ children, ...props }) => (
-              <div className="overflow-x-auto">
-                <table {...props}>{children}</table>
-              </div>
-            ),
-          } : {}),
-          pre: ({ children, ...props }) => {
-            // Check if this pre wraps a mermaid code block — if so, render
-            // the MermaidDiagram directly without the <pre> wrapper.
-            const child = Array.isArray(children) ? children[0] : children;
-            if (
-              child &&
-              typeof child === "object" &&
-              "props" in child &&
-              /language-mermaid/.test(child.props?.className ?? "")
-            ) {
-              return (
-                <MermaidDiagram
-                  chart={String(child.props.children).trim()}
-                  className="my-4 overflow-x-auto"
-                />
-              );
-            }
-            return <pre {...props}>{children}</pre>;
-          },
-        }}
+        components={wrapTables ? {
+          table: ({ children, ...props }) => (
+            <div className="overflow-x-auto">
+              <table {...props}>{children}</table>
+            </div>
+          ),
+        } : undefined}
       >
         {fixedContent}
       </ReactMarkdown>

@@ -1,4 +1,5 @@
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { createRequire } from "node:module";
 
 const RENDER_SCALE = 1.5;
 const IMAGE_MIME_TYPE = "image/png";
@@ -8,12 +9,28 @@ interface PageImage {
   mimeType: string;
 }
 
+/** Configure pdfjs-dist to find its worker file */
+async function getConfiguredPdfjs() {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+  // Resolve the worker path using require.resolve so it works regardless of
+  // bundler output location (Trigger.dev, Next.js, etc.)
+  try {
+    const require = createRequire(import.meta.url);
+    const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+    pdfjs.GlobalWorkerOptions.workerSrc = workerPath;
+  } catch {
+    // If worker resolution fails, pdfjs will fall back to fake worker
+  }
+
+  return pdfjs;
+}
+
 /**
  * Get the total page count of a PDF without rendering any pages.
- * Uses pdfjs-dist for lightweight parsing.
  */
 export async function getPdfPageCount(pdfBuffer: Buffer): Promise<number> {
-  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const { getDocument } = await getConfiguredPdfjs();
   let doc: PDFDocumentProxy | null = null;
   try {
     const data = new Uint8Array(pdfBuffer);
@@ -26,15 +43,12 @@ export async function getPdfPageCount(pdfBuffer: Buffer): Promise<number> {
 
 /**
  * Render the first N pages of a PDF buffer as PNG images.
- * Uses pdfjs-dist for rendering in a Node.js environment.
- * The pdfjs-dist import is deferred to avoid DOMMatrix errors in bundlers
- * that evaluate modules at build time (e.g. Trigger.dev).
  */
 export async function renderPdfPagesToImages(
   pdfBuffer: Buffer,
   maxPages: number,
 ): Promise<PageImage[]> {
-  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const { getDocument } = await getConfiguredPdfjs();
   let doc: PDFDocumentProxy | null = null;
   try {
     const data = new Uint8Array(pdfBuffer);
@@ -47,7 +61,6 @@ export async function renderPdfPagesToImages(
       const page = await doc.getPage(i);
       const viewport = page.getViewport({ scale: RENDER_SCALE });
 
-      // Use OffscreenCanvas for Node.js environments
       const canvas = new OffscreenCanvas(viewport.width, viewport.height);
       const ctx = canvas.getContext("2d");
       if (!ctx) continue;

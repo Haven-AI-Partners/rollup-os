@@ -7,7 +7,6 @@ import {
   type DiagramImage,
 } from "./schema";
 import { buildContentExtractionPrompt } from "./prompt";
-import { renderPdfPagesToImages } from "@/lib/agents/shared/pdf-renderer";
 
 /**
  * Agent 1: Content Extractor
@@ -95,7 +94,8 @@ export async function renderDiagramPages(
   const maxPage = Math.max(...diagramPages.map((p) => p.pageNumber));
 
   try {
-    // Render all pages up to the max diagram page (pdf-renderer renders sequentially)
+    // Dynamic import to avoid module resolution failures in Trigger.dev worker
+    const { renderPdfPagesToImages } = await import("@/lib/agents/shared/pdf-renderer");
     const allImages = await renderPdfPagesToImages(pdfBuffer, maxPage);
 
     return diagramPages
