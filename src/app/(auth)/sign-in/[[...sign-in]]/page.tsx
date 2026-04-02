@@ -1,7 +1,6 @@
 "use client";
 
-import { useSignIn, useAuth } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useSignIn, useAuth, useClerk } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,29 +10,37 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { GoogleIcon } from "@/components/icons/google";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function SignInPage() {
-  const { signIn } = useSignIn();
+  const { signIn, fetchStatus } = useSignIn();
   const { isSignedIn } = useAuth();
-  const router = useRouter();
+  const { signOut } = useClerk();
   const [isLoading, setIsLoading] = useState(false);
+  const signOutAttempted = useRef(false);
 
+  // If Clerk thinks the user is signed in but they landed on /sign-in,
+  // the server-side session is likely stale. Sign out to clear client state.
   useEffect(() => {
-    if (isSignedIn) {
-      router.replace("/");
+    if (isSignedIn && !signOutAttempted.current) {
+      signOutAttempted.current = true;
+      signOut();
     }
-  }, [isSignedIn, router]);
+  }, [isSignedIn, signOut]);
+
+  const isFetching = fetchStatus === "fetching";
 
   const handleGoogleSignIn = async () => {
+    if (isFetching) return;
     setIsLoading(true);
-    const { error } = await signIn.sso({
-      strategy: "oauth_google",
-      redirectUrl: "/",
-      redirectCallbackUrl: "/sso-callback",
-    });
-    if (error) {
-      console.error("Sign-in error:", error);
+    try {
+      await signIn.sso({
+        strategy: "oauth_google",
+        redirectUrl: "/",
+        redirectCallbackUrl: "/sso-callback",
+      });
+    } catch (err) {
+      console.error("Sign-in error:", err);
       setIsLoading(false);
     }
   };
@@ -52,7 +59,7 @@ export default function SignInPage() {
           size="lg"
           className="w-full h-12 text-base font-medium"
           onClick={handleGoogleSignIn}
-          disabled={isLoading}
+          disabled={isFetching || isLoading}
         >
           <GoogleIcon className="size-5" />
           {isLoading ? "Redirecting..." : "Continue with Google"}
