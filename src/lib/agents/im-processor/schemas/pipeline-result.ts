@@ -1,4 +1,4 @@
-import { type ContentExtractionResult } from "@/lib/agents/content-extractor/schema";
+import { type ContentExtractionWithImages } from "@/lib/agents/content-extractor/schema";
 import { type TranslationResult } from "@/lib/agents/translator/schema";
 import { type AnalyzerExtractionResult, type AnalyzerScoringResult } from "./analyzer";
 import { type ExternalEnrichmentResult } from "@/lib/agents/external-enricher/schema";
@@ -7,8 +7,8 @@ import { type IMAnalysisResult } from "../schema";
 // ── Combined pipeline result ──
 
 export interface IMPipelineResult {
-  /** Agent 1 output: raw page-level content extraction */
-  contentExtraction: ContentExtractionResult;
+  /** Agent 1 output: raw page-level content extraction + diagram images */
+  contentExtraction: ContentExtractionWithImages;
   /** Agent 2 output: translated pages (same as extraction if English) */
   translation: TranslationResult;
   /** Agent 3 output: structured extraction with source attribution */

@@ -14,6 +14,7 @@ export const CONTENT_EXTRACTION_TEMPLATE = `You are a document transcription sys
 4. **Do NOT add commentary, analysis, or interpretation.**
 5. **Detect the primary language** of the document and report it as an ISO 639-1 code.
 6. **Report the document title** if one appears on a cover page or header. Otherwise set to null.
+7. **Flag diagram pages.** Set \`hasDiagram: true\` for any page that contains a chart, graph, diagram, org chart, flowchart, process diagram, or other visual element (excluding simple logos and decorative images). Set \`hasDiagram: false\` for text-only pages.
 
 ## Formatting Guidelines
 
@@ -57,6 +58,21 @@ export const CONTENT_EXTRACTION_TEMPLATE = `You are a document transcription sys
   \`\`\`
 - If the chart has **no readable values** (e.g., decorative, too blurry, or only shows trends without numbers), describe it textually: \`[Chart: Line chart showing upward revenue trend over 5 years, no values visible]\`
 - Always note the chart type (bar, line, pie, area, etc.) and title if visible.
+
+### Diagrams with Structure (org charts, flowcharts, process diagrams)
+- If a diagram has **clear nodes and connections** (org chart, flowchart, process diagram, decision tree, deal structure, relationship map), output BOTH:
+  1. An \`[Image: description]\` marker (as usual)
+  2. A **Mermaid code block** representing the structure. Example:
+  \`\`\`mermaid
+  graph TD
+    A[CEO 社長] --> B[VP Sales 営業部長]
+    A --> C[VP Engineering 技術部長]
+    B --> D[Sales Team 営業チーム]
+    C --> E[Dev Team 開発チーム]
+  \`\`\`
+- Use the appropriate Mermaid diagram type: \`graph TD\` for top-down hierarchies (org charts), \`graph LR\` for left-right flows (process diagrams), \`flowchart\` for decision trees.
+- Reproduce all visible node labels exactly as written (original language). Include all connections/arrows shown.
+- **Only use Mermaid for diagrams with clear structure.** Do NOT attempt Mermaid for photos, logos, decorative graphics, data charts (bar/line/pie), or complex infographics.
 
 ### Images & Logos
 - Note as \`[Image: brief description]\`

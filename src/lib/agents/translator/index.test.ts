@@ -26,8 +26,8 @@ describe("skipTranslation", () => {
   it("passes through English content unchanged", () => {
     const extraction: ContentExtractionResult = {
       pages: [
-        { pageNumber: 1, content: "# Company Overview\n\nTest Corp provides IT services." },
-        { pageNumber: 2, content: "## Financials\n\nRevenue: $10M" },
+        { pageNumber: 1, content: "# Company Overview\n\nTest Corp provides IT services.", hasDiagram: false },
+        { pageNumber: 2, content: "## Financials\n\nRevenue: $10M", hasDiagram: false },
       ],
       metadata: {
         totalPages: 2,
@@ -72,7 +72,7 @@ describe("translateContent", () => {
     const { generateObject } = await import("ai");
 
     const extraction: ContentExtractionResult = {
-      pages: [{ pageNumber: 1, content: "English content" }],
+      pages: [{ pageNumber: 1, content: "English content", hasDiagram: false }],
       metadata: { totalPages: 1, documentLanguage: "en", documentTitle: "Test" },
     };
 
@@ -90,7 +90,7 @@ describe("translateContent", () => {
     const { generateObject } = await import("ai");
 
     const extraction: ContentExtractionResult = {
-      pages: [{ pageNumber: 1, content: "日本語テキスト" }],
+      pages: [{ pageNumber: 1, content: "日本語テキスト", hasDiagram: false }],
       metadata: { totalPages: 1, documentLanguage: "ja", documentTitle: "テスト" },
     };
 
@@ -108,6 +108,7 @@ describe("translateContent", () => {
     const pages = Array.from({ length: 20 }, (_, i) => ({
       pageNumber: i + 1,
       content: `Page ${i + 1} content in Japanese`,
+      hasDiagram: false as const,
     }));
 
     const extraction: ContentExtractionResult = {

@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import { MermaidDiagram } from "@/components/mermaid-diagram";
 
 interface MarkdownRendererProps {
   content: string;
@@ -54,13 +55,34 @@ export function MarkdownRenderer({ content, className, wrapTables }: MarkdownRen
     )}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        components={wrapTables ? {
-          table: ({ children, ...props }) => (
-            <div className="overflow-x-auto">
-              <table {...props}>{children}</table>
-            </div>
-          ),
-        } : undefined}
+        components={{
+          ...(wrapTables ? {
+            table: ({ children, ...props }) => (
+              <div className="overflow-x-auto">
+                <table {...props}>{children}</table>
+              </div>
+            ),
+          } : {}),
+          pre: ({ children, ...props }) => {
+            // Check if this pre wraps a mermaid code block — if so, render
+            // the MermaidDiagram directly without the <pre> wrapper.
+            const child = Array.isArray(children) ? children[0] : children;
+            if (
+              child &&
+              typeof child === "object" &&
+              "props" in child &&
+              /language-mermaid/.test(child.props?.className ?? "")
+            ) {
+              return (
+                <MermaidDiagram
+                  chart={String(child.props.children).trim()}
+                  className="my-4 overflow-x-auto"
+                />
+              );
+            }
+            return <pre {...props}>{children}</pre>;
+          },
+        }}
       >
         {fixedContent}
       </ReactMarkdown>

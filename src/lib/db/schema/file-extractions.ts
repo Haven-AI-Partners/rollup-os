@@ -9,6 +9,8 @@ export const fileExtractions = pgTable("file_extractions", {
     .notNull(),
   contentExtraction: jsonb("content_extraction").notNull(),
   translation: jsonb("translation"),
+  /** Base64-encoded PNG images of pages flagged as containing diagrams */
+  diagramImages: jsonb("diagram_images"),
   extractionModel: text("extraction_model"),
   translationModel: text("translation_model"),
   pipelineVersion: text("pipeline_version").default("v2"),
