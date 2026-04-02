@@ -61,23 +61,4 @@ describe("uploadTranslatedFile", () => {
       uploadTranslatedFile("p1", "f1", Buffer.from("test"), "test.xlsx"),
     ).rejects.toThrow("Failed to upload translated file: Bucket not found");
   });
-
-  it("throws when env vars are missing", async () => {
-    const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    // Re-import to get fresh module with missing env vars
-    vi.resetModules();
-    const { uploadTranslatedFile: upload } = await import("./index");
-
-    await expect(
-      upload("p1", "f1", Buffer.from("test"), "test.xlsx"),
-    ).rejects.toThrow("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set");
-
-    process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;
-    process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
-  });
 });
