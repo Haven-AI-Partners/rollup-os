@@ -63,17 +63,15 @@ export const CONTENT_EXTRACTION_TEMPLATE = `You are a document transcription sys
 - **Skip Google Maps screenshots** — do not describe or transcribe map images. Simply note \`[Map: skipped]\`.
 
 ### Forms with Circled Items (丸で囲む)
-- Japanese forms often indicate selections by **drawing a circle around** an item's number or text. This is a very common pattern — look carefully for it on any page that contains a numbered list of options within a form or table.
-- Visual clues for circled items: the circle is typically a **hand-drawn or printed oval/ring** that encloses the item number or text. It is larger than the text itself and may be slightly irregular. Uncircled items have NO such ring around them.
-- **Strategy**: First, list ALL items in the form. Then, go back and examine each item individually — is there a circle/oval drawn around its number or text? Compare circled vs uncircled items to calibrate what a circle looks like in this document.
-- Render as a checklist:
+- Japanese forms often indicate selections by **circling** (○) an item from a numbered list. This is different from checkboxes.
+- When you see a form where some items are circled and others are not, render it as a checklist where circled items are checked:
   \`\`\`
   - [x] 1. 登記事項等の変更 (circled)
   - [ ] 2. 支店等の新設・廃止
   - [ ] 3. 会社分割
   - [x] 4. 解散 (circled)
   \`\`\`
-- **When uncertain**: Mark as \`- [?] 5. 項目名 (uncertain)\` rather than guessing wrong. Getting a circle wrong is worse than flagging uncertainty.
+- **Be precise**: carefully examine which items have circles drawn around them. Only mark items as \`[x]\` if they are visibly circled in the document. If unsure, add \`(possibly circled)\` after the item.
 
 ### Skip
 - **Page footers**: Do not transcribe repeating footer content (page numbers, copyright notices, confidentiality disclaimers, document IDs, or firm branding that appears on every page). Only transcribe footer content if it contains unique, substantive information.
