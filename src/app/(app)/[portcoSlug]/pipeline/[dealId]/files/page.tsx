@@ -9,6 +9,8 @@ import { ProcessIMButton } from "@/components/deals/process-im-button";
 import { ImportGdriveDialog } from "@/components/deals/import-gdrive-dialog";
 import { FileTypeBadge } from "@/components/files/file-type-badge";
 import { FileExtractionViewer } from "@/components/files/file-extraction-viewer";
+import { DownloadExtractionButton } from "@/components/files/download-extraction-button";
+import { DownloadAllExtractionsButton } from "@/components/files/download-all-extractions-button";
 import { ExtractFileButton } from "@/components/files/extract-file-button";
 import { getDeal } from "@/lib/db/cached-queries";
 import { FILE_TYPE_LABELS, FILE_TYPE_BADGE_COLORS } from "@/lib/constants";
@@ -94,13 +96,22 @@ export default async function FilesPage({
     <div className="max-w-2xl">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Files</h2>
-        {isGdriveConnected && isAdmin && (
-          <ImportGdriveDialog
-            portcoSlug={portcoSlug}
-            dealId={dealId}
-            portcoId={deal.portcoId}
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {extractedFileIds.size > 0 && (
+            <DownloadAllExtractionsButton
+              dealId={dealId}
+              dealName={deal.companyName ?? "deal"}
+              count={extractedFileIds.size}
+            />
+          )}
+          {isGdriveConnected && isAdmin && (
+            <ImportGdriveDialog
+              portcoSlug={portcoSlug}
+              dealId={dealId}
+              portcoId={deal.portcoId}
+            />
+          )}
+        </div>
       </div>
       {dealFiles.length > 0 ? (
         <div className="space-y-5">
@@ -159,10 +170,16 @@ export default async function FilesPage({
                         {file.processingStatus}
                       </Badge>
                       {extractedFileIds.has(file.id) && (
-                        <FileExtractionViewer
-                          fileId={file.id}
-                          fileName={file.fileName}
-                        />
+                        <>
+                          <FileExtractionViewer
+                            fileId={file.id}
+                            fileName={file.fileName}
+                          />
+                          <DownloadExtractionButton
+                            fileId={file.id}
+                            fileName={file.fileName}
+                          />
+                        </>
                       )}
                       {isPdf && isAdmin && file.fileType === "im_pdf" && (
                         <ProcessIMButton
