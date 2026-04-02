@@ -13,12 +13,18 @@ const DD_TYPES = new Set<FileType>([
   "dd_financial", "dd_legal", "dd_operational", "dd_tax", "dd_hr", "dd_it",
 ]);
 
+const PROCESSABLE_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+
 export interface ScanClassifyResult {
   totalFiles: number;
   newFiles: number;
   classified: number;
   imsRouted: number;
   ddRouted: number;
+  excelRouted: number;
   skipped: number;
   failed: number;
   results: Array<{
@@ -27,7 +33,7 @@ export interface ScanClassifyResult {
     parentPath: string;
     fileType: FileType | null;
     confidence: number | null;
-    status: "classified" | "im_routed" | "dd_routed" | "skipped" | "failed";
+    status: "classified" | "im_routed" | "dd_routed" | "excel_routed" | "skipped" | "failed";
     dealId?: string | null;
     error?: string;
   }>;
@@ -88,13 +94,13 @@ export async function scanClassifyAndProcess(
   if (allGdriveFiles.length === 0) {
     return {
       totalFiles: 0, newFiles: 0, classified: 0,
-      imsRouted: 0, ddRouted: 0, skipped: 0, failed: 0, results: [],
+      imsRouted: 0, ddRouted: 0, excelRouted: 0, skipped: 0, failed: 0, results: [],
     };
   }
 
-  // 2. Filter to PDFs
+  // 2. Filter to processable file types (PDFs + Excel)
   const pdfs = allGdriveFiles.filter(
-    (f) => f.mimeType === "application/pdf",
+    (f) => PROCESSABLE_MIME_TYPES.has(f.mimeType),
   );
 
   // 3. Dedup against already-imported files
@@ -122,6 +128,7 @@ export async function scanClassifyAndProcess(
       classified: 0,
       imsRouted: 0,
       ddRouted: 0,
+      excelRouted: 0,
       skipped: pdfs.length,
       failed: 0,
       results: pdfs.map((f) => ({
@@ -140,6 +147,7 @@ export async function scanClassifyAndProcess(
   let classified = 0;
   let imsRouted = 0;
   let ddRouted = 0;
+  let excelRouted = 0;
   let failed = 0;
 
   for (const pdf of newPdfs) {
@@ -250,6 +258,38 @@ export async function scanClassifyAndProcess(
             error: e instanceof Error ? e.message : "DD processing failed",
           });
         }
+      } else if (fileType === "excel_data") {
+        // Route to Excel translator
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trigger.dev SDK typing requires task type references
+          await (tasks as any).trigger("translate-excel", {
+            fileId: fileRecord.id,
+            portcoId,
+            gdriveFileId: pdf.id,
+          });
+          excelRouted++;
+          results.push({
+            fileName: pdf.name,
+            gdriveFileId: pdf.id,
+            parentPath: pdf.parentPath,
+            fileType,
+            confidence,
+            status: "excel_routed",
+            dealId,
+          });
+        } catch (e) {
+          failed++;
+          results.push({
+            fileName: pdf.name,
+            gdriveFileId: pdf.id,
+            parentPath: pdf.parentPath,
+            fileType,
+            confidence,
+            status: "failed",
+            dealId,
+            error: e instanceof Error ? e.message : "Excel translate trigger failed",
+          });
+        }
       } else {
         // Stored but not processed (other type, low confidence, or no deal match)
         results.push({
@@ -282,6 +322,7 @@ export async function scanClassifyAndProcess(
     classified,
     imsRouted,
     ddRouted,
+    excelRouted,
     skipped: pdfs.length - newPdfs.length,
     failed,
     results,
@@ -310,7 +351,7 @@ export async function scanClassifyAndProcessIncremental(
   const crawlBudget = Math.floor(timeBudgetMs * CRAWL_BUDGET_RATIO);
   const scanResult = await crawlFoldersIncremental(portcoId, crawlBudget);
 
-  // 2. Query new PDFs from the cache that aren't yet in the files table.
+  // 2. Query processable files from the cache that aren't yet in the files table.
   //    This is DB-driven rather than in-memory, so it works across multiple runs.
   const cachedPdfs = await db
     .select({
@@ -325,7 +366,7 @@ export async function scanClassifyAndProcessIncremental(
     .where(
       and(
         eq(gdriveFileCache.portcoId, portcoId),
-        eq(gdriveFileCache.mimeType, "application/pdf"),
+        inArray(gdriveFileCache.mimeType, [...PROCESSABLE_MIME_TYPES]),
       ),
     );
 
@@ -336,6 +377,7 @@ export async function scanClassifyAndProcessIncremental(
       classified: 0,
       imsRouted: 0,
       ddRouted: 0,
+      excelRouted: 0,
       skipped: 0,
       failed: 0,
       results: [],
@@ -361,6 +403,7 @@ export async function scanClassifyAndProcessIncremental(
       classified: 0,
       imsRouted: 0,
       ddRouted: 0,
+      excelRouted: 0,
       skipped: cachedPdfs.length,
       failed: 0,
       results: [],
@@ -374,6 +417,7 @@ export async function scanClassifyAndProcessIncremental(
   let classified = 0;
   let imsRouted = 0;
   let ddRouted = 0;
+  let excelRouted = 0;
   let failed = 0;
 
   for (const pdf of newPdfs) {
@@ -481,6 +525,38 @@ export async function scanClassifyAndProcessIncremental(
             error: e instanceof Error ? e.message : "DD processing failed",
           });
         }
+      } else if (fileType === "excel_data") {
+        // Route to Excel translator
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trigger.dev SDK typing requires task type references
+          await (tasks as any).trigger("translate-excel", {
+            fileId: fileRecord.id,
+            portcoId,
+            gdriveFileId: pdf.gdriveFileId,
+          });
+          excelRouted++;
+          results.push({
+            fileName: pdf.fileName,
+            gdriveFileId: pdf.gdriveFileId,
+            parentPath: pdf.parentPath,
+            fileType,
+            confidence,
+            status: "excel_routed",
+            dealId,
+          });
+        } catch (e) {
+          failed++;
+          results.push({
+            fileName: pdf.fileName,
+            gdriveFileId: pdf.gdriveFileId,
+            parentPath: pdf.parentPath,
+            fileType,
+            confidence,
+            status: "failed",
+            dealId,
+            error: e instanceof Error ? e.message : "Excel translate trigger failed",
+          });
+        }
       } else {
         results.push({
           fileName: pdf.fileName,
@@ -512,6 +588,7 @@ export async function scanClassifyAndProcessIncremental(
     classified,
     imsRouted,
     ddRouted,
+    excelRouted,
     skipped: cachedPdfs.length - newPdfs.length,
     failed,
     results,

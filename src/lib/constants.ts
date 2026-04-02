@@ -115,6 +115,7 @@ export const FILE_TYPE_LABELS: Record<string, string> = {
   purchase_agreement: "Purchase Agreement",
   pmi_plan: "PMI Plan",
   pmi_report: "PMI Report",
+  excel_data: "Excel Data",
   other: "Other",
 };
 
@@ -131,6 +132,7 @@ export const FILE_TYPE_BADGE_COLORS: Record<string, string> = {
   nda: "bg-gray-100 text-gray-600 border-gray-200",
   loi: "bg-indigo-100 text-indigo-700 border-indigo-200",
   purchase_agreement: "bg-violet-100 text-violet-700 border-violet-200",
+  excel_data: "bg-teal-100 text-teal-700 border-teal-200",
 };
 
 // ── MIME Type Icons ──
@@ -139,6 +141,7 @@ export const MIME_TYPE_ICONS: Record<string, typeof FileText> = {
   "application/pdf": FileText,
   "application/vnd.google-apps.folder": FolderOpen,
   "application/vnd.google-apps.spreadsheet": FileSpreadsheet,
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": FileSpreadsheet,
   "application/vnd.google-apps.presentation": Presentation,
   "application/vnd.google-apps.document": FileText,
   "image/png": Image,
