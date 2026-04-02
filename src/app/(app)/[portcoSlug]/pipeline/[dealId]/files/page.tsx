@@ -9,6 +9,7 @@ import { ProcessIMButton } from "@/components/deals/process-im-button";
 import { ImportGdriveDialog } from "@/components/deals/import-gdrive-dialog";
 import { FileTypeBadge } from "@/components/files/file-type-badge";
 import { FileExtractionViewer } from "@/components/files/file-extraction-viewer";
+import { ExtractFileButton } from "@/components/files/extract-file-button";
 import { getDeal } from "@/lib/db/cached-queries";
 import { FILE_TYPE_LABELS, FILE_TYPE_BADGE_COLORS } from "@/lib/constants";
 import { formatBytes, formatDateShort } from "@/lib/format";
@@ -168,6 +169,12 @@ export default async function FilesPage({
                           portcoSlug={portcoSlug}
                           fileId={file.id}
                           processingStatus={file.processingStatus}
+                        />
+                      )}
+                      {isPdf && isAdmin && file.fileType !== "im_pdf" && !extractedFileIds.has(file.id) && (
+                        <ExtractFileButton
+                          portcoSlug={portcoSlug}
+                          fileId={file.id}
                         />
                       )}
                       {file.gdriveUrl && (

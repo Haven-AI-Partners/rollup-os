@@ -1,5 +1,6 @@
 import { task, logger, metadata, schedules, tasks, queue } from "@trigger.dev/sdk";
 import { processIM, reprocessAllFiles, processSingleGdriveFile, MODEL_ID } from "@/lib/agents/im-processor";
+import { extractFileContent } from "@/lib/agents/extract-file";
 import { runEval } from "@/lib/agents/im-processor/eval";
 import { scanClassifyAndProcessIncremental } from "@/lib/agents/scan-orchestrator";
 import { processDDDocument } from "@/lib/agents/dd-processor";
@@ -85,6 +86,32 @@ export const processIMTask = task({
       });
     } else {
       logger.error("IM processing failed", { error: result.error });
+    }
+
+    return result;
+  },
+});
+
+/** Extract and translate a file (Agents 1+2 only, no IM analysis) */
+export const extractFileTask = task({
+  id: "extract-file",
+  queue: processingQueue,
+  maxDuration: 300, // 5 minutes
+  retry: {
+    maxAttempts: 2,
+    minTimeoutInMs: 5000,
+    maxTimeoutInMs: 30000,
+    factor: 2,
+  },
+  run: async (payload: { fileId: string; portcoId: string }) => {
+    logger.info("Extracting file content", { fileId: payload.fileId });
+
+    const result = await extractFileContent(payload.fileId, payload.portcoId);
+
+    if (result.success) {
+      logger.info("File extraction completed", { fileId: payload.fileId });
+    } else {
+      logger.error("File extraction failed", { error: result.error });
     }
 
     return result;

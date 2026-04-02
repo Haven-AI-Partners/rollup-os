@@ -153,6 +153,31 @@ export async function scanGdriveFolder(portcoSlug: string) {
 }
 
 /**
+ * Extract and translate a file (Agents 1+2 only, no IM analysis).
+ * Works for any PDF — DD docs, attachments, etc.
+ */
+export async function extractFile(portcoSlug: string, fileId: string) {
+  const portco = await getPortcoBySlug(portcoSlug);
+  if (!portco) throw new Error("PortCo not found");
+  await requirePortcoRole(portco.id, "analyst");
+
+  const [file] = await db
+    .select({ id: files.id, portcoId: files.portcoId })
+    .from(files)
+    .where(eq(files.id, fileId))
+    .limit(1);
+
+  if (!file) throw new Error("File not found");
+
+  const handle = await triggerTask("extract-file", {
+    fileId: file.id,
+    portcoId: portco.id,
+  });
+
+  return { triggered: true, runId: handle.id };
+}
+
+/**
  * Reprocess all previously completed IM files.
  * Useful after scoring rubric or red flag definition changes.
  */
