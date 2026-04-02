@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import ExcelJS from "exceljs";
 
 const mockRequireAuth = vi.hoisted(() => vi.fn());
