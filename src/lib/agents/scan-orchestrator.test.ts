@@ -175,6 +175,75 @@ describe("scan-orchestrator", () => {
       }));
     });
 
+    it("classifies and routes Excel files correctly", async () => {
+      const crawledFiles = [
+        { id: "gf-xlsx", name: "財務データ.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", parentPath: "Root/Data", size: "3000", webViewLink: "https://drive.google.com/file/xlsx" },
+      ];
+      mockCrawlAndSyncFiles.mockResolvedValue({ files: crawledFiles });
+
+      // DB call 0: dedup query - no existing
+      // DB call 1: matchDeal "Root" - no match
+      // DB call 2: matchDeal "Data" - no match
+      // DB call 3: insert file record
+      dbResolvedValues = [
+        [],
+        [],
+        [],
+        [{ id: "file-xlsx-001" }],
+      ];
+
+      mockClassifyFile.mockResolvedValue({
+        fileType: "excel_data",
+        confidence: 0.85,
+        tier: "rules",
+        suggestedCompanyName: null,
+      });
+      mockTasksTrigger.mockResolvedValue({ id: "run-excel-001" });
+
+      const { scanClassifyAndProcess } = await import("./scan-orchestrator");
+      const result = await scanClassifyAndProcess("portco-001");
+
+      expect(result.newFiles).toBe(1);
+      expect(result.classified).toBe(1);
+      expect(result.excelRouted).toBe(1);
+      expect(result.results[0].status).toBe("excel_routed");
+      expect(result.results[0].fileType).toBe("excel_data");
+      expect(mockTasksTrigger).toHaveBeenCalledWith("translate-excel", expect.objectContaining({
+        fileId: "file-xlsx-001",
+        portcoId: "portco-001",
+        gdriveFileId: "gf-xlsx",
+      }));
+    });
+
+    it("handles Excel trigger failure gracefully", async () => {
+      const crawledFiles = [
+        { id: "gf-xlsx-fail", name: "data.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", parentPath: "Root", size: "2000", webViewLink: null },
+      ];
+      mockCrawlAndSyncFiles.mockResolvedValue({ files: crawledFiles });
+
+      dbResolvedValues = [
+        [],
+        [],
+        [{ id: "file-xlsx-002" }],
+      ];
+
+      mockClassifyFile.mockResolvedValue({
+        fileType: "excel_data",
+        confidence: 0.8,
+        tier: "rules",
+        suggestedCompanyName: null,
+      });
+      mockTasksTrigger.mockRejectedValue(new Error("Queue full"));
+
+      const { scanClassifyAndProcess } = await import("./scan-orchestrator");
+      const result = await scanClassifyAndProcess("portco-001");
+
+      expect(result.excelRouted).toBe(0);
+      expect(result.failed).toBe(1);
+      expect(result.results[0].status).toBe("failed");
+      expect(result.results[0].error).toBe("Queue full");
+    });
+
     it("handles classification failures gracefully", async () => {
       const crawledFiles = [
         { id: "gf-fail", name: "Corrupt.pdf", mimeType: "application/pdf", parentPath: "Root", size: "100", webViewLink: "https://drive.google.com/file/fail" },

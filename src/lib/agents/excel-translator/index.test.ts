@@ -28,6 +28,7 @@ vi.mock("./prompt", () => ({
 
 import {
   containsCJK,
+  isTranslatable,
   collectTranslatableCells,
   batchCells,
   translateExcelFile,
@@ -64,6 +65,57 @@ describe("containsCJK", () => {
 
   it("returns false for empty string", () => {
     expect(containsCJK("")).toBe(false);
+  });
+});
+
+describe("isTranslatable", () => {
+  it("returns false for boolean cells", () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Sheet1");
+    sheet.getCell("A1").value = true;
+    expect(isTranslatable(sheet.getCell("A1"))).toBe(false);
+  });
+
+  it("returns false for date cells", () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Sheet1");
+    sheet.getCell("A1").value = new Date("2024-01-01");
+    expect(isTranslatable(sheet.getCell("A1"))).toBe(false);
+  });
+
+  it("returns false for number cells", () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Sheet1");
+    sheet.getCell("A1").value = 42;
+    expect(isTranslatable(sheet.getCell("A1"))).toBe(false);
+  });
+
+  it("returns false for formula cells", () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Sheet1");
+    sheet.getCell("A1").value = { formula: "SUM(B1:B10)", result: 100 };
+    expect(isTranslatable(sheet.getCell("A1"))).toBe(false);
+  });
+
+  it("returns false for null cells", () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Sheet1");
+    sheet.getCell("A1").value = null;
+    expect(isTranslatable(sheet.getCell("A1"))).toBe(false);
+  });
+
+  it("returns true for CJK string cells", () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Sheet1");
+    sheet.getCell("A1").value = "日本語テスト";
+    expect(isTranslatable(sheet.getCell("A1"))).toBe(true);
+  });
+
+  it("returns false for ASCII-only string cells", () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Sheet1");
+    sheet.getCell("A1").value = "English text";
+    expect(isTranslatable(sheet.getCell("A1"))).toBe(false);
   });
 });
 
@@ -238,5 +290,46 @@ describe("translateExcelFile", () => {
     await expect(
       translateExcelFile("portco-1", "file-1", "gdrive-1"),
     ).rejects.toThrow("Failed to download file from GDrive");
+  });
+
+  it("throws when LLM translation fails", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Sheet1");
+    sheet.getCell("A1").value = "テスト";
+
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    mockDownloadFile.mockResolvedValue(buffer);
+
+    mockGenerateObject.mockRejectedValueOnce(new Error("API rate limit"));
+
+    await expect(
+      translateExcelFile("portco-1", "file-1", "gdrive-1"),
+    ).rejects.toThrow("Translation batch failed: API rate limit");
+  });
+
+  it("collects cells across multiple sheets", async () => {
+    const workbook = new ExcelJS.Workbook();
+    workbook.addWorksheet("Sheet1").getCell("A1").value = "データ";
+    workbook.addWorksheet("Sheet2").getCell("A1").value = "結果";
+
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    mockDownloadFile.mockResolvedValue(buffer);
+
+    mockGenerateObject
+      .mockResolvedValueOnce({
+        object: {
+          cells: [
+            { id: 0, translated: "Data" },
+            { id: 1, translated: "Results" },
+          ],
+        },
+      })
+      // No sheet names to translate (ASCII)
+      ;
+
+    const result = await translateExcelFile("portco-1", "file-1", "gdrive-1");
+
+    expect(result.cellsTranslated).toBe(2);
+    expect(result.sheetsProcessed).toBe(2);
   });
 });
